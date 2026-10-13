@@ -1,0 +1,230 @@
+/* The island lives in a transparent window pinned to the top of the screen; only the
+   black shape is drawn. Its top edge is the screen's edge, so it reads as part of the notch. */
+
+html.mode-island, html.mode-island body { background: transparent; }
+html.mode-island #app { display: block; padding: 0; height: 100%; }
+
+.isle {
+  --notch-w: 190px;
+  --notch-h: 34px;
+  --ear: 50px;
+  --mood: #17274f;
+  --w: calc(var(--notch-w) + var(--ear) * 2);
+  --h: var(--notch-h);
+  --r: 13px;
+  position: absolute;
+  inset: 0 0 auto 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  font-size: 12px;
+}
+.isle.quiet { --ear: 0px; }
+.isle[data-state='peek'] { --ear: 132px; --r: 16px; }
+.isle[data-state='expanded'] { --w: 664px; --h: calc(var(--notch-h) + 292px); --r: 34px; }
+
+.isle-shape {
+  position: relative;
+  width: var(--w);
+  height: var(--h);
+  background: #000;
+  border-radius: 0 0 var(--r) var(--r);
+  pointer-events: auto;
+  /* Opening overshoots a little, like something with weight; closing just closes. */
+  transition:
+    width 560ms cubic-bezier(0.3, 1.36, 0.5, 1),
+    height 560ms cubic-bezier(0.3, 1.36, 0.5, 1),
+    border-radius 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 500ms ease;
+  will-change: width, height;
+}
+.isle[data-state='collapsed'] .isle-shape { transition-duration: 380ms, 380ms, 320ms, 300ms; transition-timing-function: cubic-bezier(0.32, 0.72, 0.2, 1); }
+.isle[data-state='expanded'] .isle-shape {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 26px 60px -12px rgba(0, 0, 0, 0.75),
+    0 40px 110px -30px color-mix(in srgb, var(--mood) 85%, transparent);
+}
+/* The little concave shoulders where the tab meets the top of the screen. */
+.isle-shape::before, .isle-shape::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 9px;
+  height: 9px;
+  background: radial-gradient(circle at 0 100%, transparent 8.5px, #000 9px);
+}
+.isle-shape::before { right: 100%; transform: scaleX(-1); }
+.isle-shape::after { left: 100%; }
+
+/* ---------- at rest and while peeking ---------- */
+
+.ear {
+  position: absolute;
+  top: 0;
+  height: var(--notch-h);
+  width: var(--ear);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px 0 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  color: #f3f5fa;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  transition: opacity 220ms ease, width 420ms cubic-bezier(0.3, 1.36, 0.5, 1);
+}
+.ear.left { left: 0; }
+.ear.right { right: 0; justify-content: flex-end; padding: 0 12px 0 10px; }
+.isle[data-state='expanded'] .ear { opacity: 0; transition-duration: 120ms; }
+.ear-icon { color: var(--c); filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c) 70%, transparent)); flex: none; }
+.ear-text { overflow: hidden; text-overflow: ellipsis; }
+.ear-text.strong { color: color-mix(in srgb, var(--mood) 35%, #fff); }
+.ear > * { animation: ear-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes ear-in { from { opacity: 0; transform: scale(0.6); filter: blur(4px); } }
+
+/* ---------- open ---------- */
+
+.isle-body {
+  position: absolute;
+  inset: 0;
+  width: 664px;
+  left: 50%;
+  margin-left: -332px;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  transform: scale(0.94);
+  transform-origin: 50% 0;
+  filter: blur(10px);
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 200ms ease, filter 160ms ease;
+}
+.isle[data-state='expanded'] .isle-body {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  pointer-events: auto;
+  transition: opacity 300ms ease 130ms, transform 520ms cubic-bezier(0.22, 1, 0.36, 1) 90ms, filter 320ms ease 110ms;
+}
+
+.isle-head {
+  flex: none;
+  height: var(--notch-h);
+  display: grid;
+  grid-template-columns: 1fr var(--notch-w) 1fr;
+  align-items: center;
+  padding: 0 14px 0 16px;
+  color: var(--muted);
+}
+.isle-title { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12.5px; }
+.isle-title b { color: var(--text); font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.isle-badge { color: color-mix(in srgb, var(--mood) 40%, #fff); display: grid; }
+.isle-right { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; }
+.isle-status { display: flex; align-items: center; gap: 5px; white-space: nowrap; font-size: 12px; }
+.isle-status b { color: var(--text); font-weight: 600; }
+.isle-status .dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 8px #4ade80; margin-right: 2px; }
+.isle-power {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--muted);
+  transition: background 200ms, color 200ms, transform 260ms var(--spring), box-shadow 300ms;
+}
+.isle-power:active { transform: scale(0.88); }
+.isle-power.on { background: linear-gradient(180deg, #5aa2ff, #2f7bf2); color: #fff; box-shadow: 0 4px 14px -3px rgba(61, 139, 255, 0.8); }
+
+.isle-main { flex: 1; min-height: 0; display: grid; grid-template-columns: 286px 1fr; gap: 6px; padding: 2px 14px 14px 8px; }
+
+.isle-stage { position: relative; min-height: 0; }
+.isle-stage canvas {
+  width: 100%; height: 100%; display: block; outline: none;
+  /* The model floats in the black of the island: no edge of the canvas may show. */
+  -webkit-mask-image: radial-gradient(closest-side, #000 66%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 66%, transparent 100%);
+}
+
+.isle-side { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 9px; }
+
+.isle-scenes { flex: none; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+.isle-scene {
+  height: 50px; border-radius: 15px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  font-size: 10.5px; font-weight: 600; color: var(--muted);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: transform 300ms var(--spring), background 220ms, color 220ms, border-color 220ms, box-shadow 300ms;
+}
+.isle-scene span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px; }
+@media (hover: hover) { .isle-scene:hover { background: rgba(255, 255, 255, 0.12); color: var(--text); } }
+.isle-scene:active { transform: scale(0.93); }
+.isle-scene.active {
+  color: #fff;
+  background: linear-gradient(180deg, rgba(88, 150, 255, 0.4), rgba(61, 139, 255, 0.16));
+  border-color: rgba(120, 175, 255, 0.55);
+  box-shadow: 0 8px 20px -10px rgba(61, 139, 255, 0.9);
+}
+.isle-scene.active .icon { color: #a9cbff; }
+
+.isle-list {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 44px; gap: 6px;
+  overflow-y: auto; scrollbar-width: none;
+  margin-bottom: -14px; padding-bottom: 14px;
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 26px), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 26px), transparent 100%);
+}
+.isle-list::-webkit-scrollbar { display: none; }
+
+.chip {
+  --c: var(--warm);
+  position: relative;
+  min-width: 0;
+  border-radius: 14px;
+  padding: 0 9px;
+  display: flex; align-items: center; gap: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: transform 300ms var(--spring), background 240ms, border-color 240ms, box-shadow 320ms;
+}
+.chip.ac { grid-column: 1 / -1; gap: 6px; }
+@media (hover: hover) { .chip.light:hover { background: rgba(255, 255, 255, 0.12); } }
+.chip.pressed { transform: scale(0.96); }
+.chip.dimmable { cursor: ew-resize; }
+.chip.on {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c) 30%, transparent), color-mix(in srgb, var(--c) 9%, transparent));
+  border-color: color-mix(in srgb, var(--c) 44%, transparent);
+  box-shadow: 0 10px 22px -16px var(--c);
+}
+.chip-bubble {
+  flex: none; width: 28px; height: 28px; border-radius: 10px;
+  display: grid; place-items: center;
+  color: var(--muted); background: rgba(255, 255, 255, 0.08);
+  transition: background 240ms, color 240ms, box-shadow 320ms;
+}
+.chip.on .chip-bubble { color: #241503; background: var(--c); box-shadow: 0 0 16px -3px var(--c); }
+.chip.ac.on .chip-bubble { color: #06162c; }
+.chip-text { flex: 1; min-width: 0; }
+.chip-name { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip-sub { margin-top: 1px; font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.chip.on .chip-sub { color: color-mix(in srgb, var(--c) 55%, #fff); }
+.chip-level {
+  position: absolute; left: 0; bottom: 0; height: 2.5px; width: 100%;
+  transform-origin: left; transform: scaleX(var(--level, 0));
+  background: var(--c); opacity: 0;
+  transition: transform 240ms var(--ease), opacity 240ms;
+}
+.chip.on.dimmable .chip-level { opacity: 0.9; }
+.chip-step, .chip-power {
+  flex: none; width: 24px; height: 24px; border-radius: 8px;
+  display: grid; place-items: center; color: var(--muted);
+  transition: background 180ms, color 180ms, transform 240ms var(--spring), box-shadow 300ms;
+}
+@media (hover: hover) { .chip-step:hover { background: rgba(255, 255, 255, 0.14); color: var(--text); } }
+.chip-step:active, .chip-power:active { transform: scale(0.86); }
+.chip-value { min-width: 30px; text-align: center; font-size: 14px; font-weight: 650; color: var(--text); font-variant-numeric: tabular-nums; }
+.chip.ac:not(.on) .chip-value { color: var(--faint); }
+.chip-power { border-radius: 50%; margin-left: 2px; background: rgba(255, 255, 255, 0.1); }
+.chip.ac.on .chip-power { background: var(--c); color: #06162c; box-shadow: 0 0 14px -4px var(--c); }

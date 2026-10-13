@@ -200,7 +200,7 @@ html.native .card { width: auto; height: auto; box-shadow:
   color: var(--muted);
   transition: transform 260ms var(--spring), background 200ms, color 200ms, box-shadow 300ms;
 }
-.round:hover { background: rgba(255, 255, 255, 0.16); color: var(--text); }
+@media (hover: hover) { .round:hover { background: rgba(255, 255, 255, 0.16); color: var(--text); } }
 .round:active { transform: scale(0.9); }
 
 .power {
@@ -213,7 +213,7 @@ html.native .card { width: auto; height: auto; box-shadow:
   color: #fff;
   box-shadow: 0 8px 22px -4px rgba(61, 139, 255, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
 }
-.power.on:hover { background: linear-gradient(180deg, #6aacff, #3a85f8); }
+@media (hover: hover) { .power.on:hover { background: linear-gradient(180deg, #6aacff, #3a85f8); } }
 
 .top .round { transition: transform 260ms var(--spring), background 200ms, color 200ms, box-shadow 300ms, opacity 220ms; }
 .card.detail .top .round { opacity: 0; transform: scale(0.8); pointer-events: none; }
@@ -259,7 +259,7 @@ html.native .card { width: auto; height: auto; box-shadow:
   -webkit-backdrop-filter: blur(18px);
   transition: transform 300ms var(--spring), background 220ms, color 220ms, border-color 220ms, box-shadow 300ms;
 }
-.scene:hover { background: var(--glass-hi); color: var(--text); }
+@media (hover: hover) { .scene:hover { background: var(--glass-hi); color: var(--text); } }
 .scene:active { transform: scale(0.94); }
 .scene.active {
   color: #fff;
@@ -294,7 +294,7 @@ html.native .card { width: auto; height: auto; box-shadow:
   border: 1px solid transparent;
   transition: background 220ms, color 220ms, border-color 220ms, transform 260ms var(--spring);
 }
-.room:hover { color: var(--text); background: var(--glass); }
+@media (hover: hover) { .room:hover { color: var(--text); background: var(--glass); } }
 .room:active { transform: scale(0.95); }
 .room.active { color: var(--text); background: var(--glass-hi); border-color: var(--line); }
 .room .count {
@@ -324,7 +324,7 @@ html.native .card { width: auto; height: auto; box-shadow:
   background: var(--glass); border: 1px solid var(--line);
   transition: background 200ms, color 200ms, transform 260ms var(--spring);
 }
-.pill:hover { background: var(--glass-hi); color: var(--text); }
+@media (hover: hover) { .pill:hover { background: var(--glass-hi); color: var(--text); } }
 .pill:active { transform: scale(0.93); }
 
 .devices {
@@ -374,7 +374,7 @@ html.native .card { width: auto; height: auto; box-shadow:
 @keyframes tile-in {
   from { opacity: 0; transform: translateY(10px) scale(0.97); }
 }
-.tile:hover { background: var(--glass-hi); }
+@media (hover: hover) { .tile:hover { background: var(--glass-hi); } }
 .tile.pressed { transform: scale(0.96); }
 .tile.on {
   background: linear-gradient(135deg, color-mix(in srgb, var(--c) 26%, transparent), color-mix(in srgb, var(--c) 8%, transparent));
@@ -410,8 +410,9 @@ html.native .card { width: auto; height: auto; box-shadow:
   opacity: 0;
   transition: opacity 180ms, background 180ms, color 180ms;
 }
-.tile:hover .tile-more, .tile-more:focus-visible { opacity: 1; }
-.tile-more:hover { background: rgba(255, 255, 255, 0.12); color: var(--text); }
+.tile-more:focus-visible { opacity: 1; }
+@media (hover: hover) { .tile:hover .tile-more { opacity: 1; } }
+@media (hover: hover) { .tile-more:hover { background: rgba(255, 255, 255, 0.12); color: var(--text); } }
 
 .tile-level {
   position: absolute;
@@ -435,7 +436,7 @@ html.native .card { width: auto; height: auto; box-shadow:
   display: grid; place-items: center; color: var(--muted);
   transition: background 180ms, color 180ms, transform 240ms var(--spring);
 }
-.stepper button:hover { background: rgba(255, 255, 255, 0.12); color: var(--text); }
+@media (hover: hover) { .stepper button:hover { background: rgba(255, 255, 255, 0.12); color: var(--text); } }
 .stepper button:active { transform: scale(0.86); }
 .stepper .value { min-width: 38px; text-align: center; font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .tile.ac:not(.on) .stepper .value { color: var(--faint); }
@@ -447,7 +448,7 @@ html.native .card { width: auto; height: auto; box-shadow:
   color: var(--muted);
   transition: background 220ms, color 220ms, transform 260ms var(--spring), box-shadow 300ms;
 }
-.mini-power:hover { background: rgba(255, 255, 255, 0.16); color: var(--text); }
+@media (hover: hover) { .mini-power:hover { background: rgba(255, 255, 255, 0.16); color: var(--text); } }
 .mini-power:active { transform: scale(0.88); }
 .tile.ac.on .mini-power { background: var(--c); color: #06162c; box-shadow: 0 0 18px -4px var(--c); }
 
@@ -504,7 +505,7 @@ html.native .card { width: auto; height: auto; box-shadow:
   background: var(--glass); border: 1px solid var(--line);
   transition: background 220ms, border-color 220ms;
 }
-.toggle-chip:hover { background: var(--glass-hi); }
+@media (hover: hover) { .toggle-chip:hover { background: var(--glass-hi); } }
 .toggle-chip .icon { color: var(--muted); transition: color 220ms; }
 .toggle-chip.on .icon { color: #6ee7a0; }
 .switch { width: 38px; height: 23px; border-radius: 12px; background: rgba(255, 255, 255, 0.16); position: relative; transition: background 240ms; }
@@ -576,7 +577,7 @@ html.native .card { width: auto; height: auto; box-shadow:
   border: 1px solid var(--line);
   transition: background 220ms, border-color 220ms, transform 300ms var(--spring), box-shadow 300ms;
 }
-.option:hover { background: var(--glass-hi); }
+@media (hover: hover) { .option:hover { background: var(--glass-hi); } }
 .option:active { transform: scale(0.95); }
 .option.open, .option.active {
   background: linear-gradient(180deg, rgba(88, 150, 255, 0.26), rgba(61, 139, 255, 0.1));
@@ -613,7 +614,7 @@ html.native .card { width: auto; height: auto; box-shadow:
   font-size: 13px; font-weight: 500; color: var(--muted); text-align: left;
   transition: background 140ms, color 140ms;
 }
-.menu button:hover { background: rgba(255, 255, 255, 0.08); color: var(--text); }
+@media (hover: hover) { .menu button:hover { background: rgba(255, 255, 255, 0.08); color: var(--text); } }
 .menu button.selected { background: rgba(70, 130, 255, 0.28); color: #fff; font-weight: 650; }
 .menu button.selected .icon { color: #8fbcff; }
 .menu hr { border: 0; height: 1px; margin: 5px 8px; background: var(--line); }
@@ -654,10 +655,92 @@ html.native .card { width: auto; height: auto; box-shadow:
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
   transition: transform 260ms var(--spring), border-color 200ms, box-shadow 260ms;
 }
-.swatch:hover { transform: translateY(-2px); }
+@media (hover: hover) { .swatch:hover { transform: translateY(-2px); } }
 .swatch.selected { border-color: #fff; box-shadow: 0 6px 18px -4px var(--sw); }
 
 .sheet-note { margin-top: auto; padding: 12px 14px; border-radius: 16px; background: var(--glass); border: 1px solid var(--line); font-size: 12px; line-height: 1.45; color: var(--muted); display: flex; gap: 10px; align-items: center; }
+
+/* ---------- iPhone ---------- */
+/* The same panel fills the whole screen: no card, no notch, safe areas respected,
+   and controls sized for a thumb instead of a pointer. */
+
+html.ios, html.ios body { background: var(--bg); }
+html.ios * { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+html.ios #app { padding: 0; place-items: stretch; }
+html.ios .card {
+  --stage-h: min(470px, 52%);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  box-shadow: none;
+}
+html.ios .card-clip { border-radius: 0; box-shadow: none; }
+html.ios .notch { display: none; }
+
+html.ios .top { padding: calc(var(--safe-top) + 6px) 18px 0 20px; }
+html.ios .stage::after { height: calc(var(--safe-top) + 96px); }
+html.ios .home-badge { width: 38px; height: 38px; border-radius: 12px; }
+html.ios .home-name { font-size: 18px; }
+html.ios .home-sub { font-size: 13px; }
+html.ios .round { width: 42px; height: 42px; }
+html.ios .power { width: 50px; height: 50px; }
+
+html.ios .panel { padding: 0 16px; }
+html.ios .sheet { padding: 0 20px calc(var(--safe-bottom) + 14px); }
+html.ios .scene { height: 68px; border-radius: 20px; font-size: 12.5px; }
+html.ios .room { height: 38px; padding: 0 15px; font-size: 14px; }
+html.ios .list-head { font-size: 13px; margin: 12px 4px 10px; }
+html.ios .pill { height: 32px; padding: 0 14px; font-size: 13px; }
+html.ios .devices {
+  margin: 0 -16px;
+  padding: 0 16px calc(var(--safe-bottom) + 18px);
+  overscroll-behavior: contain;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 10px, #000 calc(100% - 30px), transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0, #000 10px, #000 calc(100% - 30px), transparent 100%);
+}
+html.ios .grid { gap: 10px; }
+html.ios .group-label { font-size: 11.5px; margin-top: 10px; }
+html.ios .tile { height: 76px; border-radius: 22px; padding: 0 13px; }
+html.ios .bubble { width: 42px; height: 42px; border-radius: 14px; }
+html.ios .tile-name { font-size: 14.5px; }
+html.ios .tile-sub { font-size: 12.5px; }
+html.ios .grid-hint { grid-column: 1 / -1; margin: 10px 4px 0; text-align: center; font-size: 12.5px; color: var(--faint); }
+html.ios .tile.dimmable { touch-action: pan-y; }
+html.ios .stepper button { width: 36px; height: 38px; border-radius: 12px; }
+html.ios .stepper .value { font-size: 18px; min-width: 40px; }
+html.ios .mini-power { width: 40px; height: 40px; }
+
+html.ios .sheet-name { font-size: 18px; }
+html.ios .sheet-sub { font-size: 13px; }
+html.ios .big { font-size: 84px; }
+html.ios .big small { font-size: 22px; }
+html.ios .slider-row { margin-top: 22px; }
+html.ios .slider-row .round { width: 46px; height: 46px; }
+html.ios .slider-track, html.ios .slider-thumb { height: 52px; border-radius: 17px; }
+html.ios .slider-thumb { width: 52px; }
+html.ios .slider-fill { width: calc(var(--p) * (100% - 52px) + 52px); border-radius: 17px; }
+html.ios .slider-thumb { left: calc(var(--p) * (100% - 52px)); }
+html.ios .slider-thumb::after { inset: 17px 24px; }
+html.ios .slider.compact .slider-track, html.ios .slider.compact .slider-thumb { height: 44px; }
+html.ios .slider.compact .slider-thumb::after { inset: 13px 24px; }
+html.ios .slider-scale, html.ios .field-label { font-size: 13px; }
+html.ios .field-label { margin-top: 18px; }
+html.ios .option { height: 108px; border-radius: 22px; padding: 14px 12px; }
+html.ios .option-label { font-size: 13px; }
+html.ios .option-value { font-size: 14.5px; }
+html.ios .toggle-chip { height: 48px; font-size: 14px; }
+html.ios .pad { max-height: 150px; border-radius: 18px; }
+html.ios .swatch { height: 36px; border-radius: 12px; }
+html.ios .swatches { margin-top: 12px; }
+html.ios .sheet-note { font-size: 13px; }
+html.ios .menu { min-width: 190px; border-radius: 20px; }
+html.ios .menu button { height: 46px; font-size: 15px; border-radius: 14px; }
+html.ios .menu button:active { background: rgba(255, 255, 255, 0.1); color: var(--text); }
+html.ios .panel-toast { bottom: calc(var(--safe-bottom) + 14px); font-size: 13.5px; }
+html.ios .tooltip { display: none; }
+html.ios .fatal { margin: calc(env(safe-area-inset-top, 0px) + 20px) 16px 0; width: auto; }
 
 /* ---------- boot / error ---------- */
 

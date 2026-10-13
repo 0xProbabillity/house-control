@@ -16,8 +16,10 @@ const clamp = THREE.MathUtils.clamp;
 const ORBIT_AZ = 40;       // degrees of freedom either side of the plan's default view
 const EL_MIN = 26;
 const EL_MAX = 70;
+const ZOOM_MIN = 0.55;     // closest
+const ZOOM_MAX = 1.2;
 
-export function createWorld(canvas, config, store, { onHover, onPick }) {
+export function createWorld(canvas, config, store, { onHover, onPick, background = STAGE_BG }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -27,7 +29,7 @@ export function createWorld(canvas, config, store, { onHover, onPick }) {
   renderer.shadowMap.autoUpdate = false; // the model is static: shadow maps are rendered once
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(STAGE_BG);
+  scene.background = new THREE.Color(background);
 
   const camera = new THREE.PerspectiveCamera(24, 1, 0.5, 120);
 
@@ -227,11 +229,36 @@ export function createWorld(canvas, config, store, { onHover, onPick }) {
     wake();
   }
 
+  // Two fingers pinch to zoom, the way the scroll wheel does with a mouse.
+  const fingers = new Map();
+  let pinch = null;
+  const spread = () => {
+    const [a, b] = [...fingers.values()];
+    return Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+  };
+
   canvas.addEventListener('pointerdown', (ev) => {
     canvas.setPointerCapture(ev.pointerId);
+    fingers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    if (fingers.size === 2) {
+      pinch = { spread: spread(), zoom: rig.zoom };
+      drag = null;
+      setHover(null);
+      return;
+    }
+    if (fingers.size > 2) return;
     drag = { x: ev.clientX, y: ev.clientY, az: rig.goal.az, el: rig.goal.el, moved: false };
   });
   canvas.addEventListener('pointermove', (ev) => {
+    if (fingers.has(ev.pointerId)) fingers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    if (pinch) {
+      if (fingers.size >= 2) {
+        rig.zoom = clamp(pinch.zoom * pinch.spread / spread(), ZOOM_MIN, ZOOM_MAX);
+        frameGoal();
+        wake();
+      }
+      return;
+    }
     if (drag) {
       const dx = ev.clientX - drag.x;
       const dy = ev.clientY - drag.y;
@@ -247,6 +274,8 @@ export function createWorld(canvas, config, store, { onHover, onPick }) {
     setHover(pick(ev));
   });
   const release = (ev) => {
+    fingers.delete(ev.pointerId);
+    if (pinch) { if (!fingers.size) pinch = null; return; } // lifting after a pinch picks nothing
     if (!drag) return;
     const wasDrag = drag.moved;
     drag = null;
@@ -259,11 +288,15 @@ export function createWorld(canvas, config, store, { onHover, onPick }) {
     wake();
   };
   canvas.addEventListener('pointerup', release);
-  canvas.addEventListener('pointercancel', () => { drag = null; });
+  canvas.addEventListener('pointercancel', (ev) => {
+    fingers.delete(ev.pointerId);
+    if (!fingers.size) pinch = null;
+    drag = null;
+  });
   canvas.addEventListener('pointerleave', () => { if (!drag) setHover(null); });
   canvas.addEventListener('wheel', (ev) => {
     ev.preventDefault();
-    rig.zoom = clamp(rig.zoom * Math.exp(ev.deltaY * 0.0015), 0.55, 1.2);
+    rig.zoom = clamp(rig.zoom * Math.exp(ev.deltaY * 0.0015), ZOOM_MIN, ZOOM_MAX);
     frameGoal();
     wake();
   }, { passive: false });

@@ -57,6 +57,9 @@ export function createStore(config) {
     if (change.type !== 'tick') {
       persist();
       post('summary', summary());
+      // The native shell passes this on to its other views of the same home (the panel
+      // and the island each run their own store), which adopt it without re-sending.
+      if (!change.adopted) post('state', { lights: state.lights, acs: state.acs, scene: state.scene });
     }
   }
 
@@ -210,6 +213,17 @@ export function createStore(config) {
       }
       state.scene = sceneId;
       emit({ type: 'bulk', scene: sceneId });
+    },
+
+    // The state of another view of this home (see emit). Nothing goes to the devices:
+    // the view where the change was made has already sent it.
+    adopt(other) {
+      let any = false;
+      for (const [id, s] of Object.entries(other.lights || {})) any = writeLight(id, s, { remote: true }) || any;
+      for (const [id, s] of Object.entries(other.acs || {})) any = writeAC(id, s, { remote: true }) || any;
+      const scene = other.scene ?? null;
+      if (scene !== state.scene) { state.scene = scene; any = true; }
+      if (any) emit({ type: 'bulk', remote: true, adopted: true });
     },
 
     // State reported by real devices (native provider). Never echoed back as a command.

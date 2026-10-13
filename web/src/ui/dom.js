@@ -1,3 +1,5 @@
+import { haptic } from '../bridge.js';
+
 // Minimal hyperscript helper: h('div.class', { onclick, style, ... }, ...children)
 export function h(spec, props, ...children) {
   const [tag, ...classes] = spec.split('.');
@@ -24,7 +26,8 @@ export function h(spec, props, ...children) {
 export const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
 // Horizontal slider with a gradient fill that reveals under a chunky thumb.
-export function createSlider({ min, max, step = 1, value, gradient, compact = false, labels, onInput }) {
+// `detent` is how far the value travels between two haptic ticks on a phone.
+export function createSlider({ min, max, step = 1, value, gradient, compact = false, labels, onInput, detent = step }) {
   const fill = h('div.slider-fill');
   const thumb = h('div.slider-thumb');
   const track = h('div.slider-track', { vars: { '--gradient': gradient } }, fill, thumb);
@@ -32,6 +35,14 @@ export function createSlider({ min, max, step = 1, value, gradient, compact = fa
     labels ? h('div.slider-scale', h('span', labels[0]), h('span', labels[1])) : null);
 
   let current = value;
+  let notch = Math.round(value / detent);
+  const input = (next) => {
+    current = next;
+    paint();
+    const at = Math.round(next / detent);
+    if (at !== notch) { notch = at; haptic('tick'); }
+    onInput(current);
+  };
   const paint = () => {
     el.style.setProperty('--p', String(clamp((current - min) / (max - min), 0, 1)));
   };
@@ -49,12 +60,12 @@ export function createSlider({ min, max, step = 1, value, gradient, compact = fa
     track.setPointerCapture(ev.pointerId);
     el.classList.add('dragging');
     const next = fromEvent(ev);
-    if (next !== current) { current = next; paint(); onInput(current); }
+    if (next !== current) input(next);
   });
   track.addEventListener('pointermove', (ev) => {
     if (!el.classList.contains('dragging')) return;
     const next = fromEvent(ev);
-    if (next !== current) { current = next; paint(); onInput(current); }
+    if (next !== current) input(next);
   });
   const end = () => el.classList.remove('dragging');
   track.addEventListener('pointerup', end);
@@ -63,7 +74,7 @@ export function createSlider({ min, max, step = 1, value, gradient, compact = fa
   paint();
   return {
     el,
-    set(v) { if (v !== current && !el.classList.contains('dragging')) { current = v; paint(); } },
+    set(v) { if (v !== current && !el.classList.contains('dragging')) { current = v; notch = Math.round(v / detent); paint(); } },
   };
 }
 

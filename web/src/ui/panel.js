@@ -6,6 +6,7 @@ import { icon } from './icons.js';
 import { lightColor } from '../three/lights.js';
 import { MODE_COLORS } from '../three/ac.js';
 import { AC_SWINGS } from '../store.js';
+import { haptic, isPhone } from '../bridge.js';
 
 const MODE_LABEL = { cool: 'Cool', heat: 'Heat', dry: 'Dry', fan: 'Fan', auto: 'Auto' };
 const FAN_LABEL = { auto: 'Auto', low: 'Low', medium: 'Medium', high: 'High', turbo: 'Turbo' };
@@ -73,7 +74,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
 
   const sceneButtons = new Map();
   for (const s of config.scenes) {
-    const b = h('button.scene', { onclick: () => store.applyScene(s.id) }, icon(s.icon, 19), s.name);
+    const b = h('button.scene', { onclick: () => { haptic('medium'); store.applyScene(s.id); } }, icon(s.icon, 19), s.name);
     sceneButtons.set(s.id, b);
     scenes.append(b);
   }
@@ -84,7 +85,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   const roomButtons = new Map();
   for (const r of [{ id: 'all', name: 'All' }, ...config.rooms]) {
     const count = h('span.count.zero', '0');
-    const b = h('button.room', { onclick: () => selectRoom(r.id) }, r.name, count);
+    const b = h('button.room', { onclick: () => { haptic('tick'); selectRoom(r.id); } }, r.name, count);
     roomButtons.set(r.id, { b, count });
     rooms.append(b);
   }
@@ -103,11 +104,13 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   }
 
   function bulk(on) {
+    haptic('medium');
     if (ui.room === 'all') { store.setAllLights(on); return; }
     for (const l of config.lights) if (l.room === ui.room) store.setLight(l.id, { on });
   }
 
   function toggleEverything() {
+    haptic('heavy');
     const anyOn = Object.values(state.lights).some((l) => l.on) || Object.values(state.acs).some((a) => a.on);
     if (anyOn) {
       store.setAllLights(false);
@@ -125,7 +128,8 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     const dimmable = cfg.capabilities.includes('brightness');
     const hasSheet = cfg.capabilities.length > 0;
     const sub = h('div.tile-sub');
-    const more = hasSheet
+    // A phone has no room for the button: touching and holding the tile opens the sheet there.
+    const more = hasSheet && !isPhone
       ? h('button.tile-more', { 'aria-label': `${cfg.name} settings`, onclick: (e) => { e.stopPropagation(); openSheet({ kind: 'light', id: cfg.id }); } }, icon('sliders', 15))
       : null;
     const el = h(`div.tile${dimmable ? '.dimmable' : ''}`, { role: 'button', tabindex: 0, 'aria-label': cfg.name },
@@ -140,21 +144,38 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
       if (ev.target.closest('.tile-more') || ev.button !== 0) return;
       el.setPointerCapture(ev.pointerId);
       const s = state.lights[cfg.id];
-      gesture = { x: ev.clientX, start: s.on ? s.brightness : 0, moved: false };
+      gesture = { x: ev.clientX, y: ev.clientY, start: s.on ? s.brightness : 0, moved: false, step: null };
       el.classList.add('pressed');
+      if (isPhone && hasSheet) {
+        gesture.hold = setTimeout(() => {
+          if (!gesture || gesture.moved) return;
+          gesture = null;
+          el.classList.remove('pressed');
+          haptic('medium');
+          openSheet({ kind: 'light', id: cfg.id });
+        }, 420);
+      }
     });
     el.addEventListener('pointermove', (ev) => {
       if (!gesture) return;
       const dx = ev.clientX - gesture.x;
-      if (!gesture.moved && dimmable && Math.abs(dx) > 6) { gesture.moved = true; el.classList.add('dragging'); }
+      if (Math.hypot(dx, ev.clientY - gesture.y) > 8) clearTimeout(gesture.hold);
+      // A mostly vertical move is the list being scrolled, not a dim.
+      if (!gesture.moved && dimmable && Math.abs(dx) > 6 && Math.abs(dx) > Math.abs(ev.clientY - gesture.y)) {
+        gesture.moved = true;
+        el.classList.add('dragging');
+      }
       if (gesture.moved) {
         const b = clamp(gesture.start + dx / el.clientWidth, 0, 1);
+        const step = Math.round(b * 20);
+        if (step !== gesture.step) { if (gesture.step !== null) haptic('tick'); gesture.step = step; }
         store.setLight(cfg.id, b < 0.04 ? { on: false } : { on: true, brightness: b });
       }
     });
     const finish = (ev) => {
       if (!gesture) return;
       const tapped = !gesture.moved && ev.type === 'pointerup';
+      clearTimeout(gesture.hold);
       gesture = null;
       el.classList.remove('pressed', 'dragging');
       if (tapped) toggleLight(cfg.id);
@@ -172,7 +193,8 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
         el.classList.toggle('on', s.on);
         el.style.setProperty('--c', css(lightColor(s, tmp)));
         el.style.setProperty('--level', s.on ? String(s.brightness) : '0');
-        sub.textContent = ui.room === 'all' ? `${lightStatus(cfg, s)} · ${roomName.get(cfg.room)}` : lightStatus(cfg, s);
+        // On a phone the group heading above the tile already names the room.
+        sub.textContent = ui.room === 'all' && !isPhone ? `${lightStatus(cfg, s)} · ${roomName.get(cfg.room)}` : lightStatus(cfg, s);
       },
     };
   }
@@ -183,6 +205,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     const bubble = h('div.bubble');
     const step = (d) => (e) => {
       e.stopPropagation();
+      haptic('tick');
       const s = state.acs[cfg.id];
       store.setAC(cfg.id, { on: true, target: s.target + d });
     };
@@ -193,7 +216,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
         h('button', { 'aria-label': 'Cooler', onclick: step(-1) }, icon('minus', 15, 2.2)),
         value,
         h('button', { 'aria-label': 'Warmer', onclick: step(1) }, icon('plus', 15, 2.2))),
-      h('button.mini-power', { 'aria-label': `${cfg.name} power`, onclick: (e) => { e.stopPropagation(); store.setAC(cfg.id, { on: !state.acs[cfg.id].on }); } }, icon('power', 16, 2.2)));
+      h('button.mini-power', { 'aria-label': `${cfg.name} power`, onclick: (e) => { e.stopPropagation(); haptic('medium'); store.setAC(cfg.id, { on: !state.acs[cfg.id].on }); } }, icon('power', 16, 2.2)));
     el.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') openSheet({ kind: 'ac', id: cfg.id }); });
     let shownMode = null;
     return {
@@ -204,7 +227,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
         el.style.setProperty('--c', MODE_COLORS[s.mode]);
         if (shownMode !== s.mode) { bubble.replaceChildren(icon(s.mode, 19)); shownMode = s.mode; }
         value.textContent = `${s.target}°`;
-        sub.textContent = `${s.on ? MODE_LABEL[s.mode] : 'Off'} · Room ${s.roomTemp.toFixed(1)}°`;
+        sub.textContent = `${s.on ? MODE_LABEL[s.mode] : 'Off'} · Room ${s.roomTemp.toFixed(isPhone ? 0 : 1)}°`;
       },
     };
   }
@@ -213,6 +236,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   for (const cfg of config.lights) tiles.set(cfg.id, lightTile(cfg));
 
   function toggleLight(id) {
+    haptic('light');
     world?.lights.get(id)?.bump();
     store.toggleLight(id);
   }
@@ -230,6 +254,9 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
       devices.filter((t) => t.kind === 'light').forEach(add);
     }
     if (!nodes.length) nodes.push(h('div.group-label', 'No devices in this room yet'));
+    else if (isPhone && config.lights.some((l) => l.capabilities.length && inScope(l))) {
+      nodes.push(h('div.grid-hint', 'Touch and hold a light for brightness and colour'));
+    }
     grid.replaceChildren(...nodes);
     grid.parentElement.scrollTop = 0;
   }
@@ -298,9 +325,9 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     const s = () => state.acs[id];
     const set = (patch) => store.setAC(id, patch);
     const sub = h('div.sheet-sub');
-    const powerBtn = h('button.round.power', { 'aria-label': 'Power', onclick: () => set({ on: !s().on }) }, icon('power', 21, 2.2));
+    const powerBtn = h('button.round.power', { 'aria-label': 'Power', onclick: () => { haptic('medium'); set({ on: !s().on }); } }, icon('power', 21, 2.2));
     const big = bigNumber('°C');
-    const eco = h('button.toggle-chip', { onclick: () => set({ eco: !s().eco }) }, icon('leaf', 17), 'Eco Mode', h('span.switch'));
+    const eco = h('button.toggle-chip', { onclick: () => { haptic('light'); set({ eco: !s().eco }); } }, icon('leaf', 17), 'Eco Mode', h('span.switch'));
     const slider = createSlider({
       min: cfg.min, max: cfg.max, value: s().target, gradient: TEMP_GRADIENT,
       labels: [`${cfg.min}°`, `${cfg.max}°`],
@@ -315,7 +342,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
         el.classList.add('open');
         openMenu(clip, el, values().map((v) => ({
           label: labels[v], selected: s()[key] === v, icon: s()[key] === v ? icon('check', 16, 2.4) : null,
-          action: () => set(key === 'mode' ? { on: true, mode: v } : { [key]: v }),
+          action: () => { haptic('light'); set(key === 'mode' ? { on: true, mode: v } : { [key]: v }); },
         })), { onClose: () => el.classList.remove('open') });
       } }, holder, h('span.corner', icon('down', 15, 2.2)), h('div.option-label', label), value);
       let shown = null;
@@ -335,10 +362,10 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     };
 
     const mode = option('mode', 'Mode', MODE_LABEL, () => features().modes, null);
-    const fan = option('fan', 'Fan speed', FAN_LABEL, () => features().fans, 'fan');
+    const fan = option('fan', isPhone ? 'Fan' : 'Fan speed', FAN_LABEL, () => features().fans, 'fan');
     const swing = option('swing', 'Airflow', SWING_LABEL, () => AC_SWINGS, 'wind');
     const sleepValue = h('div.option-value');
-    const sleep = h('button.option', { onclick: () => set({ sleep: !s().sleep }) },
+    const sleep = h('button.option', { onclick: () => { haptic('light'); set({ sleep: !s().sleep }); } },
       icon('moon', 24, 1.6), h('span.corner.dot'), h('div.option-label', 'Sleep'), sleepValue);
     const options = h('div.options', mode.el, fan.el, sleep, swing.el);
 
@@ -347,9 +374,9 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
         sheetHead(cfg.name, sub, powerBtn),
         h('div.readout', big.el, eco),
         h('div.slider-row',
-          h('button.round', { 'aria-label': 'Cooler', onclick: () => set({ on: true, target: s().target - 1 }) }, icon('minus', 18, 2.2)),
+          h('button.round', { 'aria-label': 'Cooler', onclick: () => { haptic('tick'); set({ on: true, target: s().target - 1 }); } }, icon('minus', 18, 2.2)),
           slider.el,
-          h('button.round', { 'aria-label': 'Warmer', onclick: () => set({ on: true, target: s().target + 1 }) }, icon('plus', 18, 2.2))),
+          h('button.round', { 'aria-label': 'Warmer', onclick: () => { haptic('tick'); set({ on: true, target: s().target + 1 }); } }, icon('plus', 18, 2.2))),
         options,
       ],
       update() {
@@ -386,19 +413,19 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
 
     if (caps.includes('brightness')) {
       sliders.brightness = createSlider({
-        min: 5, max: 100, value: Math.round(s().brightness * 100), gradient: DIM_GRADIENT,
+        min: 5, max: 100, value: Math.round(s().brightness * 100), gradient: DIM_GRADIENT, detent: 5,
         onInput: (v) => set({ on: true, brightness: v / 100 }),
       });
       nodes.push(h('div.slider-row',
-        h('button.round', { 'aria-label': 'Dimmer', onclick: () => set({ on: true, brightness: s().brightness - 0.1 }) }, icon('dim', 18)),
+        h('button.round', { 'aria-label': 'Dimmer', onclick: () => { haptic('tick'); set({ on: true, brightness: s().brightness - 0.1 }); } }, icon('dim', 18)),
         sliders.brightness.el,
-        h('button.round', { 'aria-label': 'Brighter', onclick: () => set({ on: true, brightness: s().brightness + 0.1 }) }, icon('bright', 18))));
+        h('button.round', { 'aria-label': 'Brighter', onclick: () => { haptic('tick'); set({ on: true, brightness: s().brightness + 0.1 }); } }, icon('bright', 18))));
     }
     let kelvinLabel = null;
     if (caps.includes('temp')) {
       kelvinLabel = h('span');
       sliders.temp = createSlider({
-        min: 2200, max: 6500, step: 100, value: s().temp, gradient: KELVIN_GRADIENT, compact: true,
+        min: 2200, max: 6500, step: 100, value: s().temp, gradient: KELVIN_GRADIENT, compact: true, detent: 500,
         onInput: (v) => set({ on: true, temp: v }),
       });
       nodes.push(h('div.field-label', h('span', 'Colour temperature'), kelvinLabel), h('div.slider-row', sliders.temp.el));
@@ -409,11 +436,11 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     if (caps.includes('color')) {
       colorLabel = h('span');
       pad = createColorPad({ value: s().color, onInput: (c) => set({ on: true, color: c }) });
-      swatches = SWATCHES.map((c) => h('button.swatch', { 'aria-label': `Colour ${c}`, vars: { '--sw': c }, onclick: () => set({ on: true, color: c }) }));
+      swatches = SWATCHES.map((c) => h('button.swatch', { 'aria-label': `Colour ${c}`, vars: { '--sw': c }, onclick: () => { haptic('light'); set({ on: true, color: c }); } }));
       nodes.push(h('div.field-label', h('span', 'Colour'), colorLabel), pad.el, h('div.swatches', swatches));
     } else {
       nodes.push(h('div.sheet-note', icon(cfg.type, 20),
-        `${roomName.get(cfg.room)} · drag across a light tile to dim it, or click the lamp in the 3D view to toggle.`));
+        `${roomName.get(cfg.room)} · drag across a light tile to dim it, or ${isPhone ? 'tap' : 'click'} the lamp in the 3D view to toggle.`));
     }
 
     return {
