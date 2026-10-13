@@ -1,24 +1,34 @@
 #!/usr/bin/swift
-// Draws the app icon (a lit house on a night-sky tile) and writes macos/AppIcon.icns
-// plus docs/icon.png. Usage: ./scripts/make-icon.swift
+// Draws the app icon (a lit house on a night-sky tile) and writes macos/AppIcon.icns,
+// docs/icon.png and the iPhone app's icon. Usage: ./scripts/make-icon.swift
 import AppKit
 
 let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
 
-func render(_ pixels: Int) -> Data {
+/// `fullBleed` is the iOS form: the artwork fills the square and the system rounds the corners.
+func render(_ pixels: Int, fullBleed: Bool = false) -> Data {
     let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels, bitsPerSample: 8,
-                               samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
-                               bytesPerRow: 0, bitsPerPixel: 0)!
+                               samplesPerPixel: fullBleed ? 3 : 4, hasAlpha: !fullBleed, isPlanar: false, colorSpaceName: .deviceRGB,
+                               bytesPerRow: 0, bitsPerPixel: fullBleed ? 32 : 0)!
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
     let ctx = NSGraphicsContext.current!.cgContext
     let s = CGFloat(pixels) / 1024
     ctx.scaleBy(x: s, y: s)
 
+    if fullBleed {
+        // The tile is drawn for the macOS grid; scale it up until it covers the canvas.
+        ctx.translateBy(x: 512, y: 512)
+        ctx.scaleBy(x: 1024 / 824, y: 1024 / 824)
+        ctx.translateBy(x: -512, y: -512)
+    }
     // macOS icon grid: an 824 pt tile centred on a 1024 pt canvas.
     let tile = CGRect(x: 100, y: 100, width: 824, height: 824)
-    let shape = CGPath(roundedRect: tile, cornerWidth: 185, cornerHeight: 185, transform: nil)
-    ctx.setShadow(offset: CGSize(width: 0, height: -12), blur: 28, color: NSColor.black.withAlphaComponent(0.35).cgColor)
+    let shape = fullBleed ? CGPath(rect: tile, transform: nil)
+        : CGPath(roundedRect: tile, cornerWidth: 185, cornerHeight: 185, transform: nil)
+    if !fullBleed {
+        ctx.setShadow(offset: CGSize(width: 0, height: -12), blur: 28, color: NSColor.black.withAlphaComponent(0.35).cgColor)
+    }
     ctx.addPath(shape)
     ctx.setFillColor(NSColor.black.cgColor)
     ctx.fillPath()
@@ -44,7 +54,7 @@ func render(_ pixels: Int) -> Data {
     ctx.restoreGState()
 
     // The house: SF Symbol, tinted warm white.
-    let config = NSImage.SymbolConfiguration(pointSize: 430, weight: .semibold)
+    let config = NSImage.SymbolConfiguration(pointSize: fullBleed ? 380 : 430, weight: .semibold)
     if let symbol = NSImage(systemSymbolName: "house.fill", accessibilityDescription: nil)?.withSymbolConfiguration(config) {
         let size = symbol.size
         let box = CGRect(x: 512 - size.width / 2, y: 512 - size.height / 2 - 6, width: size.width, height: size.height)
@@ -74,4 +84,6 @@ iconutil.arguments = ["-c", "icns", iconset.path, "-o", root.appendingPathCompon
 try iconutil.run()
 iconutil.waitUntilExit()
 try render(256).write(to: root.appendingPathComponent("docs/icon.png"))
-print(iconutil.terminationStatus == 0 ? "✓ macos/AppIcon.icns, docs/icon.png" : "✗ iconutil failed")
+try render(1024, fullBleed: true)
+    .write(to: root.appendingPathComponent("ios/Resources/Assets.xcassets/AppIcon.appiconset/icon-1024.png"))
+print(iconutil.terminationStatus == 0 ? "✓ macos/AppIcon.icns, docs/icon.png, iOS AppIcon" : "✗ iconutil failed")
