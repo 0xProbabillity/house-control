@@ -1,0 +1,26 @@
+# Build output
+node_modules/
+web/dist/
+build/
+macos/.build/
+*.dSYM/
+
+# macOS, editors
+.DS_Store
+*.swp
+.idea/
+.vscode/
+xcuserdata/
+
+# Never commit a plan with real device IDs, or any credentials.
+# The app keeps these in ~/Library/Application Support/HouseControl, outside the repository.
+plan.json
+plan.backup*.json
+smartlife.json
+tuya.json
+events.log
+.env
+.env.*
+
+# Local assistant settings
+.claude/settings.local.json
