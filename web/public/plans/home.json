@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "name": "Home",
+  "wallHeight": 2.6,
+  "interiorWallHeight": 1.25,
+  "camera": { "azimuth": 34, "elevation": 47 },
+  "outdoorTemp": 29,
+
+  "rooms": [
+    { "id": "living",  "name": "Living",   "rect": [0, 3.6, 6.4, 4.6],  "floor": "oak" },
+    { "id": "dining",  "name": "Dining",   "rect": [6.4, 3.6, 4.0, 4.6], "floor": "oak" },
+    { "id": "kitchen", "name": "Kitchen",  "rect": [6.4, 0, 4.0, 3.6],   "floor": "stone" },
+    { "id": "bedroom", "name": "Bedroom",  "rect": [0, 0, 4.2, 3.6],     "floor": "walnut" },
+    { "id": "bath",    "name": "Bathroom", "rect": [4.2, 0, 2.2, 3.6],   "floor": "tile" }
+  ],
+
+  "openings": [
+    { "type": "door",   "from": [3.1, 3.6], "to": [4.0, 3.6] },
+    { "type": "door",   "from": [4.7, 3.6], "to": [5.5, 3.6] },
+    { "type": "open",   "from": [6.4, 4.2], "to": [6.4, 7.8] },
+    { "type": "open",   "from": [7.0, 3.6], "to": [10.0, 3.6] },
+    { "type": "window", "from": [0, 1.0],   "to": [0, 2.6] },
+    { "type": "window", "from": [0, 7.0],   "to": [0, 7.9] },
+    { "type": "window", "from": [0.9, 0],   "to": [2.3, 0], "sill": 1.5, "head": 2.2 }
+  ],
+
+  "furniture": [
+    { "type": "rug",         "pos": [2.3, 6.0],  "size": [2.5, 3.1], "color": "#3b4a66" },
+    { "type": "tv",          "pos": [0.32, 6.0], "rot": 90,  "width": 1.7 },
+    { "type": "sofa",        "pos": [3.95, 6.0], "rot": -90, "width": 2.5, "color": "#8b93a7" },
+    { "type": "coffeeTable", "pos": [2.3, 6.0],  "rot": 90 },
+    { "type": "armchair",    "pos": [1.9, 4.35], "rot": 12,  "color": "#c28a5a" },
+    { "type": "plant",       "pos": [0.5, 7.65], "height": 1.5 },
+    { "type": "sideboard",   "pos": [5.2, 7.85], "rot": 180, "width": 1.6 },
+
+    { "type": "diningSet",   "pos": [8.5, 6.4],  "width": 1.9, "chairs": 6 },
+    { "type": "plant",       "pos": [9.95, 7.75], "height": 1.1 },
+    { "type": "island",      "pos": [8.5, 3.75], "width": 2.2, "stools": 3 },
+
+    { "type": "kitchen",     "pos": [8.05, 0.41], "width": 3.1, "upper": true },
+    { "type": "fridge",      "pos": [10.02, 0.45] },
+
+    { "type": "rug",         "pos": [2.1, 2.3],  "size": [2.6, 1.6], "color": "#6a5a52" },
+    { "type": "bed",         "pos": [2.1, 1.2],  "width": 1.7, "color": "#7f8fb5" },
+    { "type": "nightstand",  "pos": [0.85, 0.4] },
+    { "type": "nightstand",  "pos": [3.35, 0.4] },
+    { "type": "dresser",     "pos": [3.87, 2.5], "rot": -90, "width": 1.3 },
+    { "type": "plant",       "pos": [0.45, 3.15], "height": 0.9 },
+
+    { "type": "vanity",      "pos": [4.95, 0.38], "width": 1.0 },
+    { "type": "bathtub",     "pos": [5.92, 1.35], "rot": 90 },
+    { "type": "toilet",      "pos": [4.58, 2.5],  "rot": 90 }
+  ],
+
+  "lights": [
+    { "id": "living.main",    "name": "Ceiling",       "room": "living",  "type": "ceiling", "pos": [2.9, 6.0],
+      "capabilities": ["brightness", "temp"] },
+    { "id": "living.floor",   "name": "Floor lamp",    "room": "living",  "type": "floor",   "pos": [0.6, 4.2] },
+    { "id": "living.tv",      "name": "TV backlight",  "room": "living",  "type": "strip",   "pos": [0.13, 6.0], "y": 1.05,
+      "rot": 90, "length": 1.5, "capabilities": ["brightness", "color"], "color": "#7b5cff" },
+
+    { "id": "dining.pendant", "name": "Pendant",       "room": "dining",  "type": "pendant", "pos": [8.5, 6.4], "y": 1.75,
+      "capabilities": ["brightness", "temp"] },
+
+    { "id": "kitchen.spots",  "name": "Spots",         "room": "kitchen", "type": "spots",   "pos": [8.4, 2.0],
+      "capabilities": ["brightness"] },
+    { "id": "kitchen.strip",  "name": "Counter light", "room": "kitchen", "type": "strip",   "pos": [8.05, 0.42], "y": 1.42,
+      "length": 2.9, "capabilities": ["brightness", "temp"] },
+
+    { "id": "bedroom.main",   "name": "Ceiling",       "room": "bedroom", "type": "ceiling", "pos": [2.1, 2.3],
+      "capabilities": ["brightness", "temp"] },
+    { "id": "bedroom.left",   "name": "Bedside left",  "room": "bedroom", "type": "table",   "pos": [0.85, 0.4], "y": 0.5 },
+    { "id": "bedroom.right",  "name": "Bedside right", "room": "bedroom", "type": "table",   "pos": [3.35, 0.4], "y": 0.5 },
+
+    { "id": "bath.main",      "name": "Ceiling",       "room": "bath",    "type": "ceiling", "pos": [5.2, 2.0],
+      "capabilities": ["brightness"] },
+    { "id": "bath.mirror",    "name": "Mirror light",  "room": "bath",    "type": "strip",   "pos": [4.95, 0.14], "y": 1.95,
+      "length": 0.8, "capabilities": ["brightness", "temp"] }
+  ],
+
+  "acs": [
+    { "id": "living.ac",  "name": "Living AC",  "room": "living",  "wall": "west",  "pos": [0, 4.45], "y": 2.2 },
+    { "id": "bedroom.ac", "name": "Bedroom AC", "room": "bedroom", "wall": "north", "pos": [3.3, 0],  "y": 2.2 }
+  ],
+
+  "scenes": [
+    { "id": "bright", "name": "Bright", "icon": "sun",
+      "lights": { "*": { "on": true, "brightness": 1, "temp": 4200 } } },
+    { "id": "cozy", "name": "Cozy", "icon": "sofa",
+      "lights": {
+        "*": { "on": false },
+        "living.floor":   { "on": true },
+        "living.tv":      { "on": true, "brightness": 0.7, "color": "#ff7a3c" },
+        "dining.pendant": { "on": true, "brightness": 0.45, "temp": 2400 },
+        "kitchen.strip":  { "on": true, "brightness": 0.6, "temp": 2700 },
+        "bedroom.left":   { "on": true },
+        "bedroom.right":  { "on": true }
+      } },
+    { "id": "movie", "name": "Movie", "icon": "film",
+      "lights": {
+        "*": { "on": false },
+        "living.tv":     { "on": true, "brightness": 0.9, "color": "#6a4cff" },
+        "kitchen.strip": { "on": true, "brightness": 0.2, "temp": 2400 }
+      } },
+    { "id": "night", "name": "Night", "icon": "moon",
+      "lights": {
+        "*": { "on": false },
+        "bedroom.left": { "on": true },
+        "bath.mirror":  { "on": true, "brightness": 0.25, "temp": 2300 }
+      },
+      "acs": { "bedroom.ac": { "sleep": true } } },
+    { "id": "away", "name": "Away", "icon": "door",
+      "lights": { "*": { "on": false } },
+      "acs": { "*": { "on": false } } }
+  ]
+}

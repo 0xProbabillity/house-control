@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "name": "Studio",
+  "wallHeight": 2.7,
+  "interiorWallHeight": 1.25,
+  "camera": { "azimuth": 30, "elevation": 50 },
+  "outdoorTemp": 31,
+
+  "rooms": [
+    { "id": "main", "name": "Studio",   "rect": [0, 0, 6.2, 4.8],   "floor": "walnut" },
+    { "id": "bath", "name": "Bathroom", "rect": [6.2, 0, 2.2, 2.6], "floor": "tile" },
+    { "id": "hall", "name": "Hall",     "rect": [6.2, 2.6, 2.2, 2.2], "floor": "stone" }
+  ],
+
+  "openings": [
+    { "type": "door",   "from": [6.2, 3.2], "to": [6.2, 4.1] },
+    { "type": "door",   "from": [6.9, 2.6], "to": [7.7, 2.6] },
+    { "type": "window", "from": [0, 1.2],   "to": [0, 3.6] },
+    { "type": "window", "from": [2.6, 0],   "to": [4.2, 0] }
+  ],
+
+  "furniture": [
+    { "type": "rug",         "pos": [2.2, 3.2],  "size": [2.6, 1.9], "color": "#5b4a6e" },
+    { "type": "bed",         "pos": [1.2, 1.25], "width": 1.6, "color": "#b98a7a" },
+    { "type": "nightstand",  "pos": [2.45, 0.4] },
+    { "type": "sofa",        "pos": [2.2, 4.25], "rot": 180, "width": 2.1, "color": "#6f8f86" },
+    { "type": "coffeeTable", "pos": [2.2, 3.1] },
+    { "type": "desk",        "pos": [4.9, 0.5],  "width": 1.4 },
+    { "type": "bookshelf",   "pos": [0.28, 4.2], "rot": 90, "width": 0.9, "height": 1.9 },
+    { "type": "kitchen",     "pos": [4.6, 4.38], "rot": 180, "width": 2.4, "upper": false },
+    { "type": "plant",       "pos": [5.75, 2.4], "height": 1.3 },
+    { "type": "vanity",      "pos": [7.3, 0.38], "width": 0.9 },
+    { "type": "toilet",      "pos": [6.6, 1.7],  "rot": 90 },
+    { "type": "sideboard",   "pos": [8.1, 3.7],  "rot": -90, "width": 1.1 }
+  ],
+
+  "lights": [
+    { "id": "main.ceiling", "name": "Ceiling",    "room": "main", "type": "pendant", "pos": [3.1, 2.6], "y": 2.0,
+      "capabilities": ["brightness", "temp"] },
+    { "id": "main.bed",     "name": "Bedside",    "room": "main", "type": "table",   "pos": [2.45, 0.4], "y": 0.5 },
+    { "id": "main.desk",    "name": "Desk lamp",  "room": "main", "type": "table",   "pos": [5.4, 0.35], "y": 0.76 },
+    { "id": "main.shelf",   "name": "Shelf glow", "room": "main", "type": "strip",   "pos": [0.14, 4.2], "y": 1.95,
+      "rot": 90, "length": 0.9, "capabilities": ["brightness", "color"], "color": "#ff5fc4" },
+    { "id": "bath.ceiling", "name": "Ceiling",    "room": "bath", "type": "ceiling", "pos": [7.3, 1.4],
+      "capabilities": ["brightness"] },
+    { "id": "hall.ceiling", "name": "Ceiling",    "room": "hall", "type": "spots",   "pos": [7.3, 3.7], "rot": 90 }
+  ],
+
+  "acs": [
+    { "id": "main.ac", "name": "Studio AC", "room": "main", "wall": "north", "pos": [1.2, 0], "y": 2.3 }
+  ],
+
+  "scenes": [
+    { "id": "bright", "name": "Bright", "icon": "sun",  "lights": { "*": { "on": true, "brightness": 1, "temp": 4200 } } },
+    { "id": "work",   "name": "Work",   "icon": "table",
+      "lights": { "*": { "on": false }, "main.desk": { "on": true }, "main.ceiling": { "on": true, "brightness": 0.6, "temp": 4500 } } },
+    { "id": "chill",  "name": "Chill",  "icon": "sofa",
+      "lights": { "*": { "on": false }, "main.shelf": { "on": true, "brightness": 0.8, "color": "#ff5fc4" }, "main.bed": { "on": true } } },
+    { "id": "off",    "name": "All off", "icon": "moon", "lights": { "*": { "on": false } }, "acs": { "*": { "on": false } } }
+  ]
+}
