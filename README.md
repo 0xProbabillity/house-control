@@ -5,8 +5,8 @@
 <h1 align="center">House Control</h1>
 
 <p align="center">
-  A macOS menu bar app that shows your home as a live 3D model<br>
-  and controls its lights and air conditioners — Smart Life / Tuya devices included.
+  Your home as a live 3D model — in the Mac's menu bar, around its notch and on your iPhone —<br>
+  controlling its lights and air conditioners, Smart Life / Tuya devices included.
 </p>
 
 <p align="center">
@@ -22,10 +22,15 @@
 - **Air conditioners.** Power, target temperature, mode and fan speed, with the room temperature from a real sensor if you have one.
 - **Scenes.** One tap sets every light and AC — "Cozy", "Movie", "Night", or your own.
 - **A visual editor.** Draw the rooms, drop in furniture, place lamps and ACs, and link each one to a real device.
+- **An island around the notch.** Rest the pointer on the MacBook's notch and a small live model of the home drops
+  out of it, with scenes and every device one click away. See [The island](#the-island).
+- **An iPhone app.** The same home in your pocket, kept in sync with the Mac over your own Wi-Fi.
+  See [iPhone app](#iphone-app).
 - **Works without any hardware.** Until you sign in, every device is simulated, so you can try everything first.
 
-The app is a small native Swift shell (menu bar item, panel, editor window, device clients) around a
-[Three.js](https://threejs.org) web UI. No frameworks, no Electron, no server, no account of its own.
+Both apps are a small native Swift shell (AppKit on the Mac, SwiftUI on the iPhone) around one
+[Three.js](https://threejs.org) web UI, and share their device clients and sync as a Swift package.
+No frameworks, no Electron, no server, no account of its own.
 
 ## Requirements
 
@@ -34,6 +39,7 @@ The app is a small native Swift shell (menu bar item, panel, editor window, devi
 | macOS | 13 Ventura or newer |
 | Xcode Command Line Tools | Swift 5.9 or newer — `xcode-select --install` |
 | Node.js | 20.19+ or 22.12+ |
+| For the iPhone app | Xcode 16 or newer, [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`), iOS 17+ |
 
 ## Build and run
 
@@ -57,7 +63,7 @@ There is no Dock icon and no main window: look for the house in the menu bar.
 | Do this | To get this |
 | --- | --- |
 | Click the menu bar icon | Open or close the panel |
-| Right-click the menu bar icon | Edit Home, Load Floor Plan, Reveal Plan File, Reveal Device Log, Reload, Quit |
+| Right-click the menu bar icon | Edit Home, Load Floor Plan, Reveal Plan File, Reveal Device Log, Show Island, Pair iPhone, Reload, Quit |
 | Click a lamp in the 3D view, or its tile | Toggle it |
 | Drag sideways across a light tile | Dim it |
 | Click the sliders icon on a light tile | Brightness, white temperature, colour |
@@ -69,6 +75,70 @@ There is no Dock icon and no main window: look for the house in the menu bar.
 The menu bar icon shows how many lights are on and the target of the running AC, for example `6 · 23°`.
 
 The gear button in the panel switches between your home and the two bundled demo plans, **Apartment** and **Studio**.
+
+## The island
+
+<p align="center">
+  <img src="docs/island.png" width="820" alt="The island, open: a 3D model of the home, scenes and devices">
+</p>
+
+A black tab grows out of the MacBook's notch. On a display without a notch it is drawn in the middle of the menu bar.
+
+| Do this | To get this |
+| --- | --- |
+| Look at it | How many lights are on, and the target of a running AC |
+| Rest the pointer on it | It springs open: the 3D model, scenes, air conditioners and lights |
+| Click a lamp in the model, or its chip | Toggle it; drag across a chip to dim |
+| Click a room in the model | Zoom in on it |
+| Move the pointer away | It closes |
+
+When something changes elsewhere — a scene picked in the panel, a lamp switched from the phone — the island
+peeks out for a moment to say what happened. It never takes the keyboard from the app you are working in.
+**Show Island** in the menu bar icon's right-click menu turns it off.
+
+## iPhone app
+
+<p align="center">
+  <img src="docs/iphone.png" width="820" alt="The iPhone app: home, an air conditioner, a colour light and settings">
+</p>
+
+The iPhone app is the panel made for a thumb: tap a lamp in the 3D view or its tile, drag across a tile to dim,
+touch and hold a light for brightness and colour, pinch the model to zoom, swipe in from the left edge to go back.
+
+Try it in the simulator:
+
+```bash
+./scripts/ios-sim.sh
+```
+
+To put it on a phone, write your Apple developer team into `ios/Config/Local.xcconfig`
+(`DEVELOPMENT_TEAM = ABCDE12345`), run `cd ios && xcodegen generate`, open `ios/HouseControl.xcodeproj` and run it
+on your device. `./scripts/build-ios.sh --upload` archives it and sends it to TestFlight; the script lists what it needs.
+
+### Sync with the Mac
+
+Your floor plan — rooms, furniture, lamps, scenes and the links to real devices — is drawn on the Mac and travels
+to the phone by itself.
+
+1. On the Mac: right-click the menu bar icon → **Pair iPhone…**. A QR code appears.
+   macOS asks once whether House Control may find devices on your local network: allow it.
+2. On the iPhone: **Settings** (the sliders button) → **Pair with Mac**, and point the camera at the code.
+   Or press **Copy Pairing Link** on the Mac and paste it on the phone.
+
+From then on, whenever both are on the same Wi-Fi and the app is open, the phone has what the Mac has:
+**Save & apply** in the editor updates the phone a moment later.
+
+Nothing goes through a server. The Mac advertises itself with Bonjour and the two talk over TLS with a
+pre-shared key that only the QR code carries, so a device that never saw the code cannot connect.
+**Reset Pairing…** in the pairing window issues a new key.
+
+### Real devices on the iPhone
+
+The phone signs in to Smart Life on its own: **Settings → Connect Smart Life**. The User Code is filled in from the
+Mac if you are signed in there. The sign-in code has to be scanned by the Smart Life app, which is on the very phone
+you are holding — so the paired Mac puts the code on its screen for you. Without a Mac, share the code to any other screen.
+
+The session is kept in the iPhone's Keychain and never leaves the device.
 
 ## Make it your home
 
@@ -116,17 +186,28 @@ Everything personal stays in `~/Library/Application Support/HouseControl/` on yo
 | `smartlife.json` | The Smart Life session tokens. Readable only by you (mode `600`) |
 | `tuya.json` | Tuya Cloud project credentials, only if you use that option. Mode `600` |
 | `events.log` | Commands sent to real devices and the cloud's answers. No tokens |
+| `sync.json` | The key your paired iPhones use. Only there once you paired one. Mode `600` |
 
 None of these are part of this repository, and the build does not embed them in the app.
 **Sign out** in the editor deletes `smartlife.json`. Deleting the folder resets the app to the demo plan.
 
+On the iPhone the floor plan lives in the app's own folder, and the Smart Life session and the pairing key in the Keychain.
+
 ## Development
 
 ```
-web/      the UI: Three.js scene, panel, editor (Vite, plain ES modules)
-macos/    the native shell: menu bar item, panel, editor window, Smart Life and Tuya clients (SwiftPM)
-scripts/  build-app.sh assembles the .app, make-icon.swift draws the icon
+web/      the UI: Three.js scene, panel, island, editor (Vite, plain ES modules)
+core/     what both apps share: Smart Life and Tuya clients, plan store, Mac ⇄ iPhone sync (SwiftPM, with tests)
+macos/    the Mac shell: menu bar item, panel, island and editor windows (SwiftPM)
+ios/      the iPhone shell: SwiftUI, generated into an Xcode project by XcodeGen
+scripts/  build-app.sh, build-ios.sh and ios-sim.sh build the apps, make-icon.swift draws the icon
 docs/     floor plan reference, Smart Life guide, screenshots
+```
+
+The shared package has unit tests, including the sync over a real TLS connection:
+
+```bash
+cd core && swift test
 ```
 
 Work on the UI in a browser with hot reload — the native bridge is a no-op there and all devices are simulated:
@@ -138,7 +219,8 @@ npm run dev
 ```
 
 Then open `http://localhost:5199/`. Add `?plan=studio` for the second demo plan, `?mode=editor` for the editor,
-or `?device=living.ac` to start on a device's sheet. Set `PORT` to use another port.
+`?mode=island` for the island, `?platform=ios` for the iPhone layout, or `?device=living.ac` to start on a
+device's sheet. Set `PORT` to use another port.
 
 Environment variables understood by the app:
 
@@ -152,6 +234,14 @@ Environment variables understood by the app:
 | `HOUSE_OPEN_DEVICE=<id>` | Start the panel on that light's or AC's sheet |
 | `HOUSE_PIN=1` | Keep the panel open when it loses focus |
 | `HOUSE_DOCK=1` | Show a Dock icon, so UI automation tools can see the app |
+| `HOUSE_ISLAND=0` | Run without the island (`1` forces it on) |
+| `HOUSE_ISLAND_EXPANDED=1` | Keep the island open |
+| `HOUSE_OPEN_PAIRING=1` | Open the Pair iPhone window at launch |
+| `HOUSE_SNAPSHOT_DIR=/some/folder` | Write `panel.png` and `island.png` there a few seconds after launch |
+| `HOUSE_RENDER_HIDDEN=1` | Keep drawing while the screen is locked, for unattended captures |
+
+The iPhone app understands `HOUSE_DATA_DIR`, `HOUSE_OPEN_DEVICE` and `HOUSE_SCREEN=home|settings|pairing|smartlife|welcome`;
+`scripts/ios-sim.sh` passes any `HOUSE_*` variable on to the simulator.
 
 For example, a throw-away instance on the demo plan, pinned open:
 
@@ -170,7 +260,8 @@ The binary has a few offline self-checks and one read-only diagnostic:
 
 ## Limitations
 
-- macOS only, and built from source: there is no signed, notarized download.
+- Built from source: there is no signed, notarized Mac download, and the iPhone app is not on the App Store.
+- The floor plan is edited on the Mac only. The iPhone receives it, and only while both are on the same network.
 - Rooms are axis-aligned rectangles. An L-shaped room is two rooms.
 - Smart Life is the only device backend. Devices are reached through Tuya's cloud, not over the local network,
   so they need an internet connection.

@@ -24,3 +24,12 @@ events.log
 
 # Local assistant settings
 .claude/settings.local.json
+
+# iPhone app: the Xcode project and Info.plist are generated from ios/project.yml (xcodegen),
+# and the signing team is personal.
+ios/HouseControl.xcodeproj/
+ios/Config/Info.plist
+ios/Config/Local.xcconfig
+ios/build/
+core/.build/
+sync.json
