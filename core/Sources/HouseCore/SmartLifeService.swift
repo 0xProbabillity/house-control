@@ -53,30 +53,33 @@ final class SmartLifeService: DeviceCloud {
         var errorDescription: String? { message }
     }
 
-    private let fileURL: URL
+    private let vault: SecretStore
     private(set) var session: Session?
     private var sessionStamp: Date?
+    private var loaded = false
     private(set) var knownCodes: [String: Set<String>] = [:]
     private(set) var knownRanges: [String: TuyaMapper.Ranges] = [:]
     private var refreshing = false
 
-    init(directory: URL) {
-        fileURL = directory.appendingPathComponent("smartlife.json")
-        reloadSession()
+    /// The session lives in `smartlife.json` inside `directory`.
+    convenience init(directory: URL) {
+        self.init(vault: FileSecretStore(url: directory.appendingPathComponent("smartlife.json")))
     }
 
-    private var fileStamp: Date? {
-        (try? FileManager.default.attributesOfItem(atPath: fileURL.path))?[.modificationDate] as? Date
+    init(vault: SecretStore) {
+        self.vault = vault
+        reloadSession()
     }
 
     /// Refreshing rotates the refresh token, so a second process (`--diagnose` next to the
     /// running app) must pick up what the other one stored instead of carrying on with a
     /// token that no longer works.
     private func reloadSession() {
-        let stamp = fileStamp
-        guard stamp != sessionStamp else { return }
+        let stamp = vault.stamp
+        guard !loaded || stamp != sessionStamp else { return }
+        loaded = true
         sessionStamp = stamp
-        session = (try? Data(contentsOf: fileURL)).flatMap { try? JSONDecoder().decode(Session.self, from: $0) }
+        session = vault.read().flatMap { try? JSONDecoder().decode(Session.self, from: $0) }
     }
 
     var isConfigured: Bool { session != nil }
@@ -87,19 +90,14 @@ final class SmartLifeService: DeviceCloud {
 
     private func store(_ new: Session?) {
         session = new
-        guard let new else {
-            try? FileManager.default.removeItem(at: fileURL)
-            sessionStamp = nil
-            return
-        }
-        try? JSONEncoder().encode(new).write(to: fileURL, options: .atomic)
-        try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: fileURL.path)
-        sessionStamp = fileStamp
+        vault.write(new.flatMap { try? JSONEncoder().encode($0) })
+        sessionStamp = vault.stamp
     }
 
     func signOut() {
         store(nil)
         knownCodes = [:]
+        knownRanges = [:]
     }
 
     // MARK: - QR login
@@ -139,12 +137,7 @@ final class SmartLifeService: DeviceCloud {
     }
 
     static func qrImageDataURL(for text: String) -> String? {
-        guard let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
-        filter.setValue(Data(text.utf8), forKey: "inputMessage")
-        filter.setValue("M", forKey: "inputCorrectionLevel")
-        guard let output = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 10, y: 10)),
-              let cg = CIContext().createCGImage(output, from: output.extent) else { return nil }
-        return PNGEncoder.data(from: cg).map { "data:image/png;base64,\($0.base64EncodedString())" }
+        QRCode.png(for: text).map { "data:image/png;base64,\($0.base64EncodedString())" }
     }
 
     // MARK: - Devices
@@ -361,8 +354,18 @@ final class SmartLifeService: DeviceCloud {
     }
 }
 
-enum PNGEncoder {
-    static func data(from image: CGImage) -> Data? {
+/// QR codes for the Smart Life login and for pairing an iPhone with the Mac.
+public enum QRCode {
+    public static func image(for text: String, scale: CGFloat = 10) -> CGImage? {
+        guard let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
+        filter.setValue(Data(text.utf8), forKey: "inputMessage")
+        filter.setValue("M", forKey: "inputCorrectionLevel")
+        guard let output = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: scale, y: scale)) else { return nil }
+        return CIContext().createCGImage(output, from: output.extent)
+    }
+
+    public static func png(for text: String, scale: CGFloat = 10) -> Data? {
+        guard let image = image(for: text, scale: scale) else { return nil }
         let data = NSMutableData()
         guard let dest = CGImageDestinationCreateWithData(data, "public.png" as CFString, 1, nil) else { return nil }
         CGImageDestinationAddImage(dest, image, nil)

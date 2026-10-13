@@ -36,6 +36,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>1</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
+  <key>NSLocalNetworkUsageDescription</key><string>House Control lets the iPhones you paired find this Mac on your network to receive your floor plan.</string>
+  <key>NSBonjourServices</key><array><string>_housecontrol._tcp</string></array>
   <key>NSHighResolutionCapable</key><true/>
 </dict>
 </plist>

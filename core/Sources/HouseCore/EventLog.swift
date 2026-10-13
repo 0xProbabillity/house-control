@@ -3,7 +3,7 @@ import Foundation
 /// A small text log of what was sent to real devices and what the cloud answered:
 /// `events.log` next to the plan. It is the first thing to look at when a device
 /// does not react. Never contains tokens; it stays on this Mac.
-final class EventLog {
+public final class EventLog {
     private let url: URL
     private static let limit = 256 * 1024
     private let stamp: ISO8601DateFormatter = {
@@ -12,11 +12,11 @@ final class EventLog {
         return f
     }()
 
-    init(directory: URL) { url = directory.appendingPathComponent("events.log") }
+    public init(directory: URL) { url = directory.appendingPathComponent("events.log") }
 
-    var fileURL: URL { url }
+    public var fileURL: URL { url }
 
-    func write(_ line: String) {
+    public func write(_ line: String) {
         let data = Data("\(stamp.string(from: Date())) \(line)\n".utf8)
         guard let handle = try? FileHandle(forWritingTo: url) else {
             try? data.write(to: url, options: .atomic)
@@ -33,7 +33,7 @@ final class EventLog {
         try? handle.write(contentsOf: data)
     }
 
-    static func describe(_ commands: [[String: Any]]) -> String {
+    public static func describe(_ commands: [[String: Any]]) -> String {
         commands.map { "\($0["code"] ?? "?")=\($0["value"] ?? "?")" }.joined(separator: " ")
     }
 }

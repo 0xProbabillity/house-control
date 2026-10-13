@@ -1,26 +1,21 @@
 import AppKit
 import UniformTypeIdentifiers
+import HouseCore
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let plans = PlanStore()
-    private lazy var tuya = TuyaService(directory: plans.directory)
-    private lazy var smartLife = SmartLifeService(directory: plans.directory)
-    /// The backend real devices are reached through: the QR-linked Smart Life account
-    /// when there is one, otherwise a Tuya Cloud project, otherwise nothing (simulation).
-    private var cloud: DeviceCloud? {
-        smartLife.isConfigured ? smartLife : (tuya.isConfigured ? tuya : nil)
-    }
+    /// The Smart Life / Tuya side: device links, commands and state.
+    private lazy var hub = DeviceHub(directory: plans.directory)
+    /// Hands the floor plan to paired iPhones on the local network.
+    private lazy var sync = SyncServer(store: FileSecretStore(url: plans.directory.appendingPathComponent("sync.json")))
+    private var island: IslandController?
+    private var pairingWindow: QRWindowController?
+    private var loginWindow: QRWindowController?
     private var statusItem: NSStatusItem!
     private var panel: PanelController!
     private var editor: EditorController?
     private var pollTimer: Timer?
-    private lazy var log = EventLog(directory: plans.directory)
-    /// App device id -> its Smart Life link, for the devices of the active plan.
-    private var links: [String: (kind: String, link: [String: Any])] = [:]
-    /// The command in flight for each real device; the next one waits for it.
-    private var commandTails: [String: Task<Void, Never>] = [:]
-    private let infrared = InfraredRemote()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMainMenu()
@@ -39,9 +34,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         host.onMessage = { [weak self, unowned host] message in self?.handle(message, from: host) }
         panel = PanelController(host: host)
         panel.onVisibilityChange = { [weak self] visible in self?.setPolling(visible) }
+        hub.onStale = { [weak self] in self?.poll() }
         reloadLinks()
         host.load()
+        startSync()
+        if islandEnabled { showIsland() }
 
+        // HOUSE_SNAPSHOT_DIR=<folder> writes panel.png and island.png there a few seconds
+        // after launch: a look at the UI without a screen (see HOUSE_RENDER_HIDDEN).
+        if let folder = ProcessInfo.processInfo.environment["HOUSE_SNAPSHOT_DIR"] {
+            let directory = URL(fileURLWithPath: folder, isDirectory: true)
+            let delay = Double(ProcessInfo.processInfo.environment["HOUSE_SNAPSHOT_DELAY"] ?? "") ?? 6
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                self?.panel.host.snapshot(to: directory.appendingPathComponent("panel.png"))
+                self?.island?.host.snapshot(to: directory.appendingPathComponent("island.png"))
+            }
+        }
+        if ProcessInfo.processInfo.environment["HOUSE_OPEN_PAIRING"] != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.pairPhone() }
+        }
         if ProcessInfo.processInfo.environment["HOUSE_OPEN_EDITOR"] != nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.openEditor() }
         }
@@ -83,6 +94,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(withTitle: "Reveal Plan File", action: #selector(revealPlan), keyEquivalent: "").target = self
             menu.addItem(withTitle: "Reveal Device Log", action: #selector(revealLog), keyEquivalent: "").target = self
             menu.addItem(.separator())
+            let islandItem = menu.addItem(withTitle: "Show Island", action: #selector(toggleIsland), keyEquivalent: "")
+            islandItem.target = self
+            islandItem.state = island?.isShown == true ? .on : .off
+            menu.addItem(withTitle: "Pair iPhone…", action: #selector(pairPhone), keyEquivalent: "").target = self
+            for device in sync.connectedDevices {
+                let item = menu.addItem(withTitle: "\(device) is connected", action: nil, keyEquivalent: "")
+                item.image = NSImage(systemSymbolName: "iphone", accessibilityDescription: nil)
+            }
+            menu.addItem(.separator())
             menu.addItem(withTitle: "Reload", action: #selector(reloadAll), keyEquivalent: "").target = self
             menu.addItem(withTitle: "Quit House Control", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
             statusItem.menu = menu
@@ -102,8 +122,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func bootPayload() -> [String: Any] {
         var boot = plans.bootPayload()
-        boot["tuya"] = tuya.publicInfo
-        boot["smartLife"] = smartLife.publicInfo
+        boot["tuya"] = hub.tuyaInfo
+        boot["smartLife"] = hub.smartLifeInfo
         if ProcessInfo.processInfo.environment["HOUSE_OPEN_EDITOR"] == "smartlife" { boot["section"] = "tuya" }
         // HOUSE_OPEN_DEVICE=<id> starts the panel on that light's or AC's detail sheet.
         if let device = ProcessInfo.processInfo.environment["HOUSE_OPEN_DEVICE"] { boot["openDevice"] = device }
@@ -111,20 +131,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func reloadLinks() {
-        links = [:]
-        guard plans.activePlan == "custom", let plan = plans.customPlan() else { return }
-        for (kind, key) in [("light", "lights"), ("ac", "acs")] {
-            for device in plan[key] as? [[String: Any]] ?? [] {
-                guard let id = device["id"] as? String, let link = device["tuya"] as? [String: Any],
-                      let deviceId = link["deviceId"] as? String, !deviceId.isEmpty else { continue }
-                links[id] = (kind, link)
-            }
-        }
+        hub.setLinks(from: plans.activePlan == "custom" ? plans.customPlan() : nil)
     }
 
     @objc private func reloadAll() {
         reloadLinks()
         panel.host.load()
+        if island?.isShown == true { island?.host.load() }
+        sync.broadcast()
     }
 
     @objc private func loadPlan() {
@@ -149,8 +163,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func revealLog() {
-        if !FileManager.default.fileExists(atPath: log.fileURL.path) { log.write("log started") }
-        NSWorkspace.shared.activateFileViewerSelecting([log.fileURL])
+        if !FileManager.default.fileExists(atPath: hub.log.fileURL.path) { hub.log.write("log started") }
+        NSWorkspace.shared.activateFileViewerSelecting([hub.log.fileURL])
     }
 
     @objc private func openEditor() {
@@ -185,8 +199,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let summary = (message["summary"] as? [String: Any]) ?? (message["lightsOn"] != nil ? message : nil) {
                 updateStatus(summary)
             }
+        case "state":
+            // The panel and the island are two views of one home: what changes in one is
+            // shown by the other.
+            var state = message
+            state["type"] = nil
+            for other in [panel.host, island?.host] where other !== host { other?.call("adopt", state) }
         case "command":
-            forward(message, from: host)
+            hub.command(message) { [weak host] in host?.reply(to: message, $0) }
         case "close":
             panel.hide()
         case "selectPlan":
@@ -236,23 +256,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 host.reply(to: message, ["error": error.localizedDescription])
             }
         case "tuya.save":
-            let secret = message["accessSecret"] as? String ?? ""
-            let credentials = TuyaService.Credentials(
-                accessId: (message["accessId"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines),
-                // An empty secret field means "keep the one already stored".
-                accessSecret: secret.isEmpty ? (tuya.credentials?.accessSecret ?? "") : secret.trimmingCharacters(in: .whitespacesAndNewlines),
-                region: message["region"] as? String ?? "eu")
             do {
-                try tuya.save(credentials.accessId.isEmpty ? nil : credentials)
-                host.reply(to: message, tuya.publicInfo)
+                try hub.saveTuya(accessId: message["accessId"] as? String ?? "",
+                                 accessSecret: message["accessSecret"] as? String ?? "",
+                                 region: message["region"] as? String ?? "eu")
+                host.reply(to: message, hub.tuyaInfo)
             } catch {
                 host.reply(to: message, ["error": error.localizedDescription])
             }
         case "tuya.devices":
             Task { @MainActor in
                 do {
-                    guard let cloud else { throw SmartLifeService.Failure(message: "Connect Smart Life first") }
-                    host.reply(to: message, ["devices": try await cloud.listDevices()])
+                    host.reply(to: message, ["devices": try await hub.listDevices()])
                 } catch {
                     host.reply(to: message, ["error": error.localizedDescription])
                 }
@@ -261,9 +276,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let userCode = message["userCode"] as? String ?? ""
             Task { @MainActor in
                 do {
-                    let login = try await smartLife.beginLogin(userCode: userCode)
-                    host.reply(to: message, ["token": login.token,
-                                             "qr": SmartLifeService.qrImageDataURL(for: login.qrContent) ?? ""])
+                    let login = try await hub.beginLogin(userCode: userCode)
+                    let png = QRCode.png(for: login.qrContent).map { "data:image/png;base64,\($0.base64EncodedString())" }
+                    host.reply(to: message, ["token": login.token, "qr": png ?? ""])
                 } catch {
                     host.reply(to: message, ["error": error.localizedDescription])
                 }
@@ -272,73 +287,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let token = message["token"] as? String ?? ""
             let userCode = message["userCode"] as? String ?? ""
             Task { @MainActor in
-                let done = (try? await smartLife.finishLogin(token: token, userCode: userCode)) ?? false
-                host.reply(to: message, ["connected": done, "info": smartLife.publicInfo])
+                let done = await hub.finishLogin(token: token, userCode: userCode)
+                host.reply(to: message, ["connected": done, "info": hub.smartLifeInfo])
+                if done { sync.broadcast() }
             }
         case "smartlife.signOut":
-            smartLife.signOut()
-            host.reply(to: message, smartLife.publicInfo)
+            hub.signOut()
+            host.reply(to: message, hub.smartLifeInfo)
+            sync.broadcast()
         default:
             break
         }
     }
 
-    // MARK: - Smart Life
+    // MARK: - Device state
 
-    /// Sends a change made in the panel to the real device and tells the panel how it went,
-    /// so a rejected change can be rolled back there. Commands to one device run strictly
-    /// one after another.
-    private func forward(_ message: [String: Any], from host: WebHost) {
-        guard let cloud, let id = message["id"] as? String, let entry = links[id],
-              let deviceId = entry.link["deviceId"] as? String else {
-            host.reply(to: message, ["ok": true]) // simulated device: nothing to send
-            return
-        }
-        let patch = message["patch"] as? [String: Any] ?? [:]
-        let state = message["state"] as? [String: Any] ?? [:]
-        let previous = commandTails[deviceId]
-        commandTails[deviceId] = Task { @MainActor in
-            await previous?.value
-            do {
-                // The first command to a device may arrive before anything is known about it.
-                await cloud.prepare(deviceId)
-                let codes = cloud.knownCodes[deviceId] ?? []
-                if entry.kind == "light" {
-                    try await send(TuyaMapper.lightCommands(patch: patch, state: state, link: entry.link, codes: codes,
-                                                            ranges: cloud.knownRanges[deviceId] ?? [:]), to: deviceId, id, cloud)
-                } else if TuyaMapper.isInfraredAC(codes) {
-                    try await infrared.apply(patch: patch, state: state, to: deviceId,
-                                             send: { try await self.send([$0], to: deviceId, id, cloud) },
-                                             note: { self.log.write("\(id) \($0)") })
-                } else {
-                    try await send(TuyaMapper.acCommands(patch: patch, link: entry.link, codes: codes), to: deviceId, id, cloud)
-                }
-                host.reply(to: message, ["ok": true])
-            } catch let rejected as InfraredRemote.Rejection {
-                host.reply(to: message, ["error": rejected.message, "failed": rejected.fields])
-            } catch {
-                host.reply(to: message, ["error": error.localizedDescription])
-                // The panel showed the change optimistically: pull the real state back in.
-                poll()
-            }
-        }
-    }
-
-    private func send(_ commands: [[String: Any]], to deviceId: String, _ id: String, _ cloud: DeviceCloud) async throws {
-        guard !commands.isEmpty else { return }
-        do {
-            try await cloud.send(commands, to: deviceId)
-            log.write("\(id) \(EventLog.describe(commands)) → ok")
-        } catch {
-            log.write("\(id) \(EventLog.describe(commands)) → \(error.localizedDescription)")
-            throw error
-        }
-    }
-
-    private func setPolling(_ on: Bool) {
+    /// Real devices are read while there is something on screen to show them in.
+    private func setPolling(_ requested: Bool) {
+        let on = requested || panel.isVisible || island?.isExpanded == true
         pollTimer?.invalidate()
         pollTimer = nil
-        guard on, cloud != nil, !links.isEmpty else { return }
+        guard on, hub.canPoll else { return }
         poll()
         pollTimer = Timer.scheduledTimer(withTimeInterval: 12, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.poll() }
@@ -346,36 +315,122 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func poll() {
-        let entries = links
-        guard let cloud else { return }
         Task { @MainActor in
-            // Devices plus the temperature sensors that stand in for an AC's room reading.
-            let ids = entries.values.flatMap { [$0.link["deviceId"] as? String, $0.link["sensorId"] as? String].compactMap { $0 } }
-            guard let status = try? await cloud.status(of: Array(Set(ids)).filter { !$0.isEmpty }) else { return }
-            var lights: [String: Any] = [:]
-            var acs: [String: Any] = [:]
-            var features: [String: Any] = [:]
-            for (id, entry) in entries {
-                guard let deviceId = entry.link["deviceId"] as? String else { continue }
-                if entry.kind == "ac", let known = TuyaMapper.acFeatures(codes: cloud.knownCodes[deviceId] ?? [],
-                                                                         ranges: cloud.knownRanges[deviceId] ?? [:]) {
-                    features[id] = known
-                }
-                if entry.kind == "light" {
-                    if let dps = status[deviceId] {
-                        lights[id] = TuyaMapper.lightState(from: dps, ranges: cloud.knownRanges[deviceId] ?? [:])
-                    }
-                    continue
-                }
-                var state = status[deviceId].map { TuyaMapper.acState(from: $0) } ?? [:]
-                if let sensorId = entry.link["sensorId"] as? String, let dps = status[sensorId],
-                   let temperature = TuyaMapper.sensorTemperature(from: dps) {
-                    state["roomTemp"] = temperature
-                }
-                if !state.isEmpty { acs[id] = state }
-            }
-            panel.host.call("applyRemote", ["lights": lights, "acs": acs, "features": features])
+            guard let update = await hub.poll() else { return }
+            panel.host.call("applyRemote", update) // the island adopts it from the panel
         }
+    }
+
+    // MARK: - Island
+
+    /// On unless switched off in the menu (or by HOUSE_ISLAND=0 for one run).
+    private var islandEnabled: Bool {
+        if let forced = ProcessInfo.processInfo.environment["HOUSE_ISLAND"] { return forced != "0" }
+        return UserDefaults.standard.object(forKey: "island") as? Bool ?? true
+    }
+
+    private func showIsland() {
+        if island == nil {
+            let host = WebHost(mode: "island", transparent: true) { [unowned self] in
+                var boot = self.plans.bootPayload()
+                boot["island"] = self.island?.bootInfo ?? [:]
+                return boot
+            }
+            host.onMessage = { [weak self, unowned host] message in self?.handle(message, from: host) }
+            let controller = IslandController(host: host)
+            controller.onExpandedChange = { [weak self] open in self?.setPolling(open) }
+            island = controller
+        }
+        island?.show()
+    }
+
+    @objc private func toggleIsland() {
+        let show = island?.isShown != true
+        UserDefaults.standard.set(show, forKey: "island")
+        if show { showIsland() } else { island?.hide() }
+    }
+
+    // MARK: - iPhone sync
+
+    private var computerName: String { Host.current().localizedName ?? "Mac" }
+
+    private func startSync() {
+        sync.snapshot = { [unowned self] in
+            SyncState(macName: self.computerName,
+                      revision: self.plans.customPlanRevision ?? "",
+                      plan: try? Data(contentsOf: self.plans.customPlanURL),
+                      userCode: self.hub.smartLifeUserCode,
+                      smartLifeConnected: self.hub.isSmartLifeConnected)
+        }
+        sync.onPeersChanged = { [weak self] in self?.refreshPairingWindow() }
+        sync.onShowQR = { [weak self] content, device in self?.showLoginCode(content, for: device) }
+        sync.start() // only listens once a phone has been paired
+    }
+
+    /// Shows the QR code an iPhone scans once to find this Mac and receive its floor plan.
+    @objc private func pairPhone() {
+        panel.hide()
+        let pairing = sync.enable(name: computerName)
+        if pairingWindow == nil {
+            let window = QRWindowController(title: "Pair iPhone")
+            window.onClose = { [weak self] in self?.pairingWindow = nil }
+            window.addButton("Copy Pairing Link") { [weak self] in
+                guard let link = self?.sync.pairing?.link else { return }
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(link, forType: .string)
+            }
+            window.addButton("Reset Pairing…") { [weak self] in self?.resetPairing() }
+            pairingWindow = window
+        }
+        pairingWindow?.show(code: pairing.link,
+                            headline: "Scan with House Control on your iPhone",
+                            detail: "On the iPhone open Settings → Pair with Mac. Both devices must be on the same Wi-Fi. "
+                                + "Your floor plan is sent straight from this Mac to the phone, encrypted with the key in this code.")
+        refreshPairingWindow()
+    }
+
+    private func resetPairing() {
+        let alert = NSAlert()
+        alert.messageText = "Reset pairing?"
+        alert.informativeText = "Every iPhone paired so far stops syncing until it scans the new code."
+        alert.addButton(withTitle: "Reset")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        sync.reset(name: computerName)
+        pairPhone()
+    }
+
+    private func refreshPairingWindow() {
+        let devices = sync.connectedDevices
+        if !devices.isEmpty {
+            pairingWindow?.setStatus("Connected: \(devices.joined(separator: ", "))", active: true)
+        } else if sync.isAdvertised {
+            pairingWindow?.setStatus("Waiting for an iPhone…", active: false)
+        } else {
+            // Until macOS lets the app use the local network, no phone can find this Mac.
+            pairingWindow?.setStatus("Allow Local Network access for House Control in System Settings → Privacy & Security",
+                                     active: false)
+        }
+    }
+
+    /// A paired iPhone signs in to Smart Life on its own, but its login code has to be
+    /// scanned by the Smart Life app on that same phone, so it borrows this Mac's screen.
+    private func showLoginCode(_ content: String?, for device: String) {
+        guard let content, content.hasPrefix("tuyaSmart--qrLogin?token=") else {
+            loginWindow?.close()
+            loginWindow = nil
+            return
+        }
+        if loginWindow == nil {
+            let window = QRWindowController(title: "Smart Life Sign-In for \(device)")
+            window.onClose = { [weak self] in self?.loginWindow = nil }
+            loginWindow = window
+        }
+        loginWindow?.show(code: content,
+                          headline: "Scan with the Smart Life app on \(device)",
+                          detail: "Open Smart Life, tap the scanner on its Home tab and confirm the login. "
+                              + "This window closes by itself once the iPhone is signed in.")
+        loginWindow?.setStatus("Requested by \(device)", active: true)
     }
 
     // MARK: - Menu (gives the editor window the usual shortcuts)

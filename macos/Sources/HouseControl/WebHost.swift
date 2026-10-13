@@ -1,47 +1,14 @@
 import AppKit
 import WebKit
+import HouseCore
 
-/// Serves the bundled web UI under `house://app/…` so ES modules, fetch and
-/// localStorage behave as they would on a normal origin.
-final class AssetSchemeHandler: NSObject, WKURLSchemeHandler {
-    static let scheme = "house"
-    private let root: URL
-
-    init(root: URL) { self.root = root }
-
-    private static let mime: [String: String] = [
-        "html": "text/html", "js": "text/javascript", "mjs": "text/javascript", "css": "text/css",
-        "json": "application/json", "svg": "image/svg+xml", "png": "image/png", "jpg": "image/jpeg",
-        "woff2": "font/woff2", "map": "application/json",
-    ]
-
-    func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
-        guard let url = task.request.url else { return }
-        var path = url.path
-        if path.isEmpty || path == "/" { path = "/index.html" }
-        let file = root.appendingPathComponent(String(path.dropFirst())).standardizedFileURL
-        guard file.path.hasPrefix(root.standardizedFileURL.path), let data = try? Data(contentsOf: file) else {
-            let response = HTTPURLResponse(url: url, statusCode: 404, httpVersion: "HTTP/1.1", headerFields: nil)!
-            task.didReceive(response)
-            task.didReceive(Data())
-            task.didFinish()
-            return
-        }
-        let type = Self.mime[file.pathExtension.lowercased()] ?? "application/octet-stream"
-        let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: [
-            "Content-Type": type.hasPrefix("text/") || type.hasSuffix("json") ? "\(type); charset=utf-8" : type,
-            "Content-Length": String(data.count),
-            "Cache-Control": "no-cache",
-        ])!
-        task.didReceive(response)
-        task.didReceive(data)
-        task.didFinish()
-    }
-
-    func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {}
+/// Takes the click that reaches a window which is not the key one (the island never is:
+/// hovering the notch must not steal the keyboard from the app you are typing in).
+private final class FirstMouseWebView: WKWebView {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
-/// A WKWebView showing the web UI in one of its modes ("panel" or "editor"),
+/// A WKWebView showing the web UI in one of its modes ("panel", "editor" or "island"),
 /// plus the JSON message bridge in both directions.
 final class WebHost: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     let webView: WKWebView
@@ -63,7 +30,7 @@ final class WebHost: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
         // A run against a throw-away data folder must not touch the saved panel state either.
         if ProcessInfo.processInfo.environment["HOUSE_DATA_DIR"] != nil { config.websiteDataStore = .nonPersistent() }
-        webView = WKWebView(frame: .zero, configuration: config)
+        webView = FirstMouseWebView(frame: .zero, configuration: config)
         super.init()
         config.userContentController.add(self, name: "house")
         webView.navigationDelegate = self
@@ -72,6 +39,13 @@ final class WebHost: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             if #available(macOS 12.0, *) { webView.underPageBackgroundColor = .clear }
         }
         webView.allowsMagnification = false
+        // WebKit stops rendering into windows the system reports as hidden, which is every
+        // window while the screen is locked. HOUSE_RENDER_HIDDEN=1 keeps the page drawing
+        // there, so captures can be taken on an unattended Mac.
+        if ProcessInfo.processInfo.environment["HOUSE_RENDER_HIDDEN"] != nil,
+           webView.responds(to: Selector(("_setWindowOcclusionDetectionEnabled:"))) {
+            webView.setValue(false, forKey: "windowOcclusionDetectionEnabled")
+        }
     }
 
     func load() {
@@ -79,17 +53,35 @@ final class WebHost: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         controller.removeAllUserScripts()
         var boot = bootProvider()
         boot["mode"] = mode
-        let json = Self.json(boot)
+        let json = WebJSON.literal(boot)
         controller.addUserScript(WKUserScript(source: "window.__HOUSE_BOOT__ = \(json);",
                                               injectionTime: .atDocumentStart, forMainFrameOnly: true))
-        let base = ProcessInfo.processInfo.environment["HOUSE_DEV_URL"] ?? "\(AssetSchemeHandler.scheme)://app/index.html"
+        controller.addUserScript(WKUserScript(source: Self.errorReporter, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        let base = ProcessInfo.processInfo.environment["HOUSE_DEV_URL"] ?? AssetSchemeHandler.indexURL
         webView.load(URLRequest(url: URL(string: "\(base)?mode=\(mode)")!))
     }
 
+    /// Writes a PNG of what the page shows. Works for a window that is not on screen,
+    /// which a screen capture does not.
+    func snapshot(to url: URL) {
+        webView.takeSnapshot(with: nil) { image, _ in
+            guard let tiff = image?.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff) else { return }
+            try? rep.representation(using: .png, properties: [:])?.write(to: url)
+        }
+    }
+
+    /// Script errors in the page are written to the app's log (stderr, Console.app).
+    private static let errorReporter = """
+        (() => {
+          const tell = (text) => window.webkit.messageHandlers.house.postMessage({ type: 'log', text: String(text) });
+          window.addEventListener('error', (e) => tell(`${e.message} (${(e.filename || '').split('/').pop()}:${e.lineno})`), true);
+          window.addEventListener('unhandledrejection', (e) => tell(`unhandled: ${e.reason && e.reason.message || e.reason}`));
+        })();
+        """
+
     /// Calls `window.house.<function>(…args)` in the page.
     func call(_ function: String, _ args: Any...) {
-        let list = args.map { Self.json($0) }.joined(separator: ",")
-        webView.evaluateJavaScript("window.house && window.house.\(function) && window.house.\(function)(\(list));", completionHandler: nil)
+        webView.evaluateJavaScript(WebJSON.call(function, args), completionHandler: nil)
     }
 
     func reply(to message: [String: Any], _ result: Any) {
@@ -97,21 +89,12 @@ final class WebHost: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         call("reply", id, result)
     }
 
-    static func json(_ value: Any) -> String {
-        if value is NSNull { return "null" }
-        if JSONSerialization.isValidJSONObject(value),
-           let data = try? JSONSerialization.data(withJSONObject: value, options: [.withoutEscapingSlashes]) {
-            return String(data: data, encoding: .utf8) ?? "null"
-        }
-        // Scalars are not valid top-level JSON objects: wrap, encode, unwrap.
-        if let data = try? JSONSerialization.data(withJSONObject: [value]), let s = String(data: data, encoding: .utf8) {
-            return String(s.dropFirst().dropLast())
-        }
-        return "null"
-    }
-
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let body = message.body as? [String: Any] else { return }
+        if body["type"] as? String == "log" {
+            NSLog("House Control web (%@): %@", mode, body["text"] as? String ?? "")
+            return
+        }
         onMessage?(body)
     }
 
