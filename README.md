@@ -237,6 +237,7 @@ Environment variables understood by the app:
 | `HOUSE_ISLAND=0` | Run without the island (`1` forces it on) |
 | `HOUSE_ISLAND_EXPANDED=1` | Keep the island open |
 | `HOUSE_OPEN_PAIRING=1` | Open the Pair iPhone window at launch |
+| `HOUSE_COMPUTER_NAME="Studio Mac"` | The name paired iPhones see, instead of the Mac's own (screenshots) |
 | `HOUSE_SNAPSHOT_DIR=/some/folder` | Write `panel.png` and `island.png` there a few seconds after launch |
 | `HOUSE_RENDER_HIDDEN=1` | Keep drawing while the screen is locked, for unattended captures |
 
