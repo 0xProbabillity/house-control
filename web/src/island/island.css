@@ -7,7 +7,7 @@ html.mode-island #app { display: block; padding: 0; height: 100%; }
 .isle {
   --notch-w: 190px;
   --notch-h: 34px;
-  --ear: 50px;
+  --ear: 64px;
   --mood: #17274f;
   --w: calc(var(--notch-w) + var(--ear) * 2);
   --h: var(--notch-h);

@@ -16,9 +16,15 @@ const app = document.getElementById('app');
 if (isNative) document.documentElement.classList.add('native');
 if (isPhone) document.documentElement.classList.add('ios');
 
+// ?safeTop=62&safeBottom=34 stands in for a phone's safe areas when its layout is looked at in a browser.
+for (const edge of ['top', 'bottom']) {
+  const px = Number(new URLSearchParams(location.search).get(edge === 'top' ? 'safeTop' : 'safeBottom'));
+  if (isPhone && px) document.documentElement.style.setProperty(`--safe-${edge}-preview`, `${px}px`);
+}
+
 // Height of the status bar / Dynamic Island on a phone; 0 everywhere else.
 function safeAreaTop() {
-  const probe = document.body.appendChild(h('div', { style: { position: 'fixed', paddingTop: 'env(safe-area-inset-top, 0px)' } }));
+  const probe = document.body.appendChild(h('div', { style: { position: 'fixed', paddingTop: 'var(--safe-top-preview, env(safe-area-inset-top, 0px))' } }));
   const top = parseFloat(getComputedStyle(probe).paddingTop) || 0;
   probe.remove();
   return top;
@@ -100,6 +106,7 @@ async function boot() {
   }
   incoming.applyRemote = (update) => store.applyRemote(update);
   incoming.adopt = (state) => store.adopt(state);
+  incoming.share = () => store.share();
   store.onDeviceError = (id, message) => {
     const name = store.lightCfg.get(id)?.name || store.acCfg.get(id)?.name || id;
     panel.toast(`${name}: ${message}`);

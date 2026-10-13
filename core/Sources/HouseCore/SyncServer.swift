@@ -46,11 +46,17 @@ public final class SyncServer {
     /// Makes sure this Mac can be paired with and returns what the phone has to scan.
     @discardableResult
     public func enable(name: String) -> SyncPairing {
-        if let pairing {
+        guard var current = pairing else { return reset(name: name) }
+        if current.name != name {
+            // The Mac was renamed: same key, new name on the network and in the code.
+            current.name = name
+            pairing = current
+            store.write(try? JSONEncoder().encode(current))
+            restart()
+        } else {
             start()
-            return pairing
         }
-        return reset(name: name)
+        return current
     }
 
     /// New key: every phone paired so far has to be paired again.

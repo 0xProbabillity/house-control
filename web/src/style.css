@@ -669,8 +669,8 @@ html.ios * { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: no
 html.ios #app { padding: 0; place-items: stretch; }
 html.ios .card {
   --stage-h: min(470px, 52%);
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: var(--safe-top-preview, env(safe-area-inset-top, 0px));
+  --safe-bottom: var(--safe-bottom-preview, env(safe-area-inset-bottom, 0px));
   width: auto;
   height: auto;
   border-radius: 0;

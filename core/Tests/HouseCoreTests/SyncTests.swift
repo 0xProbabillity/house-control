@@ -136,6 +136,17 @@ final class SyncTests: XCTestCase {
         XCTAssertTrue(server.connectedDevices.isEmpty)
     }
 
+    func testRenamingTheMacKeepsTheKey() {
+        let server = SyncServer(store: MemorySecretStore())
+        let first = server.reset(name: "Old name")
+        server.stop()
+        let renamed = server.enable(name: "New name")
+        server.stop()
+        XCTAssertEqual(renamed.name, "New name")
+        XCTAssertEqual(renamed.key, first.key)
+        XCTAssertEqual(renamed.id, first.id)
+    }
+
     func testPairingSurvivesARestart() {
         let store = MemorySecretStore()
         let pairing = SyncServer(store: store).reset(name: "Mac")

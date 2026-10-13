@@ -215,6 +215,9 @@ export function createStore(config) {
       emit({ type: 'bulk', scene: sceneId });
     },
 
+    /** Reports the state again, for a view that has only just started. */
+    share() { post('state', { lights: state.lights, acs: state.acs, scene: state.scene }); },
+
     // The state of another view of this home (see emit). Nothing goes to the devices:
     // the view where the change was made has already sent it.
     adopt(other) {

@@ -15,7 +15,7 @@ final class IslandController: NSObject {
     // Must match island.css: the open island below the notch, and room for its shadow.
     private static let open = NSSize(width: 664, height: 292)
     private static let canvas = NSSize(width: 820, height: 470)
-    private static let ear: CGFloat = 60
+    private static let ear: CGFloat = 64
 
     let host: WebHost
     private let window: IslandPanel

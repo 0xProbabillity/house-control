@@ -196,6 +196,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func handle(_ message: [String: Any], from host: WebHost) {
         switch message["type"] as? String {
         case "ready", "summary":
+            // A view that has just loaded takes over what the panel shows.
+            if message["type"] as? String == "ready", host !== panel.host { panel.host.call("share") }
             if let summary = (message["summary"] as? [String: Any]) ?? (message["lightsOn"] != nil ? message : nil) {
                 updateStatus(summary)
             }
@@ -352,7 +354,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - iPhone sync
 
-    private var computerName: String { Host.current().localizedName ?? "Mac" }
+    /// The name paired iPhones see (HOUSE_COMPUTER_NAME replaces it for screenshots).
+    private var computerName: String {
+        ProcessInfo.processInfo.environment["HOUSE_COMPUTER_NAME"] ?? Host.current().localizedName ?? "Mac"
+    }
 
     private func startSync() {
         sync.snapshot = { [unowned self] in

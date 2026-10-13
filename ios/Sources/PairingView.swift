@@ -18,7 +18,7 @@ struct PairingView: View {
         ScrollView {
             VStack(spacing: 22) {
                 if let paired {
-                    success(paired)
+                    success(model.macName ?? paired)
                 } else {
                     steps
                     viewfinder
