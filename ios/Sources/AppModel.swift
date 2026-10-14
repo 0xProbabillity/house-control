@@ -73,7 +73,7 @@ final class AppModel {
         let directory = plans.directory
         func secret(_ name: String) -> SecretStore {
             sandboxed ? FileSecretStore(url: directory.appendingPathComponent("\(name).json"))
-                      : KeychainSecretStore(service: "io.github.0xprobabillity.HouseControl", account: name)
+                      : KeychainSecretStore(service: Bundle.main.bundleIdentifier ?? "HouseControl", account: name)
         }
         hub = DeviceHub(directory: directory, secret: secret, homeKit: homeKitService)
         sync = SyncClient(store: secret("sync"))
