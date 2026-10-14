@@ -28,7 +28,11 @@ export function bootConsole(root) {
 
   /* ---------- skeleton ---------- */
 
-  const orb = h('div.orb', h('div.orb-glow'), h('div.orb-ring', h('div.orb-spin')), h('div.orb-core', icon('sparkles', 30, 1.8)));
+  // The ring is four still gradients stacked under the core; their opacities drift, so the colours
+  // seem to flow around it. Only opacity animates: WebKit composites it without repainting.
+  const orb = h('div.orb', h('div.orb-glow'),
+    h('div.orb-ring', h('i.c1'), h('i.c2'), h('i.c3'), h('i.dim')),
+    h('div.orb-core', icon('sparkles', 30, 1.8)));
   const pill = h('div.pill');
   const primary = h('button.primary', { onclick: () => send(status.state === 'live' || status.state === 'starting' ? 'agent.stop' : 'agent.start', { reach: status.reach }) });
   const reachSeg = segmented([['internet', 'globe', 'Over the internet'], ['local', 'laptop', 'This Mac only']],

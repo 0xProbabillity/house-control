@@ -58,43 +58,36 @@ html.mode-agent:has(.agent[data-state='live']) body::before { opacity: 1; }
 .orb-glow {
   inset: -26px;
   background: radial-gradient(circle, rgba(124, 92, 255, 0.5), rgba(61, 139, 255, 0.22) 42%, transparent 68%);
-  opacity: 0.25;
-  transition: opacity 900ms ease;
-  will-change: opacity, transform;
+  opacity: 0.2;
+  transition: opacity 1200ms ease;
 }
-/* The ring is a static mask over a disc that turns: only a transform animates, which
-   WebKit composites on the GPU instead of repainting the gradient every frame. */
-.orb-ring {
-  overflow: hidden;
-  -webkit-mask: radial-gradient(circle, transparent 57%, #000 59.5%);
-  mask: radial-gradient(circle, transparent 57%, #000 59.5%);
-  filter: saturate(0.2) brightness(0.65);
-  transition: filter 900ms ease;
-}
-.orb-spin {
-  position: absolute; inset: -2px; border-radius: 50%;
-  background: conic-gradient(from 0deg, #8b6cff, #3d8bff, #42d6e8, #3d8bff, #ff5fc4, #8b6cff);
-  animation: orb-spin 18s linear infinite;
-  will-change: transform;
-}
+.orb-ring i { position: absolute; inset: 0; border-radius: 50%; will-change: opacity; }
+.orb-ring .c1 { background: conic-gradient(from 210deg, #8b6cff, #3d8bff, #42d6e8, #3d8bff, #ff5fc4, #8b6cff); }
+.orb-ring .c2 { background: conic-gradient(from 330deg, #ff5fc4, #8b6cff, #3d8bff, #42d6e8, #8b6cff, #ff5fc4); opacity: 0; }
+.orb-ring .c3 { background: conic-gradient(from 90deg, #42d6e8, #8b6cff, #ff5fc4, #6e8bff, #42d6e8); opacity: 0; }
+/* Grey cover while the link is off; fades away when it goes live. */
+.orb-ring .dim { background: conic-gradient(from 210deg, #4a4f66, #3a3f55, #565b72, #3a3f55, #4a4f66); opacity: 0.88; transition: opacity 1200ms ease; }
 .orb-core {
   inset: 12px;
   display: grid; place-items: center;
   color: #fff;
   background: radial-gradient(circle at 35% 30%, #2a2f4a, #0d1020 70%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 10px 30px -10px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 0 0 3px #0b0d18, inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 10px 30px -10px rgba(0, 0, 0, 0.8);
 }
-.orb-core .icon { opacity: 0.55; transition: opacity 600ms, transform 800ms var(--spring); }
-[data-state='starting'] .orb-ring { filter: none; }
-[data-state='starting'] .orb-spin { animation-duration: 2.4s; }
+.orb-core .icon { opacity: 0.55; transition: opacity 800ms; }
+.orb-ring .c2 { animation: orb-flow-a 9s ease-in-out infinite; }
+.orb-ring .c3 { animation: orb-flow-b 9s ease-in-out infinite; }
+[data-state='starting'] .orb-ring .dim { opacity: 0.35; }
+[data-state='starting'] .orb-ring .c2, [data-state='starting'] .orb-ring .c3 { animation-duration: 2.4s; }
 [data-state='starting'] .orb-glow { opacity: 0.55; }
-[data-state='live'] .orb-ring { filter: none; }
-[data-state='live'] .orb-spin { animation-duration: 9s; }
-[data-state='live'] .orb-glow { opacity: 1; animation: orb-breathe 4.8s ease-in-out infinite; }
-[data-state='live'] .orb-core .icon { opacity: 1; transform: scale(1.06); }
-[data-state='error'] .orb-ring { filter: hue-rotate(150deg) saturate(1.3) brightness(0.75); }
+[data-state='live'] .orb-ring .dim { opacity: 0; }
+[data-state='live'] .orb-glow { opacity: 1; animation: orb-breathe 5s ease-in-out infinite; }
+[data-state='live'] .orb-core .icon { opacity: 1; }
+[data-state='error'] .orb-ring .dim { opacity: 0.6; background: conic-gradient(from 210deg, #ff5a4f, #8a2b3a, #ff8a80, #8a2b3a, #ff5a4f); }
+@keyframes orb-flow-a { 0%, 100% { opacity: 0; } 33% { opacity: 1; } 66% { opacity: 0.15; } }
+@keyframes orb-flow-b { 0%, 100% { opacity: 0; } 40% { opacity: 0; } 72% { opacity: 1; } }
+@keyframes orb-breathe { 50% { opacity: 0.6; } }
 @keyframes orb-spin { to { transform: rotate(360deg); } }
-@keyframes orb-breathe { 50% { opacity: 0.6; transform: scale(0.92); } }
 
 .pill {
   display: inline-flex; align-items: center; gap: 8px;
