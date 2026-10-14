@@ -114,4 +114,9 @@ Credentials stay on your Mac, in `~/Library/Application Support/HouseControl/` (
 **Disconnect** deletes them. Paired iPhones receive the Home Assistant and Hue connections over their encrypted
 link and keep them in the Keychain. Nothing goes through a server of ours — there is none.
 
+A linked device that the last check could not reach — its platform did not answer, does not know it, or reports it
+offline — is dimmed in the panel and reads **Not reachable**, and the header counts them. The check runs as soon as
+the panel opens and then every 12 seconds while it is open; a platform that did not answer at all is marked in
+**Connections**. Devices on a platform that is not connected stay simulated instead.
+
 When something does not react, **Reveal Device Log** in the menu bar icon's menu shows each command and the answer.

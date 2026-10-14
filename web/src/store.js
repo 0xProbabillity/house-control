@@ -1,4 +1,5 @@
 import { post, call, isNative } from './bridge.js';
+import { createReachability } from './reachability.js';
 
 const STORAGE_KEY = 'house-control:state:v1';
 
@@ -25,6 +26,8 @@ export function createStore(config) {
   const acCfg = new Map(config.acs.map((a) => [a.id, a]));
 
   const state = { lights: {}, acs: {}, scene: null };
+  // Linked devices the last check could not reach (the native side reports them with each poll).
+  const reachability = createReachability();
   for (const l of config.lights) state.lights[l.id] = defaultLight(l);
   for (const a of config.acs) state.acs[a.id] = defaultAC(a, config.outdoorTemp);
   // What each real AC can do, as reported by the native side. A simulated AC can do everything.
@@ -232,8 +235,13 @@ export function createStore(config) {
     },
 
     // State reported by real devices (native provider). Never echoed back as a command.
+    /** True when the last check could not reach this linked device. */
+    isOffline(id) { return reachability.has(id); },
+    /** How many linked devices the last check could not reach. */
+    get offlineCount() { return reachability.size; },
+
     applyRemote(update) {
-      let any = false;
+      let any = reachability.update(update.offline);
       for (const [id, patch] of Object.entries(update.lights || {})) any = writeLight(id, patch, { remote: true }) || any;
       for (const [id, patch] of Object.entries(update.acs || {})) any = writeAC(id, patch, { remote: true }) || any;
       for (const [id, f] of Object.entries(update.features || {})) {

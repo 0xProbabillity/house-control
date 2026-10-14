@@ -798,3 +798,9 @@ html.ios .fatal { margin: calc(env(safe-area-inset-top, 0px) + 20px) 16px 0; wid
     animation-duration: 1ms !important; transition-duration: 1ms !important;
   }
 }
+
+/* ---------- devices the last check could not reach ---------- */
+
+.tile.offline { opacity: 0.55; }
+.tile.offline .tile-sub { color: #ff9b8f; }
+.home-sub .unreachable { color: #ff9b8f; }

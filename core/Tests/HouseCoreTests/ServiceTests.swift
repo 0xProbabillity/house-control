@@ -200,6 +200,44 @@ final class ServiceTests: XCTestCase {
         XCTAssertEqual(thermostat["target"] as? Double, 21)
     }
 
+    // MARK: - Reachability
+
+    func testUnreachableCoversSilentPlatformsUnknownAndOfflineDevices() {
+        let links: [String: (service: String, id: String)] = [
+            "lamp": ("hue", "L1"), "gone": ("hue", "L9"), "off": ("hue", "L2"),
+            "plug": ("tapo", "P1"), "phone": ("homekit", "H1"), "sim": ("hue", ""),
+        ]
+        let readings: [String: [String: DeviceReading]] = [
+            "hue": ["L1": DeviceReading(light: ["on": true]), "L2": DeviceReading(online: false)],
+            // "tapo" was asked but did not answer: no entry at all.
+        ]
+        let offline = DeviceHub.unreachable(links: links, asked: ["hue", "tapo"], readings: readings)
+        // L9 unknown to Hue, L2 offline, the plug's platform silent; Apple Home (not asked) and an
+        // unlinked lamp stay out of it.
+        XCTAssertEqual(offline, ["gone", "off", "plug"])
+    }
+
+    func testHubReportsUnreachableDevicesAndPlatforms() async {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let fake = FakeService()
+        let hub = DeviceHub(directory: dir, secret: { _ in MemorySecretStore() }, homeKit: fake)
+        hub.setLinks(from: ["lights": [
+            ["id": "lamp", "link": ["service": "homekit", "id": "L1"]],
+            ["id": "dark", "link": ["service": "homekit", "id": "OFF"]],
+        ]])
+
+        let first = await hub.poll()
+        XCTAssertEqual(first?["offline"] as? [String], ["dark"])
+        XCTAssertEqual((hub.servicesInfo["homekit"] as? [String: Any])?["reachable"] as? Bool, true)
+
+        fake.unreachable = true
+        let second = await hub.poll()
+        XCTAssertEqual(second?["offline"] as? [String], ["dark", "lamp"])
+        XCTAssertEqual((hub.servicesInfo["homekit"] as? [String: Any])?["reachable"] as? Bool, false)
+    }
+
     // MARK: - Hub routing
 
     func testHubRoutesLinkedDevicesToTheirPlatform() async {
@@ -360,13 +398,17 @@ private final class FakeService: DeviceService {
     var sent: [(kind: DeviceKind, id: String, patch: [String: Any])] = []
     var watched: Set<String> = []
     var failNext = false
+    /// When true, the platform does not answer reads at all (a bridge gone from the network).
+    var unreachable = false
 
     func devices() async throws -> [ServiceDevice] { [] }
     func read(_ ids: Set<String>) async throws -> [String: DeviceReading] {
-        [
+        if unreachable { throw ServiceFailure("did not answer") }
+        return [
             "L1": DeviceReading(light: ["on": true, "brightness": 0.5]),
             "A1": DeviceReading(ac: ["on": true, "target": 23.0, "roomTemp": 26.0], features: ["modes": ["cool"]]),
             "S1": DeviceReading(temperature: 19.5),
+            "OFF": DeviceReading(online: false),
         ].filter { ids.contains($0.key) }
     }
     func send(kind: DeviceKind, id: String, patch: [String: Any], state: [String: Any]) async throws {

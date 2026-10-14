@@ -265,3 +265,5 @@ html.mode-editor, html.mode-editor body { user-select: none; }
   .press-button span { animation: none; box-shadow: 0 0 0 3px rgba(60, 140, 255, 0.55); }
   .note.busy .icon { animation-duration: 2.4s; }
 }
+
+.svc-status.bad { color: #ff9b8f; }

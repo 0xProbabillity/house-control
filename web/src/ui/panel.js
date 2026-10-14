@@ -193,11 +193,14 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
       el, cfg, kind: 'light',
       update() {
         const s = state.lights[cfg.id];
-        el.classList.toggle('on', s.on);
+        const away = store.isOffline(cfg.id);
+        el.classList.toggle('on', s.on && !away);
+        el.classList.toggle('offline', away);
         el.style.setProperty('--c', css(lightColor(s, tmp)));
-        el.style.setProperty('--level', s.on ? String(s.brightness) : '0');
+        el.style.setProperty('--level', s.on && !away ? String(s.brightness) : '0');
+        const status = away ? 'Not reachable' : lightStatus(cfg, s);
         // On a phone the group heading above the tile already names the room.
-        sub.textContent = ui.room === 'all' && !isPhone ? `${lightStatus(cfg, s)} · ${roomName.get(cfg.room)}` : lightStatus(cfg, s);
+        sub.textContent = ui.room === 'all' && !isPhone ? `${status} · ${roomName.get(cfg.room)}` : status;
       },
     };
   }
@@ -226,11 +229,13 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
       el, cfg, kind: 'ac',
       update() {
         const s = state.acs[cfg.id];
-        el.classList.toggle('on', s.on);
+        const away = store.isOffline(cfg.id);
+        el.classList.toggle('on', s.on && !away);
+        el.classList.toggle('offline', away);
         el.style.setProperty('--c', MODE_COLORS[s.mode]);
         if (shownMode !== s.mode) { bubble.replaceChildren(icon(s.mode, 19)); shownMode = s.mode; }
         value.textContent = `${s.target}°`;
-        sub.textContent = `${s.on ? MODE_LABEL[s.mode] : 'Off'} · Room ${s.roomTemp.toFixed(isPhone ? 0 : 1)}°`;
+        sub.textContent = away ? 'Not reachable' : `${s.on ? MODE_LABEL[s.mode] : 'Off'} · Room ${s.roomTemp.toFixed(isPhone ? 0 : 1)}°`;
       },
     };
   }
@@ -523,7 +528,8 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     homeSub.replaceChildren(
       h('span.live', { style: anyOn ? {} : { background: 'rgba(255,255,255,.25)', boxShadow: 'none' } }),
       h('b', onCount ? `${onCount} of ${lights.length}` : 'No'), ' lights on',
-      acsOn.length ? ` · AC ${acsOn[0].target}°` : '');
+      acsOn.length ? ` · AC ${acsOn[0].target}°` : '',
+      store.offlineCount ? h('span.unreachable', ` · ${store.offlineCount} not reachable`) : '');
     power.classList.toggle('on', anyOn);
 
     for (const [id, b] of sceneButtons) b.classList.toggle('active', state.scene === id);

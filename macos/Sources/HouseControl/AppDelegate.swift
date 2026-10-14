@@ -283,6 +283,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "ready", "summary":
             // A view that has just loaded takes over what the panel shows.
             if message["type"] as? String == "ready", host !== panel.host { panel.host.call("share") }
+            // The panel checks the devices as soon as it has loaded, so one that cannot be reached
+            // shows as such from the start instead of with its last known state.
+            if message["type"] as? String == "ready", host === panel.host, hub.canPoll { poll() }
             if let summary = (message["summary"] as? [String: Any]) ?? (message["lightsOn"] != nil ? message : nil) {
                 updateStatus(summary)
             }

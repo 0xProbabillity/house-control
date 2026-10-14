@@ -32,6 +32,8 @@ public final class DeviceHub {
         var sensor: (service: String, id: String)?
     }
     private var serviceLinks: [String: Link] = [:]
+    /// Per platform, whether it answered the last poll (absent: not asked yet).
+    private var reachable: [String: Bool] = [:]
     /// Sensors from other platforms that report the room of a Smart Life AC.
     private var tuyaSensors: [String: (service: String, id: String)] = [:]
     private var refresh: Task<Void, Never>?
@@ -213,7 +215,8 @@ public final class DeviceHub {
         async let servicePart = pollServices()
         let (fromTuya, fromServices) = await (tuyaPart, servicePart)
         guard fromTuya != nil || fromServices != nil else { return nil }
-        var merged: [String: Any] = [:]
+        // Always present, so the panel also clears the devices that came back.
+        var merged: [String: Any] = ["offline": fromServices?["offline"] as? [String] ?? []]
         for key in ["lights", "acs", "features"] {
             var section = fromTuya?[key] as? [String: Any] ?? [:]
             for (id, value) in fromServices?[key] as? [String: Any] ?? [:] {
@@ -238,14 +241,16 @@ public final class DeviceHub {
         }
         for sensor in tuyaSensors.values { wanted[sensor.service, default: []].insert(sensor.id) }
         var readings: [String: [String: DeviceReading]] = [:]
-        var answered = false
+        var asked: Set<String> = []
         for (serviceId, ids) in wanted {
-            guard let service = service(serviceId), service.isConnected, service.controlsDevices,
-                  let result = try? await service.read(ids) else { continue }
-            readings[serviceId] = result
-            answered = true
+            guard let service = service(serviceId), service.isConnected, service.controlsDevices else { continue }
+            asked.insert(serviceId)
+            if let result = try? await service.read(ids) { readings[serviceId] = result }
+            reachable[serviceId] = readings[serviceId] != nil
         }
-        guard answered else { return nil }
+        guard !asked.isEmpty else { return nil }
+        let offline = Self.unreachable(links: serviceLinks.mapValues { (service: $0.service, id: $0.id) },
+                                       asked: asked, readings: readings)
         var lights: [String: Any] = [:], acs: [String: Any] = [:], features: [String: Any] = [:]
         for (id, link) in serviceLinks {
             let reading = readings[link.service]?[link.id]
@@ -260,7 +265,22 @@ public final class DeviceHub {
         for (id, sensor) in tuyaSensors {
             if let t = readings[sensor.service]?[sensor.id]?.temperature { acs[id] = ["roomTemp": t] }
         }
-        return ["lights": lights, "acs": acs, "features": features]
+        return ["lights": lights, "acs": acs, "features": features, "offline": offline]
+    }
+
+    /// The app devices that a poll found unreachable: linked to a platform that was asked
+    /// (`asked`) but did not report them — because the platform did not answer at all, the
+    /// device is unknown to it, or it marked the device offline.
+    ///
+    /// Devices on a platform that was not asked (not connected, or one this device cannot switch,
+    /// such as Apple Home on the Mac) are not "unreachable": they stay simulated.
+    static func unreachable(links: [String: (service: String, id: String)], asked: Set<String>,
+                            readings: [String: [String: DeviceReading]]) -> [String] {
+        links.compactMap { appId, link in
+            guard !link.id.isEmpty, asked.contains(link.service) else { return nil }
+            let reading = readings[link.service]?[link.id]
+            return reading == nil || reading?.online == false ? appId : nil
+        }.sorted()
     }
 
     private func pollSmartLife() async -> [String: Any]? {
@@ -349,7 +369,11 @@ public final class DeviceHub {
     /// What the editor and the settings show for each platform.
     public var servicesInfo: [String: Any] {
         var out: [String: Any] = ["smartlife": smartLifeInfo.merging(["connected": isSmartLifeConnected || tuya.isConfigured]) { $1 }]
-        for service in services { out[service.id] = service.info }
+        for service in services {
+            var info = service.info
+            if service.isConnected, let answered = reachable[service.id] { info["reachable"] = answered }
+            out[service.id] = info
+        }
         return out
     }
 

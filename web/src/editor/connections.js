@@ -76,9 +76,16 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
       return info.connected ? `${info.count} devices from ${info.from || 'your iPhone'}` : 'Set up on your iPhone';
     }
     if (!info.connected) return 'Not connected';
+    if (info.reachable === false) return 'Connected, but not reachable on this network';
     const count = devicesOf(id).length;
     const name = id === 'homeassistant' ? info.name : id === 'hue' ? info.name : id === 'smartlife' ? info.account : '';
     return [name, state.devices ? `${count} device${count === 1 ? '' : 's'}` : null].filter(Boolean).join(' · ') || 'Connected';
+  }
+
+  // Connected and answering: '.on'; connected but silent at the last check: '.bad'.
+  function statusClass(id) {
+    if (!connected(id)) return '';
+    return state.info[id]?.reachable === false ? '.bad' : '.on';
   }
 
   function overview() {
@@ -87,7 +94,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
       h('div.svc-cards', ORDER.map((id) => h('button.svc-card', { onclick: () => onOpen(id) },
         tile(id),
         h('div.svc-text', h('b', SERVICES[id].name), h('span', LOOK[id].blurb)),
-        h(`span.svc-status${connected(id) ? '.on' : ''}`, connected(id) ? icon('ok', 13, 2.4) : null, statusText(id)),
+        h(`span.svc-status${statusClass(id)}`, statusClass(id) === '.on' ? icon('ok', 13, 2.4) : null, statusText(id)),
         icon('next', 16)))),
       h('p.note', 'Lamps and ACs stay simulated until you link them: pick one on the plan, then choose its device under “Real device”. One home can mix all four.'),
       isNative ? null : h('p.note.bad', 'Connecting is only available inside the macOS app (this is the browser preview).'),

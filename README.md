@@ -304,6 +304,12 @@ The shared package has unit tests, including the sync over a real TLS connection
 cd core && swift test
 ```
 
+The web UI's pure logic (wall layout and the like) has tests too, on Node's built-in runner:
+
+```bash
+cd web && npm test
+```
+
 Work on the UI in a browser with hot reload — the native bridge is a no-op there and all devices are simulated:
 
 ```bash
