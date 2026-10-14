@@ -67,13 +67,20 @@ func render(scale: CGFloat) -> NSBitmapImageRep {
         .foregroundColor: NSColor(red: 0.10, green: 0.11, blue: 0.16, alpha: 0.9),
         .paragraphStyle: style,
     ])
-    caption.draw(in: CGRect(x: 0, y: 72, width: size.width, height: 22))
+    caption.draw(in: CGRect(x: 0, y: 84, width: size.width, height: 22))
     let hint = NSAttributedString(string: "Then open it from Applications and look for the house in the menu bar.", attributes: [
         .font: NSFont.systemFont(ofSize: 12),
         .foregroundColor: NSColor(red: 0.10, green: 0.11, blue: 0.16, alpha: 0.5),
         .paragraphStyle: style,
     ])
-    hint.draw(in: CGRect(x: 0, y: 50, width: size.width, height: 18))
+    hint.draw(in: CGRect(x: 0, y: 62, width: size.width, height: 18))
+    // The app is not notarized (no Developer ID), so macOS stops its first launch once.
+    let firstRun = NSAttributedString(string: "First launch: System Settings → Privacy & Security → Open Anyway.", attributes: [
+        .font: NSFont.systemFont(ofSize: 12, weight: .medium),
+        .foregroundColor: NSColor(red: 0.62, green: 0.36, blue: 0.08, alpha: 0.85),
+        .paragraphStyle: style,
+    ])
+    firstRun.draw(in: CGRect(x: 0, y: 40, width: size.width, height: 18))
     ctx.restoreGState()
 
     NSGraphicsContext.restoreGraphicsState()
