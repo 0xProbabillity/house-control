@@ -59,7 +59,7 @@ export function createStore(config) {
       post('summary', summary());
       // The native shell passes this on to its other views of the same home (the panel
       // and the island each run their own store), which adopt it without re-sending.
-      if (!change.adopted) post('state', { lights: state.lights, acs: state.acs, scene: state.scene });
+      if (!change.adopted) post('state', { lights: state.lights, acs: state.acs, scene: state.scene, source: change.source ?? store.source ?? null });
     }
   }
 
@@ -175,6 +175,8 @@ export function createStore(config) {
     summary,
     /** Set by the UI: called with (device id, message) when a real device refuses a change. */
     onDeviceError: null,
+    /** Who is changing things right now when it is not the person at this screen ("ChatGPT"…). */
+    source: null,
 
     /** What the panel may offer for this AC: modes, fan speeds, and the optional extras. */
     acFeatures(id) {
@@ -226,7 +228,7 @@ export function createStore(config) {
       for (const [id, s] of Object.entries(other.acs || {})) any = writeAC(id, s, { remote: true }) || any;
       const scene = other.scene ?? null;
       if (scene !== state.scene) { state.scene = scene; any = true; }
-      if (any) emit({ type: 'bulk', remote: true, adopted: true });
+      if (any) emit({ type: 'bulk', remote: true, adopted: true, source: other.source || null });
     },
 
     // State reported by real devices (native provider). Never echoed back as a command.

@@ -54,7 +54,7 @@ export async function bootIsland(root) {
     h('div.isle-head', title, h('i.isle-gap'), h('div.isle-right', status, power)),
     h('div.isle-main', h('div.isle-stage', canvas), h('div.isle-side', scenes, list)));
   const shape = h('div.isle-shape', earLeft, earRight, body);
-  const isle = h('div.isle', shape);
+  const isle = h('div.isle', h('div.isle-glow'), shape);
   isle.dataset.state = 'collapsed';
   isle.classList.toggle('real', notch.real);
   isle.style.setProperty('--notch-w', `${notch.w}px`);
@@ -200,7 +200,7 @@ export async function bootIsland(root) {
     return NAVY.clone().lerp(sum, clamp(weight / 3, 0.35, 0.9));
   }
 
-  const ear = (iconName, text, color) => [h('span.ear-icon', { vars: { '--c': color } }, icon(iconName, 14, 2.2)), text != null ? h('span.ear-text', text) : null];
+  const plainEar = (iconName, text, color) => [h('span.ear-icon', { vars: { '--c': color } }, icon(iconName, 14, 2.2)), text != null ? h('span.ear-text', text) : null];
 
   let peek = null; // { left: [...nodes], right: text } while something is being announced
 
@@ -216,8 +216,8 @@ export async function bootIsland(root) {
       earLeft.replaceChildren(...peek.left);
       earRight.replaceChildren(h('span.ear-text.strong', peek.right));
     } else {
-      earLeft.replaceChildren(...(onCount ? ear('home', String(onCount), '#ffb46b') : acOn ? ear('home', null, '#8fa3c7') : []));
-      earRight.replaceChildren(...(acOn ? ear(acOn.mode, `${acOn.target}°`, MODE_COLORS[acOn.mode]) : []));
+      earLeft.replaceChildren(...(onCount ? plainEar('home', String(onCount), '#ffb46b') : acOn ? plainEar('home', null, '#8fa3c7') : []));
+      earRight.replaceChildren(...(acOn ? plainEar(acOn.mode, `${acOn.target}°`, MODE_COLORS[acOn.mode]) : []));
     }
 
     status.replaceChildren(
@@ -231,6 +231,7 @@ export async function bootIsland(root) {
   /* ---------- states ---------- */
 
   let peekTimer = 0;
+  let introTimer = 0;
 
   function setState(next) {
     if (isle.dataset.state === next) return;
@@ -241,7 +242,13 @@ export async function bootIsland(root) {
       clearTimeout(peekTimer);
       peek = null;
       world?.setRunning(true);
-      if (was !== 'expanded') world?.intro();
+      // The model sweeps in and its lamps come on once the island has room for it, so
+      // the first frames of the spring do not have to wait for the 3D renderer.
+      // (With Reduce Motion the camera does not sweep: the model is simply there.)
+      if (was !== 'expanded' && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        clearTimeout(introTimer);
+        introTimer = setTimeout(() => world?.intro(), 110);
+      }
     } else if (was === 'expanded') {
       // Keep drawing while the island closes over the model, then rest.
       setTimeout(() => { if (isle.dataset.state !== 'expanded') world?.setRunning(false); }, 500);
@@ -251,9 +258,9 @@ export async function bootIsland(root) {
   }
 
   // Says what just changed somewhere else, unless the island is open (then you see it anyway).
-  function announce(before) {
+  function announce(before, source) {
     if (isle.dataset.state === 'expanded') return;
-    const news = describe(before);
+    const news = describe(before, source);
     if (!news) return;
     peek = news;
     setState('peek');
@@ -262,7 +269,9 @@ export async function bootIsland(root) {
     peekTimer = setTimeout(() => { peek = null; if (isle.dataset.state === 'peek') setState('collapsed'); }, PEEK_MS);
   }
 
-  function describe(before) {
+  // A change an AI assistant made (AI Access) wears its sparkles instead of the device's icon.
+  function describe(before, source) {
+    const ear = (iconName, text, color) => (source ? plainEar('sparkles', text, '#c3b2ff') : plainEar(iconName, text, color));
     if (state.scene && state.scene !== before.scene) {
       const s = config.scenes.find((x) => x.id === state.scene);
       if (s) return { left: ear(s.icon, s.name, '#a9cbff'), right: 'Scene' };
@@ -297,12 +306,19 @@ export async function bootIsland(root) {
     const before = last;
     last = copy();
     update();
-    if (change.remote) announce(before);
+    if (change.remote) announce(before, change.source);
   });
 
   incoming.islandState = (next) => setState(next === 'expanded' ? 'expanded' : 'collapsed');
   incoming.adopt = (other) => store.adopt(other);
   incoming.applyRemote = (remote) => store.applyRemote(remote);
+
+  // The order the parts of the open island come in: header, model, scenes, devices.
+  const stagger = (el, ms) => { el.classList.add('reveal'); el.style.setProperty('--d', `${Math.round(ms)}ms`); };
+  stagger(body.querySelector('.isle-head'), 60);
+  stagger(body.querySelector('.isle-stage'), 90);
+  [...scenes.children].forEach((el, i) => stagger(el, 130 + i * 30));
+  [...list.children].forEach((el, i) => stagger(el, 190 + Math.min(i, 9) * 24));
 
   body.inert = true;
   update();

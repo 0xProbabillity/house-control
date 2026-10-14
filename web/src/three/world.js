@@ -179,7 +179,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
     wake();
   }
 
-  store.on((change) => {
+  const unsubscribe = store.on((change) => {
     if (change.type === 'tick') return;
     if (change.type === 'light') lights.get(change.id).apply(store.state.lights[change.id]);
     else if (change.type === 'ac') acs.get(change.id).apply(store.state.acs[change.id]);
@@ -386,6 +386,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
     },
 
     dispose() {
+      unsubscribe();
       running = false;
       if (raf) cancelAnimationFrame(raf);
       raf = 0;

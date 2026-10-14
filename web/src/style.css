@@ -464,6 +464,36 @@ html.native .card { width: auto; height: auto; box-shadow:
   transition: opacity 220ms, transform 360ms var(--ease);
 }
 .panel-toast.show { opacity: 1; transform: none; }
+.panel-toast.ai {
+  display: flex; align-items: center; gap: 9px; color: #eef0ff;
+  background: linear-gradient(120deg, rgba(58, 36, 120, 0.94), rgba(28, 46, 110, 0.94));
+  border-color: rgba(176, 150, 255, 0.5);
+  box-shadow: 0 10px 30px -10px rgba(120, 90, 255, 0.6);
+}
+.toast-ai {
+  display: inline-flex; align-items: center; gap: 5px; flex: none;
+  padding: 3px 8px 3px 6px; border-radius: 999px; font-size: 11.5px;
+  background: rgba(255, 255, 255, 0.14); color: #fff;
+}
+
+/* An AI assistant has a link to this home. */
+.ai-badge {
+  position: relative; isolation: isolate;
+  display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 9px 0 7px; margin-right: 2px;
+  border-radius: 999px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.02em; color: #fff;
+  background: linear-gradient(120deg, #7c5cff, #3d8bff);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+}
+.ai-badge::before {
+  /* The halo breathes by fading a layer of its own; nothing is repainted per frame. */
+  content: ''; position: absolute; inset: -5px; z-index: -1; border-radius: inherit;
+  background: radial-gradient(closest-side, rgba(124, 92, 255, 0.75), rgba(124, 92, 255, 0));
+  animation: ai-glow 3.2s ease-in-out infinite;
+  will-change: opacity;
+}
+.ai-badge[hidden] { display: none; }
+@keyframes ai-glow { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+.card.detail .top .ai-badge { opacity: 0; pointer-events: none; }
 
 [hidden] { display: none !important; }
 
@@ -763,5 +793,8 @@ html.ios .fatal { margin: calc(env(safe-area-inset-top, 0px) + 20px) 16px 0; wid
 .stage canvas { transition: opacity 500ms ease; }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+  /* The island has its own calm version (island.css): snapping it open looks broken. */
+  html:not(.mode-island) *, html:not(.mode-island) *::before, html:not(.mode-island) *::after {
+    animation-duration: 1ms !important; transition-duration: 1ms !important;
+  }
 }

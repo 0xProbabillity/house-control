@@ -17,9 +17,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: PanelController!
     private var editor: EditorController?
     private var pollTimer: Timer?
+    /// AI Access: the private link an AI assistant uses to run the home.
+    private lazy var agent: AgentController = {
+        let agent = AgentController(plans: plans, panel: { [unowned self] in self.panel.host }, reloadAll: { [unowned self] in
+            self.reloadAll()
+            self.editor?.host.load()
+        })
+        agent.onLiveChange = { [weak self] live in
+            guard let self else { return }
+            self.panel.host.call("agentLive", live)
+            self.refreshStatusIcon()
+        }
+        return agent
+    }()
+    private var lastSummary: [String: Any] = [:]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMainMenu()
+        stopTunnelOnSignals()
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
@@ -57,12 +72,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if ProcessInfo.processInfo.environment["HOUSE_OPEN_EDITOR"] != nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.openEditor() }
         }
+        if let open = ProcessInfo.processInfo.environment["HOUSE_OPEN_AGENT"] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+                self?.openAgent()
+                if open == "start" { self?.agent.start() }
+            }
+        }
         if ProcessInfo.processInfo.environment["HOUSE_OPEN_ON_LAUNCH"] != nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in self?.togglePanel() }
         }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        agent.stop(reason: "House Control quit")
+    }
+
+    /// `kill`, a logout or Ctrl-C end the app without applicationWillTerminate: the AI
+    /// Access tunnel must not outlive it.
+    private var signalSources: [DispatchSourceSignal] = []
+    private func stopTunnelOnSignals() {
+        for sig in [SIGTERM, SIGINT, SIGHUP] {
+            signal(sig, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(signal: sig, queue: .main)
+            source.setEventHandler { [weak self] in
+                MainActor.assumeIsolated { self?.agent.stop(reason: "House Control quit") }
+                exit(0)
+            }
+            source.resume()
+            signalSources.append(source)
+        }
+    }
 
     // MARK: - Status item
 
@@ -74,16 +115,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateStatus(_ summary: [String: Any]) {
+        lastSummary = summary
+        refreshStatusIcon()
+    }
+
+    /// The house, with sparkles beside it while an AI assistant has a live link.
+    private func refreshStatusIcon() {
         guard let button = statusItem.button else { return }
+        let summary = lastSummary
         let lights = summary["lightsOn"] as? Int ?? 0
         let acOn = summary["acOn"] as? Int ?? 0
         var parts: [String] = []
         if lights > 0 { parts.append("\(lights)") }
         if acOn > 0, let target = summary["acTarget"] as? Int { parts.append("\(target)°") }
-        button.image = symbol(lights > 0 || acOn > 0 ? "house.fill" : "house")
+        let house = lights > 0 || acOn > 0 ? "house.fill" : "house"
+        button.image = agent.isLive ? pair(house, "sparkles") : symbol(house)
         button.attributedTitle = NSAttributedString(
             string: parts.isEmpty ? "" : " " + parts.joined(separator: " · "),
             attributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .medium)])
+    }
+
+    /// Two symbols side by side as one template image.
+    private func pair(_ first: String, _ second: String) -> NSImage? {
+        guard let a = symbol(first), let b = NSImage(systemSymbolName: second, accessibilityDescription: nil)?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 10, weight: .semibold)) else { return symbol(first) }
+        let size = NSSize(width: a.size.width + b.size.width + 1, height: max(a.size.height, b.size.height))
+        let image = NSImage(size: size, flipped: false) { _ in
+            a.draw(in: NSRect(x: 0, y: (size.height - a.size.height) / 2, width: a.size.width, height: a.size.height))
+            b.draw(in: NSRect(x: a.size.width + 1, y: size.height - b.size.height, width: b.size.width, height: b.size.height))
+            return true
+        }
+        image.isTemplate = true
+        return image
     }
 
     @objc private func statusItemClicked() {
@@ -99,6 +162,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             islandItem.target = self
             islandItem.state = island?.isShown == true ? .on : .off
             menu.addItem(withTitle: "Pair iPhone…", action: #selector(pairPhone), keyEquivalent: "").target = self
+            let aiItem = menu.addItem(withTitle: agent.isLive ? "AI Access — Live" : "AI Access…", action: #selector(openAgent), keyEquivalent: "")
+            aiItem.target = self
+            aiItem.image = NSImage(systemSymbolName: "sparkles", accessibilityDescription: nil)
+            if agent.isLive {
+                menu.addItem(withTitle: "Stop AI Access", action: #selector(stopAgent), keyEquivalent: "").target = self
+            }
             for device in sync.connectedDevices {
                 let item = menu.addItem(withTitle: "\(device) is connected", action: nil, keyEquivalent: "")
                 item.image = NSImage(systemSymbolName: "iphone", accessibilityDescription: nil)
@@ -126,6 +195,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         boot["tuya"] = hub.tuyaInfo
         boot["smartLife"] = hub.smartLifeInfo
         if ProcessInfo.processInfo.environment["HOUSE_OPEN_EDITOR"] == "smartlife" { boot["section"] = "tuya" }
+        boot["agentLive"] = agent.isLive
         // HOUSE_OPEN_DEVICE=<id> starts the panel on that light's or AC's detail sheet.
         if let device = ProcessInfo.processInfo.environment["HOUSE_OPEN_DEVICE"] { boot["openDevice"] = device }
         return boot
@@ -219,6 +289,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 editor?.host.load()
             }
         case "loadPlan": loadPlan()
+        case "openAgent": openAgent()
         case "revealPlan": revealPlan()
         case "openEditor": openEditor()
         case "quit": NSApp.terminate(nil)
@@ -302,6 +373,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             break
         }
     }
+
+    // MARK: - AI Access
+
+    @objc private func openAgent() {
+        panel.hide()
+        agent.showWindow()
+    }
+
+    @objc private func stopAgent() { agent.stop() }
 
     // MARK: - Device state
 

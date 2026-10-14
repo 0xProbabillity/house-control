@@ -24,6 +24,9 @@
 - **A visual editor.** Draw the rooms, drop in furniture, place lamps and ACs, and link each one to a real device.
 - **An island around the notch.** Rest the pointer on the MacBook's notch and a small live model of the home drops
   out of it, with scenes and every device one click away. See [The island](#the-island).
+- **AI Access.** Give ChatGPT, Claude or any AI assistant a private link — or connect it over MCP — and it runs your
+  lights and air conditioners, and rebuilds rooms in the 3D model from your photos. Served by your Mac; Stop ends it.
+  See [AI Access](#ai-access).
 - **An iPhone app.** The same home in your pocket, kept in sync with the Mac over your own Wi-Fi.
   See [iPhone app](#iphone-app).
 - **Works without any hardware.** Until you sign in, every device is simulated, so you can try everything first.
@@ -67,7 +70,7 @@ There is no Dock icon and no main window: look for the house in the menu bar.
 | Do this | To get this |
 | --- | --- |
 | Click the menu bar icon | Open or close the panel |
-| Right-click the menu bar icon | Edit Home, Load Floor Plan, Reveal Plan File, Reveal Device Log, Show Island, Pair iPhone, Reload, Quit |
+| Right-click the menu bar icon | Edit Home, Load Floor Plan, Reveal Plan File, Reveal Device Log, Show Island, Pair iPhone, AI Access, Reload, Quit |
 | Click a lamp in the 3D view, or its tile | Toggle it |
 | Drag sideways across a light tile | Dim it |
 | Click the sliders icon on a light tile | Brightness, white temperature, colour |
@@ -99,6 +102,27 @@ A black tab grows out of the MacBook's notch. On a display without a notch it is
 When something changes elsewhere — a scene picked in the panel, a lamp switched from the phone — the island
 peeks out for a moment to say what happened. It never takes the keyboard from the app you are working in.
 **Show Island** in the menu bar icon's right-click menu turns it off.
+
+## AI Access
+
+<p align="center">
+  <img src="docs/ai-access.png" width="380" alt="The AI Access window">
+</p>
+
+Right-click the menu bar icon → **AI Access…** → **Start AI Access**, and hand the private link to an assistant:
+
+- **Any chat:** paste it into ChatGPT, Claude, Gemini or Perplexity with your request — *"dim the living room to 30%"*.
+  The link opens a guide written for AI assistants, with an action link for everything it can do.
+- **Connectors:** add the MCP address as a custom connector in Claude or ChatGPT (or `claude mcp add` in Claude Code)
+  and the assistant can also change the home itself: *"here are photos of my living room — rebuild it in 3D"*.
+- **Your own agents:** the same tools as plain HTTP + JSON, with an OpenAPI description.
+
+The Mac serves it all: House Control listens on `127.0.0.1` only and is reached through a Cloudflare quick tunnel that
+exists while AI Access is on (or not at all, with **This Mac only**). The link carries a 128-bit key, you choose what an
+assistant may do, every request shows up live in the window, plan edits can be undone, and **Stop** — or the
+auto-stop timer — makes the address disappear. Device IDs and sign-ins never leave the Mac.
+
+Details, every tool, and the privacy model: [docs/ai-access.md](docs/ai-access.md).
 
 ## iPhone app
 
@@ -180,6 +204,7 @@ alternative, and how to diagnose a device that does not react — is in [docs/sm
 ## Privacy
 
 House Control talks to Tuya's servers and to nothing else. There is no telemetry and no backend of its own.
+The one exception is yours to switch on: [AI Access](#ai-access) opens a Cloudflare tunnel to your Mac while it is on.
 
 Everything personal stays in `~/Library/Application Support/HouseControl/` on your Mac:
 
@@ -191,6 +216,7 @@ Everything personal stays in `~/Library/Application Support/HouseControl/` on yo
 | `tuya.json` | Tuya Cloud project credentials, only if you use that option. Mode `600` |
 | `events.log` | Commands sent to real devices and the cloud's answers. No tokens |
 | `sync.json` | The key your paired iPhones use. Only there once you paired one. Mode `600` |
+| `cloudflared.yml`, `bin/cloudflared` | An empty config for AI Access's tunnel, and Cloudflare's connector if you let the app download it |
 
 None of these are part of this repository, and the build does not embed them in the app.
 **Sign out** in the editor deletes `smartlife.json`. Deleting the folder resets the app to the demo plan.
@@ -200,8 +226,8 @@ On the iPhone the floor plan lives in the app's own folder, and the Smart Life s
 ## Development
 
 ```
-web/      the UI: Three.js scene, panel, island, editor (Vite, plain ES modules)
-core/     what both apps share: Smart Life and Tuya clients, plan store, Mac ⇄ iPhone sync (SwiftPM, with tests)
+web/      the UI: Three.js scene, panel, island, editor, AI Access window and the AI tools (Vite, plain ES modules)
+core/     what both apps share: Smart Life and Tuya clients, plan store, Mac ⇄ iPhone sync, the AI gateway (SwiftPM, with tests)
 macos/    the Mac shell: menu bar item, panel, island and editor windows (SwiftPM)
 ios/      the iPhone shell: SwiftUI, generated into an Xcode project by XcodeGen
 scripts/  build-app.sh, build-ios.sh and ios-sim.sh build the apps, make-icon.swift draws the icon
@@ -223,7 +249,7 @@ npm run dev
 ```
 
 Then open `http://localhost:5199/`. Add `?plan=studio` for the second demo plan, `?mode=editor` for the editor,
-`?mode=island` for the island, `?platform=ios` for the iPhone layout, or `?device=living.ac` to start on a
+`?mode=island` for the island, `?mode=agent` for the AI Access window (with a simulated link), `?platform=ios` for the iPhone layout, or `?device=living.ac` to start on a
 device's sheet. Set `PORT` to use another port.
 
 Environment variables understood by the app:
@@ -244,6 +270,9 @@ Environment variables understood by the app:
 | `HOUSE_COMPUTER_NAME="Studio Mac"` | The name paired iPhones see, instead of the Mac's own (screenshots) |
 | `HOUSE_SNAPSHOT_DIR=/some/folder` | Write `panel.png` and `island.png` there a few seconds after launch |
 | `HOUSE_RENDER_HIDDEN=1` | Keep drawing while the screen is locked, for unattended captures |
+| `HOUSE_OPEN_AGENT=1` | Open the AI Access window at launch (`start` also starts the link) |
+| `HOUSE_AGENT_REACH=local` | Serve AI Access on this Mac only for one run (`internet` for the tunnel) |
+| `HOUSE_AGENT_LINK_FILE=/some/file` | Write the live AI Access link there, for scripted tests |
 
 The iPhone app understands `HOUSE_DATA_DIR`, `HOUSE_OPEN_DEVICE` and `HOUSE_SCREEN=home|settings|pairing|smartlife|welcome`;
 `scripts/ios-sim.sh` passes any `HOUSE_*` variable on to the simulator.

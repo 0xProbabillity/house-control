@@ -12,6 +12,12 @@ html.mode-island #app { display: block; padding: 0; height: 100%; }
   --w: calc(var(--notch-w) + var(--ear) * 2);
   --h: var(--notch-h);
   --r: 13px;
+  /* Springs sampled from a damped oscillator, the way SwiftUI animates: opening is
+     response 0.5 s with damping 0.74 (overshoots 3 %), closing response 0.34 s, no bounce. */
+  --open: cubic-bezier(0.3, 1.32, 0.5, 1);
+  --close: cubic-bezier(0.32, 0.72, 0.2, 1);
+  --open-ms: 820ms;
+  --close-ms: 460ms;
   position: absolute;
   inset: 0 0 auto 0;
   display: flex;
@@ -19,43 +25,59 @@ html.mode-island #app { display: block; padding: 0; height: 100%; }
   pointer-events: none;
   font-size: 12px;
 }
+@supports (transition-timing-function: linear(0, 1)) {
+  .isle { --open: linear(0, 0.0217, 0.0776, 0.156, 0.2473, 0.3442, 0.4412, 0.5342, 0.6205, 0.6985, 0.7672, 0.8264, 0.8762, 0.9174, 0.9504, 0.9764, 0.9961, 1.0105, 1.0204, 1.0268, 1.0302, 1.0315, 1.0311, 1.0296, 1.0272, 1.0244, 1.0214, 1.0183, 1.0153, 1.0126, 1.01, 1.0078, 1.0059, 1.0042, 1.0029, 1.0018, 1.0009, 1.0002, 0.9998, 0.9994, 0.9992, 0.9991, 0.999, 0.999, 0.9991, 0.9991, 0.9992, 1); --close: linear(0, 0.0145, 0.0518, 0.1043, 0.1659, 0.2324, 0.3005, 0.3679, 0.4329, 0.4944, 0.5518, 0.6047, 0.6529, 0.6966, 0.7358, 0.7707, 0.8018, 0.8291, 0.8532, 0.8742, 0.8926, 0.9085, 0.9222, 0.9341, 0.9443, 0.9531, 0.9605, 0.9669, 0.9723, 0.9769, 0.9808, 0.984, 0.9868, 0.9891, 0.991, 0.9926, 0.994, 0.9951, 0.996, 0.9968, 0.9974, 0.9979, 0.9983, 0.9987, 0.999, 0.9992, 0.9994, 1); }
+}
 .isle.quiet { --ear: 0px; }
 .isle[data-state='peek'] { --ear: 132px; --r: 16px; }
 .isle[data-state='expanded'] { --w: 664px; --h: calc(var(--notch-h) + 292px); --r: 34px; }
 
+/* Only the size of one plain black box changes while the island moves; everything heavy
+   (the glow, the model) keeps its size and fades, so no frame has to repaint much. */
 .isle-shape {
   position: relative;
   width: var(--w);
   height: var(--h);
   background: #000;
   border-radius: 0 0 var(--r) var(--r);
+  overflow: hidden;
   pointer-events: auto;
-  /* Opening overshoots a little, like something with weight; closing just closes. */
   transition:
-    width 560ms cubic-bezier(0.3, 1.36, 0.5, 1),
-    height 560ms cubic-bezier(0.3, 1.36, 0.5, 1),
-    border-radius 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 500ms ease;
-  will-change: width, height;
+    width var(--close-ms) var(--close),
+    height var(--close-ms) var(--close),
+    border-radius var(--close-ms) var(--close);
 }
-.isle[data-state='collapsed'] .isle-shape { transition-duration: 380ms, 380ms, 320ms, 300ms; transition-timing-function: cubic-bezier(0.32, 0.72, 0.2, 1); }
-.isle[data-state='expanded'] .isle-shape {
+.isle[data-state='expanded'] .isle-shape,
+.isle[data-state='peek'] .isle-shape {
+  transition:
+    width var(--open-ms) var(--open),
+    height var(--open-ms) var(--open),
+    border-radius var(--open-ms) var(--open);
+}
+
+/* The light that spills out under the open island, tinted by what is on at home. */
+.isle-glow {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 664px;
+  height: calc(var(--notch-h) + 292px);
+  margin-left: -332px;
+  border-radius: 0 0 34px 34px;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.06),
     0 26px 60px -12px rgba(0, 0, 0, 0.75),
     0 40px 110px -30px color-mix(in srgb, var(--mood) 85%, transparent);
+  opacity: 0;
+  transform: scale(0.94);
+  transform-origin: 50% 0;
+  transition: opacity 140ms ease, transform 0s 140ms;
 }
-/* The little concave shoulders where the tab meets the top of the screen. */
-.isle-shape::before, .isle-shape::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  width: 9px;
-  height: 9px;
-  background: radial-gradient(circle at 0 100%, transparent 8.5px, #000 9px);
+.isle[data-state='expanded'] .isle-glow {
+  opacity: 1;
+  transform: none;
+  transition: opacity 520ms ease 120ms, transform var(--open-ms) var(--open);
 }
-.isle-shape::before { right: 100%; transform: scaleX(-1); }
-.isle-shape::after { left: 100%; }
 
 /* ---------- at rest and while peeking ---------- */
 
@@ -73,11 +95,12 @@ html.mode-island #app { display: block; padding: 0; height: 100%; }
   color: #f3f5fa;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  transition: opacity 220ms ease, width 420ms cubic-bezier(0.3, 1.36, 0.5, 1);
+  transition: opacity 220ms ease, width var(--open-ms) var(--open);
 }
 .ear.left { left: 0; }
 .ear.right { right: 0; justify-content: flex-end; padding: 0 12px 0 10px; }
-.isle[data-state='expanded'] .ear { opacity: 0; transition-duration: 120ms; }
+.isle[data-state='expanded'] .ear { opacity: 0; transition: opacity 90ms ease; }
+.isle[data-state='collapsed'] .ear { transition: opacity 260ms ease 200ms, width var(--close-ms) var(--close); }
 .ear-icon { color: var(--c); filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c) 70%, transparent)); flex: none; }
 .ear-text { overflow: hidden; text-overflow: ellipsis; }
 .ear-text.strong { color: color-mix(in srgb, var(--mood) 35%, #fff); }
@@ -88,26 +111,16 @@ html.mode-island #app { display: block; padding: 0; height: 100%; }
 
 .isle-body {
   position: absolute;
-  inset: 0;
-  width: 664px;
+  top: 0;
   left: 50%;
+  width: 664px;
+  height: calc(var(--notch-h) + 292px);
   margin-left: -332px;
   display: flex;
   flex-direction: column;
-  opacity: 0;
-  transform: scale(0.94);
-  transform-origin: 50% 0;
-  filter: blur(10px);
   pointer-events: none;
-  transition: opacity 140ms ease, transform 200ms ease, filter 160ms ease;
 }
-.isle[data-state='expanded'] .isle-body {
-  opacity: 1;
-  transform: none;
-  filter: none;
-  pointer-events: auto;
-  transition: opacity 300ms ease 130ms, transform 520ms cubic-bezier(0.22, 1, 0.36, 1) 90ms, filter 320ms ease 110ms;
-}
+.isle[data-state='expanded'] .isle-body { pointer-events: auto; }
 
 .isle-head {
   flex: none;
@@ -154,7 +167,8 @@ html.mode-island #app { display: block; padding: 0; height: 100%; }
   font-size: 10.5px; font-weight: 600; color: var(--muted);
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: transform 300ms var(--spring), background 220ms, color 220ms, border-color 220ms, box-shadow 300ms;
+  --own: transform 300ms var(--spring), background 220ms, color 220ms, border-color 220ms, box-shadow 300ms;
+  transition: var(--own);
 }
 .isle-scene span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px; }
 @media (hover: hover) { .isle-scene:hover { background: rgba(255, 255, 255, 0.12); color: var(--text); } }
@@ -187,7 +201,8 @@ html.mode-island #app { display: block; padding: 0; height: 100%; }
   overflow: hidden;
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: transform 300ms var(--spring), background 240ms, border-color 240ms, box-shadow 320ms;
+  --own: transform 300ms var(--spring), background 240ms, border-color 240ms, box-shadow 320ms;
+  transition: var(--own);
 }
 .chip.ac { grid-column: 1 / -1; gap: 6px; }
 @media (hover: hover) { .chip.light:hover { background: rgba(255, 255, 255, 0.12); } }
@@ -228,3 +243,35 @@ html.mode-island #app { display: block; padding: 0; height: 100%; }
 .chip.ac:not(.on) .chip-value { color: var(--faint); }
 .chip-power { border-radius: 50%; margin-left: 2px; background: rgba(255, 255, 255, 0.1); }
 .chip.ac.on .chip-power { background: var(--c); color: #06162c; box-shadow: 0 0 14px -4px var(--c); }
+
+/* ---------- arriving ---------- */
+
+/* Every part of the open island arrives on its own, top to bottom (--d is set per part),
+   and they all leave together. `translate` and `scale` leave `transform` to the parts'
+   own press effects; --own keeps their own transitions running. */
+.reveal {
+  opacity: 0;
+  translate: 0 -10px;
+  transition: opacity 110ms ease, translate 0s 120ms, scale 0s 120ms, var(--own, opacity 110ms ease);
+}
+.isle-stage.reveal { translate: none; scale: 0.84; transform-origin: 50% 35%; }
+.isle-scene.reveal { translate: 0 -12px; scale: 0.9; }
+.isle[data-state='expanded'] .reveal {
+  opacity: 1;
+  translate: none;
+  scale: none;
+  transition:
+    opacity 320ms ease var(--d, 0ms),
+    translate var(--open-ms) var(--open) var(--d, 0ms),
+    scale var(--open-ms) var(--open) var(--d, 0ms),
+    var(--own, opacity 320ms ease var(--d, 0ms));
+}
+
+/* With Reduce Motion on, as Apple does it: the island still grows out of the notch, but
+   without the bounce, and its parts fade in where they belong instead of flying in. */
+@media (prefers-reduced-motion: reduce) {
+  .isle { --open: var(--close); --open-ms: 360ms; --close-ms: 280ms; }
+  .reveal, .isle-stage.reveal, .isle-scene.reveal { translate: none; scale: none; }
+  .isle-glow { transform: none; }
+}
+

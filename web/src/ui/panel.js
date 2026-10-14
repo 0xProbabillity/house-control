@@ -44,6 +44,9 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   const homeSub = h('div.home-sub');
   const power = h('button.round.power', { title: 'Everything on / off', 'aria-label': 'Toggle everything', onclick: toggleEverything }, icon('power', 21, 2.2));
   const gear = h('button.round', { title: 'Floor plan', 'aria-label': 'Floor plan menu', onclick: () => onMenu(gear) }, icon('settings', 17));
+  // Shown while an AI assistant has a link to this home (AI Access on the Mac).
+  const aiBadge = h('button.ai-badge', { hidden: true, title: 'An AI assistant has access — click to manage', 'aria-label': 'AI access',
+    onclick: () => onMenu(aiBadge, 'agent') }, icon('sparkles', 13, 2.2), h('span', 'AI'));
 
   const scenes = h('div.scenes');
   const rooms = h('div.rooms');
@@ -65,7 +68,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     h('header.top',
       h('div.home', h('div.home-badge', icon('home', 17)),
         h('div', h('div.home-name', config.name), homeSub)),
-      gear, power),
+      aiBadge, gear, power),
     tooltip, panel, sheet, toastEl);
   const card = h('div.card.booting', h('div.notch'), clip);
   root.replaceChildren(card);
@@ -561,8 +564,11 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     toggleLight,
     get room() { return ui.room; },
     setNotch(x) { card.style.setProperty('--notch-x', `${x}px`); },
-    toast(text) {
-      toastEl.textContent = text;
+    setAgentLive(live) { aiBadge.hidden = !live; },
+    /** `ai`: something an AI assistant did (who, what), instead of an error. */
+    toast(text, ai = null) {
+      toastEl.replaceChildren(...(ai ? [h('span.toast-ai', icon('sparkles', 13, 2.2), ai), h('span', text)] : [text]));
+      toastEl.classList.toggle('ai', Boolean(ai));
       toastEl.classList.add('show');
       clearTimeout(toastEl.timer);
       toastEl.timer = setTimeout(() => toastEl.classList.remove('show'), 3200);

@@ -8,12 +8,14 @@ private final class FirstMouseWebView: WKWebView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
-/// A WKWebView showing the web UI in one of its modes ("panel", "editor" or "island"),
+/// A WKWebView showing the web UI in one of its modes ("panel", "editor", "island" or "agent"),
 /// plus the JSON message bridge in both directions.
 final class WebHost: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     let webView: WKWebView
     let mode: String
     var onMessage: (([String: Any]) -> Void)?
+    /// True once the page has started and reported "ready"; false again while it reloads.
+    private(set) var isReady = false
     private var bootProvider: () -> [String: Any]
 
     /// Where the web UI lives: the app bundle, or a directory / dev server given by the environment.
@@ -49,6 +51,7 @@ final class WebHost: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     }
 
     func load() {
+        isReady = false
         let controller = webView.configuration.userContentController
         controller.removeAllUserScripts()
         var boot = bootProvider()
@@ -95,6 +98,7 @@ final class WebHost: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             NSLog("House Control web (%@): %@", mode, body["text"] as? String ?? "")
             return
         }
+        if body["type"] as? String == "ready" { isReady = true }
         onMessage?(body)
     }
 
