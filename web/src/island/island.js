@@ -48,14 +48,45 @@ export async function bootIsland(root) {
   const title = h('div.isle-title', h('span.isle-badge', icon('home', 14)), h('b', config.name));
   const status = h('div.isle-status');
   const power = h('button.isle-power', { 'aria-label': 'Everything on / off', onclick: toggleEverything }, icon('power', 15, 2.4));
+  const openPanel = h('button.isle-open', { 'aria-label': 'Open the full panel', title: 'Open the full panel', onclick: () => post('openPanel') }, icon('sliders', 15, 2));
   const scenes = h('div.isle-scenes');
   const list = h('div.isle-list');
   const body = h('div.isle-body',
-    h('div.isle-head', title, h('i.isle-gap'), h('div.isle-right', status, power)),
+    h('div.isle-head', title, h('i.isle-gap'), h('div.isle-right', status, openPanel, power)),
     h('div.isle-main', h('div.isle-stage', canvas), h('div.isle-side', scenes, list)));
   const shape = h('div.isle-shape', earLeft, earRight, body);
   const isle = h('div.isle', h('div.isle-glow'), shape);
   isle.dataset.state = 'collapsed';
+  // Stretchable height: dragged by the grip at the bottom edge, kept by the app across launches.
+  const OPEN_MIN = 292;
+  let openH = clamp(Number(boot.openHeight) || OPEN_MIN, OPEN_MIN, 1600);
+  const setOpenH = (v) => { openH = v; isle.style.setProperty('--open-h', `${v}px`); };
+  setOpenH(openH);
+  const grip = h('div.isle-grip', { title: 'Drag to resize' });
+  shape.append(grip);
+  grip.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    grip.setPointerCapture(e.pointerId);
+    const startY = e.clientY;
+    const startH = openH;
+    isle.classList.add('resizing');
+    const move = (ev) => {
+      const v = Math.round(Math.max(OPEN_MIN, startH + ev.clientY - startY));
+      if (v === openH) return;
+      setOpenH(v);
+      post('islandHeight', { value: v });
+    };
+    const up = () => {
+      grip.removeEventListener('pointermove', move);
+      grip.removeEventListener('pointerup', up);
+      grip.removeEventListener('pointercancel', up);
+      isle.classList.remove('resizing');
+      post('islandHeight', { value: openH, final: true });
+    };
+    grip.addEventListener('pointermove', move);
+    grip.addEventListener('pointerup', up);
+    grip.addEventListener('pointercancel', up);
+  });
   isle.classList.toggle('real', notch.real);
   isle.style.setProperty('--notch-w', `${notch.w}px`);
   isle.style.setProperty('--notch-h', `${notch.h}px`);
@@ -87,6 +118,16 @@ export async function bootIsland(root) {
       value,
       h('button.chip-step', { 'aria-label': 'Warmer', onclick: step(1) }, icon('plus', 13, 2.4)),
       h('button.chip-power', { 'aria-label': `${cfg.name} power`, onclick: () => store.setAC(cfg.id, { on: !state.acs[cfg.id].on }) }, icon('power', 13, 2.4)));
+    // The mode icon is a button; each click moves to the next mode the unit has
+    // (cool → heat → dry → fan → auto). The island has no sheet, so this is where the mode is changed.
+    bubble.style.cursor = 'pointer';
+    bubble.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const modes = store.acFeatures(cfg.id).modes || [];
+      if (modes.length < 2) return;
+      const next = modes[(modes.indexOf(state.acs[cfg.id].mode) + 1) % modes.length];
+      store.setAC(cfg.id, { mode: next });
+    });
     let shownMode = null;
     list.append(el);
     rows.push(() => {
@@ -96,6 +137,7 @@ export async function bootIsland(root) {
       if (shownMode !== s.mode) { bubble.replaceChildren(icon(s.mode, 15)); shownMode = s.mode; }
       value.textContent = `${s.target}°`;
       sub.textContent = `${s.on ? MODE_LABEL[s.mode] : 'Off'} · ${s.roomTemp.toFixed(0)}° inside`;
+      bubble.title = `Mode: ${MODE_LABEL[s.mode]} (click to change)`;
     });
   }
 

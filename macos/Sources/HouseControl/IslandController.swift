@@ -14,8 +14,18 @@ private final class IslandPanel: NSPanel {
 final class IslandController: NSObject {
     // Must match island.css: the open island below the notch, and room for its shadow.
     private static let open = NSSize(width: 664, height: 292)
-    private static let canvas = NSSize(width: 820, height: 470)
+    private static let canvasWidth: CGFloat = 820
+    private static let shadowRoom: CGFloat = 178 // the canvas below the open island: 470 - 292
     private static let ear: CGFloat = 64
+    private static let heightKey = "islandOpenHeight"
+
+    /// How tall the open island is. The owner stretches it by its bottom edge; it is kept
+    /// across launches.
+    private(set) var openHeight: CGFloat = {
+        let saved = UserDefaults.standard.double(forKey: IslandController.heightKey)
+        return max(IslandController.open.height, saved > 0 ? CGFloat(saved) : IslandController.open.height)
+    }()
+    private var canvasSize: NSSize { NSSize(width: Self.canvasWidth, height: openHeight + Self.shadowRoom) }
 
     let host: WebHost
     private let window: IslandPanel
@@ -26,13 +36,19 @@ final class IslandController: NSObject {
     private var hasNotch = false
     private(set) var isExpanded = false
     private(set) var isShown = false
+    /// While the full panel is up the island stays closed (it would hang over the panel's top edge).
+    var suspended = false {
+        didSet { if suspended { pending?.cancel(); pending = nil; setExpanded(false) } }
+    }
+    /// The notch (or the drawn tab) in screen coordinates, and the display it is on.
+    var anchor: (rect: NSRect, screen: NSScreen?) { (notch, window.screen) }
     /// HOUSE_ISLAND_EXPANDED=1 keeps it open (screenshots).
     private let pinned = ProcessInfo.processInfo.environment["HOUSE_ISLAND_EXPANDED"] != nil
     var onExpandedChange: ((Bool) -> Void)?
 
     init(host: WebHost) {
         self.host = host
-        window = IslandPanel(contentRect: NSRect(origin: .zero, size: Self.canvas),
+        window = IslandPanel(contentRect: NSRect(origin: .zero, size: NSSize(width: Self.canvasWidth, height: openHeight + Self.shadowRoom)),
                              styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         super.init()
         window.isOpaque = false
@@ -50,7 +66,8 @@ final class IslandController: NSObject {
 
     /// What the web side needs to draw itself around the notch.
     var bootInfo: [String: Any] {
-        ["notchWidth": Double(notch.width), "notchHeight": Double(notch.height), "hasNotch": hasNotch, "expanded": pinned]
+        ["notchWidth": Double(notch.width), "notchHeight": Double(notch.height), "hasNotch": hasNotch, "expanded": pinned,
+         "openHeight": Double(openHeight)]
     }
 
     func show() {
@@ -105,16 +122,30 @@ final class IslandController: NSObject {
         // A real notch is black in full-screen spaces anyway; a drawn one would cover a film.
         window.collectionBehavior = hasNotch ? [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .ignoresCycle]
                                              : [.canJoinAllSpaces, .stationary, .ignoresCycle]
-        window.setFrame(NSRect(x: (notch.midX - Self.canvas.width / 2).rounded(), y: frame.maxY - Self.canvas.height,
-                               width: Self.canvas.width, height: Self.canvas.height), display: true)
+        let size = canvasSize
+        window.setFrame(NSRect(x: (notch.midX - size.width / 2).rounded(), y: frame.maxY - size.height,
+                               width: size.width, height: size.height), display: true)
+    }
+
+    /// Called while the owner drags the island's bottom edge; keeps the island inside the screen.
+    func setOpenHeight(_ value: CGFloat, final: Bool = false) {
+        let screen = window.screen ?? NSScreen.main ?? NSScreen.screens.first
+        let room = (screen?.frame.height ?? 900) - notch.height - Self.shadowRoom - 40
+        let clamped = min(max(value, Self.open.height), max(Self.open.height, room))
+        if clamped != openHeight {
+            openHeight = clamped
+            if isShown { place() }
+        }
+        if final { UserDefaults.standard.set(Double(openHeight), forKey: Self.heightKey) }
     }
 
     private func pointerMoved() {
-        guard isShown, !pinned else { return }
+        guard isShown, !pinned, !suspended else { return }
         let point = NSEvent.mouseLocation
         if isExpanded {
-            let zone = NSRect(x: notch.midX - Self.open.width / 2 - 14, y: notch.minY - Self.open.height - 18,
-                              width: Self.open.width + 28, height: notch.height + Self.open.height + 18 + 2)
+            if NSEvent.pressedMouseButtons & 1 != 0 { return } // dragging the edge must not close it
+            let zone = NSRect(x: notch.midX - Self.open.width / 2 - 14, y: notch.minY - openHeight - 18,
+                              width: Self.open.width + 28, height: notch.height + openHeight + 18 + 2)
             schedule(zone.contains(point) ? nil : false, after: 0.32)
         } else {
             let zone = notch.insetBy(dx: -Self.ear, dy: 0).offsetBy(dx: 0, dy: 1)

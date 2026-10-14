@@ -563,7 +563,11 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     selectRoom,
     toggleLight,
     get room() { return ui.room; },
-    setNotch(x) { card.style.setProperty('--notch-x', `${x}px`); },
+    /** The pointer under the menu bar icon; `null` when the panel hangs from the island instead. */
+    setNotch(x) {
+      card.classList.toggle('no-pointer', x == null);
+      if (x != null) card.style.setProperty('--notch-x', `${x}px`);
+    },
     setAgentLive(live) { aiBadge.hidden = !live; },
     /** `ai`: something an AI assistant did (who, what), instead of an error. */
     toast(text, ai = null) {

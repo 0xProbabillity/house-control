@@ -49,10 +49,21 @@ final class PanelController: NSObject, NSWindowDelegate {
         show(below: button)
     }
 
+    /// The panel can also hang from the island's notch instead of a menu bar icon. There is
+    /// nothing for its pointer to point at then, so `pointer: false` draws it without.
+    func toggle(at anchor: NSRect, screen: NSScreen?, pointer: Bool = true) {
+        if isVisible { hide(); return }
+        if Date().timeIntervalSince(lastHide) < 0.25 { return }
+        show(at: anchor, screen: screen, pointer: pointer)
+    }
+
     func show(below button: NSStatusBarButton) {
         guard let buttonWindow = button.window else { return }
-        let anchor = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
-        let screen = buttonWindow.screen ?? NSScreen.main
+        show(at: buttonWindow.convertToScreen(button.convert(button.bounds, to: nil)), screen: buttonWindow.screen, pointer: true)
+    }
+
+    func show(at anchor: NSRect, screen: NSScreen?, pointer: Bool) {
+        let screen = screen ?? NSScreen.main
         let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
 
         var size = window.frame.size
@@ -62,7 +73,7 @@ final class PanelController: NSObject, NSWindowDelegate {
         let y = anchor.minY - size.height + 3
         window.setFrame(NSRect(x: x.rounded(), y: y.rounded(), width: size.width, height: size.height), display: true)
 
-        host.call("setNotch", Double(anchor.midX - x - Self.padSide))
+        host.call("setNotch", pointer ? Double(anchor.midX - x - Self.padSide) : NSNull())
         host.call("shown")
 
         isVisible = true

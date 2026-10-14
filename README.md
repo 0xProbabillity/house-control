@@ -125,7 +125,7 @@ There is no Dock icon and no main window: look for the house in the menu bar.
 | Click the sliders icon on a light tile | Brightness, white temperature, colour |
 | Click an AC, or its tile | Open its sheet: temperature, mode, fan speed |
 | Click a room | Zoom in on it and list only its devices |
-| Drag the 3D view / scroll over it | Rotate / zoom |
+| Drag the 3D view / scroll over it | Rotate (all the way round) / zoom |
 | `Esc` | Back, then close |
 
 The menu bar icon shows how many lights are on and the target of the running AC, for example `6 · 23°`.
@@ -146,6 +146,10 @@ A black tab grows out of the MacBook's notch. On a display without a notch it is
 | Rest the pointer on it | It springs open: the 3D model, scenes, air conditioners and lights |
 | Click a lamp in the model, or its chip | Toggle it; drag across a chip to dim |
 | Click a room in the model | Zoom in on it |
+| Drag the 3D model | Turn the home all the way round, and tilt it |
+| Click the mode icon of an air conditioner | Next mode: cool, heat, dry, fan, auto |
+| Drag the grip at the bottom edge | Make the open island taller, to see more devices. The height is remembered |
+| Click the sliders button | Open the full panel, hanging from the island |
 | Move the pointer away | It closes |
 
 When something changes elsewhere — a scene picked in the panel, a lamp switched from the phone — the island
