@@ -10,6 +10,12 @@
 </p>
 
 <p align="center">
+  <a href="#download"><b>Download</b></a> &nbsp;·&nbsp;
+  <a href="#build-and-run"><b>Build it yourself</b></a> &nbsp;·&nbsp;
+  <a href="#support-the-project"><b>Support the project</b></a>
+</p>
+
+<p align="center">
   <img src="docs/hero.png" alt="The panel, an air conditioner sheet and a colour light sheet">
 </p>
 
@@ -377,12 +383,96 @@ signed and notarized image locally instead; the script lists what it needs.
   connection (Home Assistant and Hue work on your network alone).
 - Infrared air conditioners are one-way: the app shows what was last sent, not what the unit is doing.
 
+## Support the project
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/support/banner-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/support/banner-light.svg">
+  <img src="docs/support/banner-light.svg" width="100%" alt="Support House Control">
+</picture>
+
+House Control is free and has no ads. If it earned a place in your menu bar, a tip in crypto
+helps it keep growing: more devices, more platforms, quicker fixes. Thank you! A star, a bug report or a
+pull request helps just as much.
+
+Scan a code with your wallet, or copy an address with the button in the corner of its box.
+
+> [!IMPORTANT]
+> Send each coin only over the network named next to its address. Coins sent over another network may be lost.
+
+<table>
+  <tr>
+    <td align="center" width="196">
+      <img src="docs/support/qr-bitcoin.svg" width="168" alt="QR code of the Bitcoin address">
+    </td>
+    <td>
+      <img src="docs/support/bitcoin.svg" width="28" height="28" align="absmiddle" alt="">&nbsp;
+      <b>Bitcoin</b>
+      <br><sub>BTC · native SegWit (bech32) address</sub>
+
+```text
+bc1q07hfz95crdalcrnywjavdpc4pdvllct83as5re
+```
+
+</td>
+  </tr>
+  <tr>
+    <td align="center" width="196">
+      <img src="docs/support/qr-evm.svg" width="168" alt="QR code of the Ethereum, Base, BNB Chain and Arbitrum address">
+    </td>
+    <td>
+      <img src="docs/support/ethereum.svg" width="28" height="28" align="absmiddle" alt="">
+      <img src="docs/support/base.svg" width="28" height="28" align="absmiddle" alt="">
+      <img src="docs/support/bnb.svg" width="28" height="28" align="absmiddle" alt="">
+      <img src="docs/support/arbitrum.svg" width="28" height="28" align="absmiddle" alt="">&nbsp;
+      <b>Ethereum · Base · BNB Chain · Arbitrum</b>
+      <br><sub>One address on all four networks · ETH, BNB, USDT, USDC and other tokens</sub>
+
+```text
+0x4ed3aF428e938a0CC8e60df86D714B4a7F0928F0
+```
+
+</td>
+  </tr>
+  <tr>
+    <td align="center" width="196">
+      <img src="docs/support/qr-ton.svg" width="168" alt="QR code of the TON address">
+    </td>
+    <td>
+      <img src="docs/support/ton.svg" width="28" height="28" align="absmiddle" alt="">&nbsp;
+      <b>TON</b>
+      <br><sub>Toncoin and USDT on TON · no memo needed</sub>
+
+```text
+UQBCDKDp11tBIwTon4ItzTPcQgNGcaqTM6Gn31KwSN7qWdmM
+```
+
+</td>
+  </tr>
+  <tr>
+    <td align="center" width="196">
+      <img src="docs/support/qr-tron.svg" width="168" alt="QR code of the TRON address">
+    </td>
+    <td>
+      <img src="docs/support/tron.svg" width="28" height="28" align="absmiddle" alt="">&nbsp;
+      <b>TRON</b>
+      <br><sub>TRX and USDT (TRC-20)</sub>
+
+```text
+TWtWLJp2Hc6242RynhU1B4Uujru3tppb3B
+```
+
+</td>
+  </tr>
+</table>
+
 ## Acknowledgements and disclaimer
 
 The Smart Life sign-in is a Swift port of Tuya's open-source
 [`tuya-device-sharing-sdk`](https://github.com/tuya/tuya-device-sharing-sdk), the library behind the Tuya
 integration in Home Assistant, and identifies itself to Tuya the same way. The 3D view is built with
-[Three.js](https://threejs.org); the icons are from [Lucide](https://lucide.dev).
+[Three.js](https://threejs.org); the icons are from [Lucide](https://lucide.dev), the network logos under
+[Support the project](#support-the-project) from [Web3 Icons](https://github.com/0xa3k5/web3icons) (MIT).
 
 This project is not affiliated with or endorsed by Tuya, Smart Life or Home Assistant. It relies on an
 interface Tuya can change at any time. Use it at your own risk.
