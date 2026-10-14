@@ -34,17 +34,21 @@ public final class WidgetBridge {
         onSnapshot?(snapshot)
         let first = identity == nil
         identity = snapshot.identity
-        if first { takeActions() } // the queue waited to learn which home this is
+        // The queue waited to learn which home this is. When it held something, this
+        // snapshot is already out of date: the panel posts a new one once it has caught up.
+        if first, takeActions() { return }
         if shared?.publish(snapshot) == true { scheduleReload() }
     }
 
     /// Takes the queue (when the app comes to the foreground, or a widget says it added to it).
-    public func takeActions() {
-        guard isReady, identity != nil, let shared, shared.hasPendingActions else { return }
+    /// True when there was something for the panel.
+    @discardableResult
+    public func takeActions() -> Bool {
+        guard isReady, identity != nil, let shared, shared.hasPendingActions else { return false }
         let (all, snapshot) = shared.takeActions()
         // Made for another home than the one on screen: never carry those out here.
         let queued = all.filter { $0.home == identity }
-        guard !queued.isEmpty else { scheduleReload(); return }
+        guard !queued.isEmpty else { scheduleReload(); return false }
         let encoder = JSONEncoder()
         let run = queued.filter { !$0.delivered }.compactMap { entry -> [String: Any]? in
             guard let data = try? encoder.encode(entry.action) else { return nil }
@@ -52,6 +56,7 @@ public final class WidgetBridge {
         }
         let adopt = queued.contains(where: \.delivered) ? snapshot?.panelState : nil
         onActions?(run, adopt)
+        return true
     }
 
     /// Widgets redraw at most a couple of times a second, however fast the panel changes.

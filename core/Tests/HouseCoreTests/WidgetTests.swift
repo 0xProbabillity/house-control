@@ -102,4 +102,27 @@ final class WidgetTests: XCTestCase {
         XCTAssertTrue(shared.isTaken(done.entry.id))
         XCTAssertTrue(shared.publish(home()))
     }
+
+    /// The app starting up must show what a widget did, not overwrite it with its own older view.
+    @MainActor
+    func testBridgeAdoptsBeforePublishing() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let shared = SharedHome(directory: dir)
+        shared.publish(home())
+        let done = try XCTUnwrap(shared.perform(.light("main")))
+        shared.markDelivered([done.entry.id])
+
+        let bridge = WidgetBridge(shared: shared)
+        var adopted: [String: Any]?
+        var ran: [[String: Any]] = []
+        bridge.onActions = { run, adopt in ran = run; adopted = adopt }
+        bridge.isReady = true
+        let stale = try JSONSerialization.jsonObject(with: JSONEncoder().encode(home()))
+        bridge.publish(["snapshot": stale])
+        XCTAssertTrue(ran.isEmpty, "delivered by the widget: not sent again")
+        let lights = try XCTUnwrap(adopted?["lights"] as? [String: Any])
+        XCTAssertEqual((lights["main"] as? [String: Any])?["on"] as? Bool, true)
+        XCTAssertTrue(shared.snapshot()!.light("main")!.on, "the stale snapshot was not stored")
+    }
 }

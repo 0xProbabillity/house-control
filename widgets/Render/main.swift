@@ -1,5 +1,5 @@
-// Renders every widget as a PNG (2x) from a home snapshot, the way WidgetKit lays them out:
-//   swift run render-widgets [snapshot.json] [output folder] [--tinted] [--size iphone|mac]
+// Renders every widget as a PNG (2x by default) from a home snapshot, the way WidgetKit lays them out:
+//   swift run render-widgets [snapshot.json] [output folder] [--tinted] [--size iphone|mac] [--scale 2]
 // Without a snapshot it uses Resources/sample-home.json. A snapshot from a running app is
 // in its App Group container, Widgets/home.json.
 import SwiftUI
@@ -11,6 +11,8 @@ import HouseCore
 var arguments = Array(CommandLine.arguments.dropFirst())
 let tinted = arguments.contains("--tinted")
 let mac = arguments.firstIndex(of: "--size").map { arguments.indices.contains($0 + 1) && arguments[$0 + 1] == "mac" } ?? false
+let scale = arguments.firstIndex(of: "--scale").flatMap { arguments.indices.contains($0 + 1) ? Double(arguments[$0 + 1]) : nil } ?? 2
+if let i = arguments.firstIndex(of: "--scale"), arguments.indices.contains(i + 1) { arguments.remove(at: i + 1) }
 arguments.removeAll { $0.hasPrefix("--") || $0 == "mac" || $0 == "iphone" }
 let here = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
 let input = arguments.first.map { URL(fileURLWithPath: $0) } ?? here.appendingPathComponent("Resources/sample-home.json")
@@ -50,7 +52,7 @@ struct Still<Content: View>: View {
 @MainActor
 func render<V: View>(_ name: String, _ family: WidgetFamily, _ view: V) {
     let renderer = ImageRenderer(content: Still(family: family) { view })
-    renderer.scale = 2
+    renderer.scale = scale
     guard let image = renderer.cgImage else { print("✗ \(name)"); return }
     let rep = NSBitmapImageRep(cgImage: image)
     let url = output.appendingPathComponent("\(name).png")

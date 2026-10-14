@@ -47,7 +47,8 @@ widget tap ─▶ AppIntent ─▶ HomeSnapshot.apply ─▶ home.json (at once)
   Smart Life, with the connections the app keeps in the Keychain group it shares with its widgets (the Smart Life
   session is re-read when the other process refreshed it). Apple Home cannot be reached from a widget: those actions
   wait in the queue and the app carries them out when it opens. The app then shows what the widgets did.
-- Queued actions older than ten minutes are dropped, and an action is only ever run for the home it was made in.
+- An action the app still has to carry out is dropped after ten minutes (nobody expects a lamp to switch an hour
+  later), and an action is only ever run for the home it was made in.
 - Files are read and written under one `flock`, so the app and a widget never see half of each other's work.
 
 ## Code

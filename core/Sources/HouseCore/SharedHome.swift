@@ -139,7 +139,8 @@ public final class SharedHome: @unchecked Sendable {
         // A tap the app could not carry out within a few minutes (it was not running) is
         // dropped: nobody expects a lamp to switch on an hour after they asked.
         let horizon = Date().timeIntervalSince1970 - Self.patience
-        return ((try? JSONDecoder().decode([Queued].self, from: data)) ?? []).filter { $0.at > horizon }
+        // One the widget delivered itself only tells the app what to show: it never goes stale.
+        return ((try? JSONDecoder().decode([Queued].self, from: data)) ?? []).filter { $0.delivered || $0.at > horizon }
     }
 
     private func writeQueue(_ queue: [Queued]) {
