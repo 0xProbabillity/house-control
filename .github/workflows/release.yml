@@ -1,0 +1,88 @@
+# Builds the Mac app on GitHub's machines and attaches the disk image to a draft release.
+#
+#   Push a tag v<version> (the version in ios/Config/Base.xcconfig) → a draft release with
+#   HouseControl-<version>.dmg and its SHA-256 appears under Releases; publish it by hand.
+#   Run it from the Actions tab instead → the same image as a downloadable artifact, no release.
+#
+# The app is signed ad hoc, not with a Developer ID, so no personal certificate ever leaves a
+# developer's Mac. Instead, on a public repository every image carries a build provenance
+# attestation: `gh attestation verify <dmg> --repo 0xProbabillity/house-control` proves it was
+# built here, by this workflow, from the tagged commit.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  mac:
+    name: Mac app
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: write      # create the draft release
+      id-token: write      # sign the provenance attestation
+      attestations: write  # store it
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+      - name: Check the tag matches the app version
+        id: version
+        run: |
+          version="$(sed -n 's/^MARKETING_VERSION *= *//p' ios/Config/Base.xcconfig)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match MARKETING_VERSION $version in ios/Config/Base.xcconfig"
+            exit 1
+          fi
+
+      - name: Install the web UI's packages
+        run: npm ci --prefix web --no-audit --no-fund
+
+      - name: Build the app and the disk image
+        run: UNSIGNED=1 ./scripts/release-mac.sh
+
+      - name: Attest build provenance
+        if: github.event.repository.visibility == 'public'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: build/HouseControl-${{ steps.version.outputs.version }}.dmg
+
+      - name: Keep the image (manual runs)
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: HouseControl-${{ steps.version.outputs.version }}
+          path: |
+            build/HouseControl-${{ steps.version.outputs.version }}.dmg
+            build/HouseControl-${{ steps.version.outputs.version }}.dmg.sha256
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Create a draft release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
+            --title "House Control $VERSION" --generate-notes \
+            "build/HouseControl-$VERSION.dmg" "build/HouseControl-$VERSION.dmg.sha256"

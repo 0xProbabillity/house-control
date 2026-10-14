@@ -39,12 +39,44 @@ No frameworks, no Electron, no server, no account of its own.
 
 ## Download
 
-Get the latest `HouseControl-<version>.dmg` from [Releases](https://github.com/0xProbabillity/house-control/releases),
-open it and drag **House Control** into **Applications**. It is signed and notarized by Apple and runs on any Mac
-with macOS 13 or newer, Apple silicon or Intel. Open it from Applications and look for the house in the menu bar;
-to start it with your Mac, add it under **System Settings → General → Login Items**.
+1. Get `HouseControl-<version>.dmg` from [Releases](https://github.com/0xProbabillity/house-control/releases).
+   It runs on macOS 13 or newer, Apple silicon and Intel.
+2. Open it and drag **House Control** into **Applications**.
+3. Open **House Control** from Applications. The first time, macOS stops it with *“Apple could not verify…”*,
+   because the app is not signed with a paid Apple Developer ID (see [why](#why-the-app-is-not-notarized)).
+   Allow it once:
+   - **macOS 15 Sequoia and newer:** click **Done**, open **System Settings → Privacy & Security**, scroll down
+     to *“House Control was blocked…”*, click **Open Anyway** and confirm with your password.
+   - **macOS 13–14:** Control-click the app in Applications, choose **Open**, then **Open** again.
+   - Or, in Terminal: `xattr -dr com.apple.quarantine "/Applications/House Control.app"`
+4. Look for the house in the menu bar — there is no Dock icon and no window. Click it.
 
-To build it yourself instead, read on.
+It starts with a bundled demo plan, so you can try everything before connecting anything. Then:
+[make it your home](#make-it-your-home) and [connect real devices](#connect-real-devices).
+To start it with your Mac, add it under **System Settings → General → Login Items**.
+
+### Check what you downloaded
+
+Every release image is built by [GitHub Actions](.github/workflows/release.yml) from the tagged commit — not on
+anyone's Mac — and comes with its SHA-256 and a signed build provenance attestation:
+
+```bash
+shasum -a 256 -c HouseControl-<version>.dmg.sha256
+gh attestation verify HouseControl-<version>.dmg --repo 0xProbabillity/house-control
+```
+
+The second command proves the image was built by this repository's workflow, and shows from which commit.
+
+### Why the app is not notarized
+
+Notarizing needs an Apple Developer ID, and that certificate carries a person's legal name inside every copy of
+the app. House Control ships signed ad hoc instead, and earns trust the open-source way: the code is all here,
+the release is built in public, and you can [build it yourself](#build-and-run) in a couple of minutes.
+
+### Remove it
+
+Quit it (right-click the menu bar icon → **Quit**), delete **House Control** from Applications and, to remove your
+plan and connections too, `~/Library/Application Support/HouseControl/`.
 
 ## Requirements
 
@@ -254,7 +286,7 @@ web/      the UI: Three.js scene, panel, island, editor, AI Access window and th
 core/     what both apps share: Smart Life and Tuya clients, plan store, Mac ⇄ iPhone sync, the AI gateway (SwiftPM, with tests)
 macos/    the Mac shell: menu bar item, panel, island and editor windows (SwiftPM)
 ios/      the iPhone shell: SwiftUI, generated into an Xcode project by XcodeGen
-scripts/  build-app.sh, build-ios.sh and ios-sim.sh build the apps, release-mac.sh makes the notarized .dmg,
+scripts/  build-app.sh, build-ios.sh and ios-sim.sh build the apps, release-mac.sh makes the .dmg,
           make-icon.swift and make-dmg-background.swift draw the icon and the disk image's window
 tools/lab pretend Home Assistant, Hue Bridge and HomeKit bridge for testing without hardware
 docs/     floor plan reference, connection guides, screenshots
@@ -321,13 +353,19 @@ The binary has a few offline self-checks and one read-only diagnostic:
 
 ### Releasing the Mac app
 
+Set `MARKETING_VERSION` in `ios/Config/Base.xcconfig`, commit, then tag and push:
+
 ```bash
-ASC_KEY_ID=… ASC_ISSUER_ID=… ./scripts/release-mac.sh --publish
+git tag v0.1.0 && git push origin v0.1.0
 ```
 
-builds a universal app, signs it with your **Developer ID Application** certificate, has Apple notarize it, packs
-it into `build/HouseControl-<version>.dmg` and attaches that to a GitHub release. The script lists what it needs;
-`UNSIGNED=1` makes a test image without any of it.
+[`release.yml`](.github/workflows/release.yml) builds the universal app on a GitHub macOS runner
+(`UNSIGNED=1 ./scripts/release-mac.sh`), attests its provenance and opens a **draft** release with the disk image
+and its SHA-256. Check it, then publish the draft. Running the workflow by hand from the Actions tab builds the same
+image as a downloadable artifact without a release.
+
+With an Apple Developer ID of your own, `ASC_KEY_ID=… ASC_ISSUER_ID=… ./scripts/release-mac.sh --publish` builds a
+signed and notarized image locally instead; the script lists what it needs.
 
 ## Limitations
 

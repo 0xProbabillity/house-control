@@ -11,8 +11,8 @@
 #     ASC_KEY_ID, ASC_ISSUER_ID (key file AuthKey_<id>.p8 in ~/.appstoreconnect/private_keys)
 #   or a profile stored with `xcrun notarytool store-credentials`: NOTARY_PROFILE=<name>.
 #   uv (brew install uv), which runs dmgbuild to lay out the disk image.
-# UNSIGNED=1 skips signing and notarization: a disk image for testing the layout only —
-# macOS will refuse to open the app in it until the user allows it in System Settings.
+# UNSIGNED=1 skips the certificate and notarization: the app stays signed ad hoc. This is the image
+# .github/workflows/release.yml publishes; macOS asks people to allow it once (see README → Download).
 # The version is MARKETING_VERSION in ios/Config/Base.xcconfig, shared with the iPhone app.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -67,7 +67,7 @@ if [ -z "${UNSIGNED:-}" ]; then
   echo "▸ Checking it the way Gatekeeper will"
   spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG"
 fi
-shasum -a 256 "$DMG" | tee "$DMG.sha256"
+(cd "$(dirname "$DMG")" && shasum -a 256 "$(basename "$DMG")") | tee "$DMG.sha256"
 echo "✓ $DMG"
 
 if [ "${1:-}" = "--publish" ]; then
