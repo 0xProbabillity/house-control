@@ -29,6 +29,8 @@ public final class SyncServer {
     public var onPeersChanged: (() -> Void)?
     /// A phone asks the Mac to display the QR code of its own Smart Life login
     /// (`content`), or to take it down again (nil). The second argument is the phone's name.
+    /// A phone that disconnects does not take its code down: it is scanned from another
+    /// app on that phone, and iOS cuts the connection as soon as ours leaves the screen.
     public var onShowQR: ((String?, String) -> Void)?
 
     /// `store` keeps the pairing (by default `sync.json` next to the plan, readable by its user only).
@@ -147,10 +149,7 @@ public final class SyncServer {
         }
         channel.onClose = { [weak self] _ in
             guard let self, let gone = self.peers.removeValue(forKey: key) else { return }
-            if !gone.name.isEmpty {
-                self.onShowQR?(nil, gone.name)
-                self.onPeersChanged?()
-            }
+            if !gone.name.isEmpty { self.onPeersChanged?() }
         }
         channel.start()
     }

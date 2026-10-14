@@ -24,6 +24,9 @@ public final class SyncClient {
     private var browser: NWBrowser?
     private var channel: SyncChannel?
     private var retry: DispatchWorkItem?
+    /// What the Mac should be showing for this phone, and whether it has been told yet.
+    private var qrContent: String?
+    private var qrUnsent = false
     /// Set to connect straight to a host and port instead of browsing (tests).
     var fixedEndpoint: NWEndpoint?
 
@@ -58,6 +61,8 @@ public final class SyncClient {
     }
 
     public func unpair() {
+        qrContent = nil
+        qrUnsent = false
         teardown()
         pairing = nil
         store.write(nil)
@@ -86,12 +91,22 @@ public final class SyncClient {
 
     /// Asks the Mac to display `content` as a QR code (nil takes it down again). Used for
     /// the Smart Life login, which has to be scanned by the Smart Life app on this phone.
+    /// Returns false when the Mac is not connected right now; the request is then delivered
+    /// as soon as it is. (The code is scanned from another app, so this one is in the
+    /// background, and disconnected, for most of the time the code is up.)
     @discardableResult
     public func showQR(_ content: String?) -> Bool {
-        guard let channel, status == .connected else { return false }
+        qrContent = content
+        qrUnsent = true
+        return flushQR()
+    }
+
+    private func flushQR() -> Bool {
+        guard qrUnsent, let channel, status == .connected else { return false }
         var message: [String: Any] = ["type": "showQR"]
-        if let content { message["content"] = content }
+        if let qrContent { message["content"] = qrContent }
         channel.send(message)
+        qrUnsent = false
         return true
     }
 
@@ -159,6 +174,7 @@ public final class SyncClient {
         channel.onMessage = { [weak self] message in
             guard let self, let state = SyncState(message: message) else { return }
             self.set(.connected)
+            _ = self.flushQR()
             self.onState?(state)
         }
         channel.onClose = { [weak self] error in

@@ -42,5 +42,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </dict>
 </plist>
 PLIST
-codesign --force --sign - "$APP" >/dev/null 2>&1 || echo "  (ad-hoc signing skipped)"
+# Ad-hoc by default. macOS ties permissions (the Local Network one that iPhone sync needs)
+# to the signature, and an ad-hoc one changes with every build, so it asks again each time.
+# CODESIGN_IDENTITY="Apple Development: …" (see `security find-identity -v -p codesigning`)
+# signs with your own certificate and the permission sticks.
+codesign --force --sign "${CODESIGN_IDENTITY:--}" "$APP" >/dev/null 2>&1 || echo "  (signing skipped)"
 echo "✓ Done: $APP"

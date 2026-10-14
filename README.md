@@ -53,6 +53,10 @@ open build/HouseControl.app
 The script builds the web UI with Vite, the native shell with SwiftPM, and assembles an ad-hoc signed
 `build/HouseControl.app`. The first build downloads the npm packages; later builds take a few seconds.
 
+The app is signed ad hoc. If you rebuild often and use iPhone sync, sign it with your own certificate instead, so
+macOS does not ask for the Local Network permission after every build:
+`CODESIGN_IDENTITY="Apple Development: you@example.com (ABCDE12345)" ./scripts/build-app.sh`.
+
 To keep it, drag `build/HouseControl.app` into `/Applications`. To start it with your Mac, add it under
 **System Settings → General → Login Items**.
 

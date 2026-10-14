@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var island: IslandController?
     private var pairingWindow: QRWindowController?
     private var loginWindow: QRWindowController?
+    private var loginWindowExpiry: DispatchWorkItem?
     private var statusItem: NSStatusItem!
     private var panel: PanelController!
     private var editor: EditorController?
@@ -420,12 +421,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// A paired iPhone signs in to Smart Life on its own, but its login code has to be
     /// scanned by the Smart Life app on that same phone, so it borrows this Mac's screen.
+    ///
+    /// The window does not follow the phone's connection: to scan the code the user switches
+    /// to Smart Life, our app goes to the background and iOS disconnects it. It closes when
+    /// the phone says it is signed in (or gave up), when the user closes it, or after ten
+    /// minutes, by which time the login ticket is long dead.
     private func showLoginCode(_ content: String?, for device: String) {
+        loginWindowExpiry?.cancel()
+        loginWindowExpiry = nil
         guard let content, content.hasPrefix("tuyaSmart--qrLogin?token=") else {
             loginWindow?.close()
             loginWindow = nil
             return
         }
+        let expiry = DispatchWorkItem { [weak self] in
+            self?.loginWindow?.close()
+            self?.loginWindow = nil
+        }
+        loginWindowExpiry = expiry
+        DispatchQueue.main.asyncAfter(deadline: .now() + 600, execute: expiry)
         if loginWindow == nil {
             let window = QRWindowController(title: "Smart Life Sign-In for \(device)")
             window.onClose = { [weak self] in self?.loginWindow = nil }
@@ -433,8 +447,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         loginWindow?.show(code: content,
                           headline: "Scan with the Smart Life app on \(device)",
-                          detail: "Open Smart Life, tap the scanner on its Home tab and confirm the login. "
-                              + "This window closes by itself once the iPhone is signed in.")
+                          detail: "Switch to Smart Life on the iPhone, tap the scanner on its Home tab and confirm the login. "
+                              + "Then return to House Control: this window closes once the iPhone is signed in.")
         loginWindow?.setStatus("Requested by \(device)", active: true)
     }
 

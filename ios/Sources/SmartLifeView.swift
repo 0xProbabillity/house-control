@@ -6,6 +6,7 @@ import HouseCore
 /// another screen: the paired Mac puts it up by itself.
 struct SmartLifeView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.scenePhase) private var scenePhase
     @State private var userCode = ""
     @State private var busy = false
     @State private var problem: String?
@@ -43,6 +44,11 @@ struct SmartLifeView: View {
         .onAppear { if userCode.isEmpty { userCode = model.suggestedUserCode } }
         .onChange(of: model.suggestedUserCode) { _, code in if userCode.isEmpty { userCode = code } }
         .onDisappear { _ = model.showOnMac(nil) }
+        // Back from the Smart Life app: do not wait for the next poll to find out.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, let login, !model.smartLifeConnected else { return }
+            Task { _ = await model.finishLogin(token: login.token, userCode: userCode) }
+        }
         // Ask every two seconds whether the login was confirmed, for as long as the code is up.
         .task(id: login) {
             guard let login else { return }
@@ -137,7 +143,7 @@ struct SmartLifeView: View {
                         IconBadge(symbol: "laptopcomputer", tint: Theme.green)
                         VStack(alignment: .leading, spacing: 4) {
                             Text("The code is on \(mac)").font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
-                            Text("Open Smart Life on this iPhone, tap the scanner on its Home tab and point it at the Mac's screen.")
+                            Text("Switch to Smart Life on this iPhone, tap the scanner on its Home tab and point it at the Mac's screen. The code stays there while you are away; come back here when you have confirmed.")
                                 .font(.system(size: 14)).foregroundStyle(Theme.muted)
                                 .fixedSize(horizontal: false, vertical: true)
                         }

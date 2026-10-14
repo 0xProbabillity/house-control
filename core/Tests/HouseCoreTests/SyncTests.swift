@@ -2,6 +2,8 @@ import XCTest
 import Network
 @testable import HouseCore
 
+private final class Flag { var isSet = false }
+
 @MainActor
 final class SyncTests: XCTestCase {
     func testPairingLinkRoundTrip() throws {
@@ -108,16 +110,35 @@ final class SyncTests: XCTestCase {
         await fulfillment(of: [connected], timeout: 10)
 
         let shown = expectation(description: "shown")
+        let hiddenWhileAway = expectation(description: "hidden while the phone was away")
+        hiddenWhileAway.isInverted = true
         let hidden = expectation(description: "hidden")
+        let away = Flag()
         server.onShowQR = { content, device in
             XCTAssertEqual(device, "Test iPhone")
-            if content == "tuyaSmart--qrLogin?token=t1" { shown.fulfill() } else if content == nil { hidden.fulfill() }
+            if content == "tuyaSmart--qrLogin?token=t1" { shown.fulfill() }
+            else if content == nil { (away.isSet ? hiddenWhileAway : hidden).fulfill() }
         }
         XCTAssertTrue(client.showQR("tuyaSmart--qrLogin?token=t1"))
         await fulfillment(of: [shown], timeout: 10)
-        // Going away takes the code down as well.
+
+        // The code is scanned from another app: ours goes to the background and iOS cuts
+        // the connection. The code must stay up on the Mac.
+        let gone = expectation(description: "phone disconnected")
+        server.onPeersChanged = { if server.connectedDevices.isEmpty { gone.fulfill() } }
+        away.isSet = true
         client.stop()
-        await fulfillment(of: [hidden], timeout: 10)
+        await fulfillment(of: [gone], timeout: 10)
+        server.onPeersChanged = nil
+        await fulfillment(of: [hiddenWhileAway], timeout: 0.4)
+
+        // Signed in while away: the Mac is told to take the code down once the phone is back.
+        XCTAssertFalse(client.showQR(nil))
+        away.isSet = false
+        let back = expectation(description: "reconnected")
+        client.onState = { _ in back.fulfill() }
+        client.start()
+        await fulfillment(of: [back, hidden], timeout: 10)
     }
 
     func testAWrongKeyIsRefused() async throws {
