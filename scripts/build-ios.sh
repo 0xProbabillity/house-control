@@ -8,6 +8,8 @@
 #   ASC_KEY_ID      the key's ID; its file AuthKey_<id>.p8 lives in ~/.appstoreconnect/private_keys
 #   ASC_ISSUER_ID   the issuer ID shown above the key list in App Store Connect
 # The build number is CURRENT_PROJECT_VERSION in ios/Config/Base.xcconfig: raise it for every upload.
+#   BUNDLE_ID=…     build under another bundle id (and <id>.Widgets for the widgets), e.g. the one an
+#                   existing App Store Connect record was created with; the project files are not changed.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 : "${ASC_KEY_ID:?Set ASC_KEY_ID to your App Store Connect API key ID}"
@@ -26,6 +28,10 @@ echo "▸ Archiving"
 cd "$ROOT/ios"
 [ -f Config/Local.xcconfig ] || { echo "Create ios/Config/Local.xcconfig with: DEVELOPMENT_TEAM = <your team id>"; exit 1; }
 xcodegen generate --quiet
+if [ -n "${BUNDLE_ID:-}" ]; then
+  sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER = io\.github\.0xprobabillity\.HouseControl/PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE_ID/" \
+    HouseControl.xcodeproj/project.pbxproj
+fi
 rm -rf build/HouseControl.xcarchive build/export
 xcodebuild archive -project HouseControl.xcodeproj -scheme HouseControl -configuration Release \
   -destination 'generic/platform=iOS' -archivePath build/HouseControl.xcarchive \
