@@ -34,3 +34,11 @@ ios/Config/Local.xcconfig
 ios/build/
 core/.build/
 sync.json
+
+# Widgets: the Mac extension's Xcode project, Info.plists and entitlements are generated
+# from widgets/project.yml and ios/project.yml.
+widgets/HouseWidgetsMac.xcodeproj/
+widgets/Config/Info-*.plist
+widgets/Config/*.entitlements
+widgets/build/
+widgets/.build/

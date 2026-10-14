@@ -21,6 +21,7 @@ enum HomeKitStatus: Equatable {
 enum SettingsRoute: Hashable {
     case pairing
     case smartLife
+    case quickActions
 }
 
 /// Everything the screens share: the floor plan, the devices, the link to the Mac.
@@ -31,10 +32,18 @@ final class AppModel {
     @ObservationIgnored let hub: DeviceHub
     @ObservationIgnored let sync: SyncClient
     @ObservationIgnored let web: HomeWeb
+    /// The Home Screen and Lock Screen widgets, and the Control Center controls.
+    @ObservationIgnored let widgets = WidgetBridge()
+    /// The menu of the app's icon on the Home Screen.
+    let quickActions = QuickActions()
+    /// A quick action picked before the page was up.
+    @ObservationIgnored private var pendingQuick: [(HomeAction, String)] = []
     @ObservationIgnored private var pollTimer: Timer?
     @ObservationIgnored private var bannerTask: Task<Void, Never>?
     @ObservationIgnored private var pageReady = false
     @ObservationIgnored private var active = false
+    /// A device a widget asked to show before the page was up.
+    @ObservationIgnored private var pendingDevice: String?
 
     // Floor plan
     private(set) var activePlan: String
@@ -106,6 +115,13 @@ final class AppModel {
         }
         sync.onState = { [weak self] in self?.received($0) }
 
+        widgets.onActions = { [weak self] run, adopt in
+            guard let self else { return }
+            if !run.isEmpty { self.web.call("widget", run) }
+            if let adopt { self.web.call("adopt", adopt) }
+        }
+        widgets.onSnapshot = { [weak self] in self?.quickActions.update(home: $0) }
+        QuickActionCenter.handler = { [weak self] id, title in self?.runQuickAction(id, title: title) }
         web.onMessage = { [weak self] in self?.handle($0) }
         web.load { [weak self] in self?.bootPayload() ?? [:] }
 
@@ -114,6 +130,7 @@ final class AppModel {
         case "settings": showSettings = true
         case "pairing": showSettings = true; settingsPath = [.pairing]
         case "smartlife": showSettings = true; settingsPath = [.smartLife]
+        case "quickactions": showSettings = true; settingsPath = [.quickActions]
         case "connections": showSettings = true
         case "welcome": showWelcome = true
         case "home": break
@@ -130,6 +147,7 @@ final class AppModel {
         if on {
             sync.start()
             startPolling()
+            widgets.takeActions()
         } else {
             sync.stop()
             pollTimer?.invalidate()
@@ -167,10 +185,20 @@ final class AppModel {
         switch message["type"] as? String {
         case "ready":
             pageReady = true
+            widgets.isReady = true
+            if let device = pendingDevice {
+                pendingDevice = nil
+                web.call("openDevice", device)
+            }
+            let quick = pendingQuick
+            pendingQuick = []
+            for (action, title) in quick { run(action, title: title) }
             web.call("shown") // the camera sweep and the lights coming on, once per load
             startPolling()
         case "command":
             hub.command(message) { [weak self] in self?.web.reply(to: message, $0) }
+        case "widgets":
+            widgets.publish(message)
         case "haptic":
             Haptics.shared.play(message["kind"] as? String ?? "light")
         case "openSettings":
@@ -193,6 +221,7 @@ final class AppModel {
         customPlanName = plans.customPlanName
         reloadLinks()
         pageReady = false
+        widgets.isReady = false
         web.reload()
     }
 
@@ -218,11 +247,37 @@ final class AppModel {
         reloadHome()
     }
 
+    // MARK: - Quick actions
+
+    private func runQuickAction(_ id: String, title: String) {
+        guard let action = QuickAction.action(for: id) else { return }
+        showSettings = false
+        if pageReady { run(action, title: title) } else { pendingQuick.append((action, title)) }
+    }
+
+    /// Runs an action from the icon's menu through the panel, which sends it to the devices.
+    private func run(_ action: HomeAction, title: String) {
+        guard let data = try? JSONEncoder().encode(action),
+              let dict = try? JSONSerialization.jsonObject(with: data) else { return }
+        web.call("widget", [dict])
+        Haptics.shared.play("medium")
+        show(Banner(symbol: action.kind == .scene ? "sparkles" : "checkmark.circle.fill", text: title))
+    }
+
     // MARK: - Mac sync
 
-    /// A `housecontrol://pair?…` link, from the camera, the clipboard or another app.
+    /// A `housecontrol://pair?…` link, from the camera, the clipboard or another app, or
+    /// `housecontrol://open?device=…` from a widget.
     @discardableResult
     func open(_ url: URL) -> Bool {
+        if url.scheme == SyncPairing.scheme, url.host == "open" {
+            showSettings = false
+            let device = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "device" }?.value
+            if let device {
+                if pageReady { web.call("openDevice", device) } else { pendingDevice = device }
+            }
+            return true
+        }
         guard let pairing = SyncPairing(link: url.absoluteString) else { return false }
         pair(pairing)
         return true

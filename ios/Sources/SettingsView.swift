@@ -17,6 +17,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(spacing: 30) {
                     homeSection
+                    shortcutsSection
                     macSection
                     smartLifeSection
                     connectionsSection
@@ -39,6 +40,7 @@ struct SettingsView: View {
                 switch route {
                 case .pairing: PairingView()
                 case .smartLife: SmartLifeView()
+                case .quickActions: QuickActionsView()
                 }
             }
         }
@@ -103,6 +105,36 @@ struct SettingsView: View {
         }
         .buttonStyle(RowButtonStyle())
         .accessibilityAddTraits(model.activePlan == id ? .isSelected : [])
+    }
+
+    // MARK: - Quick actions
+
+    private var shortcutsSection: some View {
+        VStack(spacing: 10) {
+            SectionTitle("Shortcuts")
+            Card {
+                NavigationLink(value: SettingsRoute.quickActions) {
+                    HStack(spacing: 14) {
+                        IconBadge(symbol: "hand.tap.fill", tint: Theme.warm)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Quick Actions").font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
+                            Text(quickActionsDetail).font(.system(size: 13.5)).foregroundStyle(Theme.muted).lineLimit(1)
+                        }
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.faint)
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(minHeight: 66)
+                }
+                .buttonStyle(RowButtonStyle())
+            }
+            footnote("Press and hold the app icon for these. Widgets and Control Center buttons are added from the Home Screen and Control Center.")
+        }
+    }
+
+    private var quickActionsDetail: String {
+        let names = model.quickActions.chosen.compactMap(model.quickActions.lookup).map(\.title)
+        return names.isEmpty ? "None" : names.joined(separator: " · ")
     }
 
     // MARK: - Mac

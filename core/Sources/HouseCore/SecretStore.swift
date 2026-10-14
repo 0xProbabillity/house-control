@@ -67,7 +67,18 @@ public struct KeychainSecretStore: SecretStore {
         SecItemAdd(q as CFDictionary, nil)
     }
 
-    public var stamp: Date? { nil }
+    /// When the item was last written. The iPhone's widgets share these items with the app
+    /// (one Keychain access group), and a Smart Life refresh in one process rotates the token
+    /// the other one holds.
+    public var stamp: Date? {
+        var q = query
+        q[kSecReturnAttributes as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
+        var out: CFTypeRef?
+        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess,
+              let attributes = out as? [String: Any] else { return nil }
+        return attributes[kSecAttrModificationDate as String] as? Date
+    }
 }
 
 /// Keeps a secret in memory only (tests, throw-away runs).

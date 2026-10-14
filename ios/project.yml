@@ -25,14 +25,20 @@ targets:
         buildPhase: resources
     dependencies:
       - package: HouseCore
+      - target: HouseWidgets
+        embed: true
     entitlements:
       path: Config/HouseControl.entitlements
       properties:
         com.apple.developer.homekit: true
+        # Shared with the widgets: the home they draw, and the connections they use.
+        com.apple.security.application-groups: [group.io.github.0xprobabillity.HouseControl]
+        keychain-access-groups: [$(AppIdentifierPrefix)io.github.0xprobabillity.HouseControl]
     info:
       path: Config/Info.plist
       properties:
         CFBundleDisplayName: House Control
+        HouseAppGroup: group.io.github.0xprobabillity.HouseControl
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.lifestyle
@@ -62,6 +68,40 @@ targets:
         SWIFT_VERSION: "5.0"
         ENABLE_USER_SCRIPT_SANDBOXING: YES
         GENERATE_INFOPLIST_FILE: NO
+  # Home Screen, Lock Screen and StandBy widgets plus Control Center controls (../widgets).
+  HouseWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ../widgets/Sources
+      - path: ../widgets/Resources
+        buildPhase: resources
+    dependencies:
+      - package: HouseCore
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+    entitlements:
+      path: ../widgets/Config/iOS.entitlements
+      properties:
+        com.apple.security.application-groups: [group.io.github.0xprobabillity.HouseControl]
+        keychain-access-groups: [$(AppIdentifierPrefix)io.github.0xprobabillity.HouseControl]
+    info:
+      path: ../widgets/Config/Info-iOS.plist
+      properties:
+        CFBundleDisplayName: House Control
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        HouseAppGroup: group.io.github.0xprobabillity.HouseControl
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.0xprobabillity.HouseControl.Widgets
+        PRODUCT_NAME: HouseWidgets
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
 schemes:
   HouseControl:
     build:

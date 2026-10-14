@@ -1,0 +1,56 @@
+# The Mac's widget extension, embedded into HouseControl.app by scripts/build-app.sh
+# (the Mac app itself is a Swift package; the iPhone's extension is in ../ios/project.yml).
+name: HouseWidgetsMac
+options:
+  bundleIdPrefix: io.github.0xprobabillity
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+configFiles:
+  Release: Config/Mac.xcconfig
+  Debug: Config/Mac.xcconfig
+packages:
+  HouseCore:
+    path: ../core
+targets:
+  HouseWidgets:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Sources
+      - path: Resources
+        buildPhase: resources
+    dependencies:
+      - package: HouseCore
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+    info:
+      path: Config/Info-macOS.plist
+      properties:
+        CFBundleDisplayName: House Control
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        HouseAppGroup: $(HOUSE_APP_GROUP)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Config/macOS.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.application-groups: [$(HOUSE_APP_GROUP)]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.0xprobabillity.HouseControl.Widgets
+        PRODUCT_NAME: HouseWidgets
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_STYLE: Manual
+        ENABLE_HARDENED_RUNTIME: YES
+        SKIP_INSTALL: YES
+schemes:
+  HouseWidgets:
+    build:
+      targets:
+        HouseWidgets: all
+    archive:
+      config: Release

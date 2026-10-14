@@ -6,6 +6,7 @@ import { createAgent } from './agent/tools.js';
 import { h, openMenu } from './ui/dom.js';
 import { icon } from './ui/icons.js';
 import { isNative, isPhone, post, incoming, haptic } from './bridge.js';
+import { publishWidgets, runWidgetAction } from './widgets.js';
 
 const DEMO_PLANS = [
   { id: 'home', name: 'Demo · Apartment' },
@@ -111,6 +112,21 @@ async function boot() {
   incoming.applyRemote = (update) => store.applyRemote(update);
   incoming.adopt = (state) => store.adopt(state);
   incoming.share = () => store.share();
+  // Widgets and controls: what they changed while the app was away is run here, where it
+  // reaches the devices; a widget's tap on a lamp or a scene opens that in the panel.
+  incoming.widget = (actions) => {
+    store.source = 'Widget';
+    try {
+      for (const action of [].concat(actions)) runWidgetAction(store, config, action);
+    } finally {
+      store.source = null;
+    }
+  };
+  incoming.openDevice = (id) => {
+    if (store.acCfg.has(id)) panel.openSheet({ kind: 'ac', id });
+    else if (store.lightCfg.has(id)) panel.openSheet({ kind: 'light', id });
+    else if (config.rooms.some((r) => r.id === id)) { panel.closeSheet(); panel.selectRoom(id); }
+  };
   // AI Access: an AI assistant's requests are run here, where the state of every device lives.
   const agent = createAgent({
     store, config, raw,
@@ -175,6 +191,7 @@ async function boot() {
 
   if (!isNative) show();
   post('ready', { summary: store.summary() });
+  if (isNative) publishWidgets(config, store);
   window.__house = { store, world, panel, config }; // handy in the dev console
 }
 

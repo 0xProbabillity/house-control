@@ -20,6 +20,15 @@ xcodebuild -project HouseControl.xcodeproj -scheme HouseControl -configuration D
   CODE_SIGN_IDENTITY=- build 2>&1 | grep -E "error|warning: |BUILD" | grep -v appintentsmetadataprocessor || true
 APP="build/DerivedData/Build/Products/Debug-iphonesimulator/HouseControl.app"
 [ -d "$APP" ] || { echo "Build failed"; exit 1; }
+# Choosing a lamp, room or AC for a widget needs a signature with a team: the simulator's
+# App Intents service ignores the entities of an ad-hoc signed app. Uses your Apple
+# Development certificate when there is one (CODESIGN_IDENTITY=… picks another).
+SIGN="${CODESIGN_IDENTITY:-$(security find-identity -v -p codesigning | awk '/Apple Development/{print $2; exit}')}"
+if [ -n "$SIGN" ]; then
+  for bundle in "$APP"/PlugIns/*.appex "$APP"; do
+    codesign --force --sign "$SIGN" --preserve-metadata=entitlements "$bundle" >/dev/null 2>&1 || true
+  done
+fi
 
 xcrun simctl bootstatus "$DEVICE" -b >/dev/null
 xcrun simctl install "$DEVICE" "$APP"

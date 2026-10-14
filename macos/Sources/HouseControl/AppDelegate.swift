@@ -31,6 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return agent
     }()
     private var lastSummary: [String: Any] = [:]
+    /// Desktop widgets and Control Center controls: what they show, what they asked for.
+    private let widgets = WidgetBridge()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMainMenu()
@@ -51,6 +53,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel = PanelController(host: host)
         panel.onVisibilityChange = { [weak self] visible in self?.setPolling(visible) }
         hub.onStale = { [weak self] in self?.poll() }
+        widgets.onActions = { [weak self] run, adopt in
+            guard let self else { return }
+            if !run.isEmpty { self.panel.host.call("widget", run) }
+            if let adopt { self.panel.host.call("adopt", adopt) }
+        }
         reloadLinks()
         host.load()
         startSync()
@@ -80,6 +87,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if ProcessInfo.processInfo.environment["HOUSE_OPEN_ON_LAUNCH"] != nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in self?.togglePanel() }
+        }
+    }
+
+    /// `housecontrol://open[?device=…]`: a click on a widget opens the panel (on that lamp, AC or room).
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let url = urls.first, url.scheme == SyncPairing.scheme, url.host == "open" else { return }
+        if !panel.isVisible { togglePanel() }
+        if let device = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "device" })?.value {
+            panel.host.call("openDevice", device)
         }
     }
 
@@ -221,6 +237,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func reloadAll() {
         reloadLinks()
+        widgets.isReady = false
         panel.host.load()
         if island?.isShown == true { island?.host.load() }
         sync.broadcast()
@@ -283,6 +300,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "ready", "summary":
             // A view that has just loaded takes over what the panel shows.
             if message["type"] as? String == "ready", host !== panel.host { panel.host.call("share") }
+            if message["type"] as? String == "ready", host === panel.host { widgets.isReady = true }
             if let summary = (message["summary"] as? [String: Any]) ?? (message["lightsOn"] != nil ? message : nil) {
                 updateStatus(summary)
             }
@@ -294,6 +312,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             for other in [panel.host, island?.host] where other !== host { other?.call("adopt", state) }
         case "command":
             hub.command(message) { [weak host] in host?.reply(to: message, $0) }
+        case "widgets":
+            if host === panel.host { widgets.publish(message) }
         case "close":
             panel.hide()
         case "selectPlan":

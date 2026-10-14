@@ -1,0 +1,6 @@
+// Versions follow the iPhone app; the signing identity and team come from scripts/build-app.sh.
+#include "../../ios/Config/Base.xcconfig"
+CODE_SIGN_STYLE = Manual
+// The App Group the app and its widgets share. On the Mac it is prefixed with the signing
+// team (no provisioning profile needed); a build signed without a team has none.
+HOUSE_APP_GROUP = $(TeamIdentifierPrefix)io.github.0xprobabillity.HouseControl

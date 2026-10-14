@@ -35,6 +35,9 @@
 - **AI Access.** Give ChatGPT, Claude or any AI assistant a private link — or connect it over MCP — and it runs your
   lights and air conditioners, and rebuilds rooms in the 3D model from your photos. Served by your Mac; Stop ends it.
   See [AI Access](#ai-access).
+- **Widgets and controls.** The home in 3D on the iPhone's Home Screen and the Mac's desktop, scenes, lamps and
+  air conditioners a tap away, Lock Screen and Control Center controls, and quick actions on the app icon.
+  See [Widgets](#widgets).
 - **An iPhone app.** The same home in your pocket, kept in sync with the Mac over your own Wi-Fi.
   See [iPhone app](#iphone-app).
 - **Works without any hardware.** Until you sign in, every device is simulated, so you can try everything first.
@@ -216,6 +219,28 @@ Mac if you are signed in there. The sign-in code has to be scanned by the Smart 
 you are holding — so the paired Mac puts the code on its screen for you. Without a Mac, share the code to any other screen.
 
 The session is kept in the iPhone's Keychain and never leaves the device.
+
+## Widgets
+
+<p align="center">
+  <img src="docs/widgets.png" width="820" alt="House Control widgets: Home in 3D, scenes, climate, a light and a room">
+</p>
+
+Every widget is live: tap a lamp, a scene or an AC and it switches without opening the app.
+
+- **Home** — your home as a small 3D model, every lamp glowing in its own colour; scenes, the climate strip and
+  tappable lamps in the bigger sizes (extra large on the Mac).
+- **Scenes**, **Light** (one lamp you pick), **Room** (its lamps; the large size shows the room alone in 3D) and
+  **Climate** (an AC's dial with the room temperature, power and − / +).
+- **Lock Screen:** Home Status, Light and Climate as circles, rectangles and an inline line.
+- **Controls** for Control Center, the Lock Screen and the Action button (iOS 18, macOS 26): All Lights, a Light,
+  a Scene, an Air Conditioner.
+- **Quick actions:** press and hold the app icon on the iPhone. Choose which scenes, lamps and ACs it offers in
+  **Settings → Quick Actions**.
+
+On the Mac they need the app running in the menu bar (it carries out what you tap); on the iPhone the widget talks
+to Home Assistant, Hue and Smart Life itself, and Apple Home devices switch when the app next opens. How it fits
+together, and how to build and try it: [docs/widgets.md](docs/widgets.md).
 
 ## Make it your home
 
