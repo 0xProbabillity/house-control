@@ -39,7 +39,13 @@ public final class HueService: DeviceService {
         long.timeoutIntervalForRequest = 600 // the bridge sends a keep-alive well within this
         streamSession = URLSession(configuration: long, delegate: trust, delegateQueue: nil)
         config = vault.read().flatMap { try? JSONDecoder().decode(Config.self, from: $0) }
-        if let config { trust.pin(host: config.host, fingerprint: config.certificate); listen() }
+        if let config {
+            trust.pin(host: config.host, fingerprint: config.certificate)
+            listen()
+            // Paired by a link-local address (older versions did that): move to an address that
+            // works from every subnet, if the bridge can be found again.
+            if Self.isLinkLocal(config.host) { Task { await relocate() } }
+        }
     }
 
     public var isConnected: Bool { config != nil }
@@ -75,6 +81,43 @@ public final class HueService: DeviceService {
     }
 
     public func watch(_ ids: Set<String>) { watched = ids }
+
+    // MARK: - Finding the bridge again
+
+    /// True for an IPv6 link-local host ("[fe80::…]"), which is only reachable on its own
+    /// network segment.
+    static func isLinkLocal(_ host: String) -> Bool {
+        let bare = BridgeTrust.bare(host).lowercased()
+        guard bare.contains(":"), let first = bare.split(separator: ":").first, let word = UInt16(first, radix: 16) else { return false }
+        return word & 0xffc0 == 0xfe80 // fe80::/10
+    }
+
+    /// Where a paired bridge is now, among discovered bridges (`ServiceDiscovery.hueBridges`).
+    ///
+    /// Only a bridge whose certificate fingerprint was pinned at pairing is moved: Bonjour can be
+    /// answered by anything on the network, and the pin is what makes a look-alike fail its TLS
+    /// handshake before it is ever sent the bridge's key. A link-local candidate is no better
+    /// than the address it would replace, so it is skipped.
+    static func relocatedHost(for config: Config, among discovered: [[String: Any]]) -> String? {
+        guard config.certificate != nil, let bridgeId = config.bridgeId?.lowercased(), !bridgeId.isEmpty else { return nil }
+        return discovered.first {
+            ($0["bridgeId"] as? String)?.lowercased() == bridgeId
+                && ($0["host"] as? String).map { !isLinkLocal($0) && $0 != config.host } == true
+        }?["host"] as? String
+    }
+
+    /// Looks for the paired bridge on the network and, when it is found at a better address,
+    /// keeps that address (with the same pinned certificate) and reconnects its event stream.
+    func relocate() async {
+        guard let current = config,
+              let host = Self.relocatedHost(for: current, among: await ServiceDiscovery.hueBridges()) else { return }
+        var moved = current
+        moved.host = host
+        config = moved
+        trust.pin(host: host, fingerprint: moved.certificate)
+        vault.write(try? JSONEncoder().encode(moved))
+        listen() // restarts the event stream at the new address
+    }
 
     // MARK: - Pairing
 

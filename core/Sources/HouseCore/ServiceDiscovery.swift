@@ -39,16 +39,34 @@ public enum ServiceDiscovery {
             if case .bonjour(let record) = result.metadata {
                 for (key, value) in record.dictionary { txt[key] = value }
             }
-            guard let (host, port) = await resolve(result.endpoint) else { continue }
+            guard let (host, port) = await resolvePreferringIPv4(result.endpoint) else { continue }
             out.append(Found(name: name, host: host, port: port, txt: txt))
         }
         return out.sorted { $0.name < $1.name }
     }
 
-    /// The address behind a Bonjour service, found by opening (and closing) a connection to it.
-    private static func resolve(_ endpoint: NWEndpoint) async -> (String, Int)? {
+    /// The address behind a Bonjour service, IPv4 when it has one.
+    ///
+    /// A service usually answers on IPv6 too, and a resolution that takes whatever the system
+    /// connects with first often yields a link-local address (`fe80::…`). Such an address only
+    /// reaches devices on the same network segment: a Mac on another subnet of the same home
+    /// (behind a mesh system or an extender in router mode) can never use it, and once its
+    /// interface scope is dropped it is ambiguous on a Mac with several interfaces. IPv4 is
+    /// tried first; IPv6 remains the fallback for IPv6-only networks.
+    static func resolvePreferringIPv4(_ endpoint: NWEndpoint) async -> (String, Int)? {
+        if let address = await resolve(endpoint, family: .v4) { return address }
+        return await resolve(endpoint, family: nil)
+    }
+
+    /// The address behind a Bonjour service, found by opening (and closing) a connection to it
+    /// over `family` (any family when nil).
+    private static func resolve(_ endpoint: NWEndpoint, family: NWProtocolIP.Options.Version?) async -> (String, Int)? {
         await withCheckedContinuation { continuation in
-            let connection = NWConnection(to: endpoint, using: .tcp)
+            let parameters = NWParameters.tcp
+            if let family, let ip = parameters.defaultProtocolStack.internetProtocol as? NWProtocolIP.Options {
+                ip.version = family
+            }
+            let connection = NWConnection(to: endpoint, using: parameters)
             let queue = DispatchQueue(label: "house.discovery.resolve")
             let done = QueueBox(false) // touched on `queue` only
             let finish: @Sendable ((String, Int)?) -> Void = { value in
@@ -61,10 +79,7 @@ public enum ServiceDiscovery {
                 switch state {
                 case .ready:
                     if case .hostPort(let host, let port) = connection.currentPath?.remoteEndpoint {
-                        var name = "\(host)"
-                        if let percent = name.firstIndex(of: "%") { name = String(name[..<percent]) } // drop "%en0"
-                        if name.contains(":") { name = "[\(name)]" }
-                        finish((name, Int(port.rawValue)))
+                        finish((urlHost("\(host)"), Int(port.rawValue)))
                     } else {
                         finish(nil)
                     }
@@ -75,6 +90,14 @@ public enum ServiceDiscovery {
             connection.start(queue: queue)
             queue.asyncAfter(deadline: .now() + 3) { finish(nil) }
         }
+    }
+
+    /// An address as the host part of a URL: IPv6 in brackets, without its interface scope
+    /// ("fe80::1%en0" → "[fe80::1]"); IPv4 and names as they are.
+    static func urlHost(_ address: String) -> String {
+        var host = address
+        if let percent = host.firstIndex(of: "%") { host = String(host[..<percent]) }
+        return host.contains(":") ? "[\(host)]" : host
     }
 
     /// Home Assistant servers: their advertised address when they have one.

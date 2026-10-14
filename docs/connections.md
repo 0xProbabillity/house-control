@@ -56,6 +56,11 @@ show up at once. No Hue account or internet connection is involved.
 The bridge's certificate is self-signed. House Control trusts it the first time and remembers its fingerprint,
 so a different device answering at that address later is refused.
 
+Bridges are kept at their IPv4 address, which works from every subnet of a home — also from a Mac behind a mesh
+system or an extender in router mode. A bridge paired by an IPv6 link-local address (`fe80::…`, which only works on
+its own network segment) is found again by its bridge id and moved to its IPv4 address, with the same pinned
+certificate; one paired without a pinned certificate is left alone and needs pairing again.
+
 ## Apple Home
 
 Apple offers HomeKit to iPhone and iPad apps, and to Mac apps only through the Mac App Store. House Control is a
