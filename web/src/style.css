@@ -798,3 +798,5 @@ html.ios .fatal { margin: calc(env(safe-area-inset-top, 0px) + 20px) 16px 0; wid
     animation-duration: 1ms !important; transition-duration: 1ms !important;
   }
 }
+
+.no-pointer .notch { display: none; }

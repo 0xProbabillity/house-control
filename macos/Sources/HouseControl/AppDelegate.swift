@@ -49,7 +49,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let host = WebHost(mode: "panel", transparent: true) { [unowned self] in self.bootPayload() }
         host.onMessage = { [weak self, unowned host] message in self?.handle(message, from: host) }
         panel = PanelController(host: host)
-        panel.onVisibilityChange = { [weak self] visible in self?.setPolling(visible) }
+        panel.onVisibilityChange = { [weak self] visible in
+            self?.setPolling(visible)
+            self?.island?.suspended = visible
+        }
         hub.onStale = { [weak self] in self?.poll() }
         reloadLinks()
         host.load()
@@ -183,9 +186,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         togglePanel()
     }
 
+    /// Under the island's notch when there is one (the menu bar icon may be crowded out, and
+    /// the panel then has no icon to point at), otherwise under the menu bar icon.
     private func togglePanel() {
-        guard let button = statusItem.button else { return }
-        panel.toggle(below: button)
+        if let island, island.isShown {
+            let anchor = island.anchor
+            panel.toggle(at: anchor.rect, screen: anchor.screen, pointer: false)
+        } else if let button = statusItem.button {
+            panel.toggle(below: button)
+        }
     }
 
     // MARK: - Plans
@@ -294,6 +303,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             for other in [panel.host, island?.host] where other !== host { other?.call("adopt", state) }
         case "command":
             hub.command(message) { [weak host] in host?.reply(to: message, $0) }
+        case "openPanel":
+            togglePanel()
+        case "islandHeight":
+            if let value = (message["value"] as? NSNumber)?.doubleValue {
+                island?.setOpenHeight(CGFloat(value), final: message["final"] as? Bool ?? false)
+            }
         case "close":
             panel.hide()
         case "selectPlan":

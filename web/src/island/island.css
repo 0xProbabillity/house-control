@@ -30,7 +30,7 @@ html.mode-island #app { display: block; padding: 0; height: 100%; }
 }
 .isle.quiet { --ear: 0px; }
 .isle[data-state='peek'] { --ear: 132px; --r: 16px; }
-.isle[data-state='expanded'] { --w: 664px; --h: calc(var(--notch-h) + 292px); --r: 34px; }
+.isle[data-state='expanded'] { --w: 664px; --h: calc(var(--notch-h) + var(--open-h, 292px)); --r: 34px; }
 
 /* Only the size of one plain black box changes while the island moves; everything heavy
    (the glow, the model) keeps its size and fades, so no frame has to repaint much. */
@@ -61,7 +61,7 @@ html.mode-island #app { display: block; padding: 0; height: 100%; }
   top: 0;
   left: 50%;
   width: 664px;
-  height: calc(var(--notch-h) + 292px);
+  height: calc(var(--notch-h) + var(--open-h, 292px));
   margin-left: -332px;
   border-radius: 0 0 34px 34px;
   box-shadow:
@@ -114,7 +114,7 @@ html.mode-island #app { display: block; padding: 0; height: 100%; }
   top: 0;
   left: 50%;
   width: 664px;
-  height: calc(var(--notch-h) + 292px);
+  height: calc(var(--notch-h) + var(--open-h, 292px));
   margin-left: -332px;
   display: flex;
   flex-direction: column;
@@ -275,3 +275,27 @@ html.mode-island #app { display: block; padding: 0; height: 100%; }
   .isle-glow { transform: none; }
 }
 
+
+/* ---------- stretch the open island by its bottom edge ---------- */
+.isle-grip {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 18px; z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+  cursor: ns-resize; pointer-events: none; touch-action: none;
+}
+.isle[data-state='expanded'] .isle-grip { pointer-events: auto; }
+.isle-grip::after {
+  content: ''; width: 46px; height: 4px; border-radius: 2px;
+  background: rgba(255, 255, 255, 0.2); transition: background 160ms ease;
+}
+.isle-grip:hover::after, .isle.resizing .isle-grip::after { background: rgba(255, 255, 255, 0.6); }
+.isle.resizing .isle-shape, .isle.resizing .isle-glow { transition: none !important; }
+
+/* The button that opens the full panel under the island */
+.isle-open {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center;
+  color: var(--muted); background: rgba(255, 255, 255, 0.1);
+  border: 0; cursor: pointer; transition: background 160ms ease, color 160ms ease, transform 120ms ease;
+}
+.isle-open:hover { background: rgba(255, 255, 255, 0.16); color: var(--text); }
+.isle-open:active { transform: scale(0.88); }

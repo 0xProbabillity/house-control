@@ -106,43 +106,67 @@ export function buildHouse(config, camDir) {
     return m;
   };
 
+  // Exterior walls on the camera's side are cut down to a curb so the rooms stay visible.
+  // Which walls those are depends on the view, so both forms are built once and `setView`
+  // shows the right one while the camera orbits all the way round.
+  const cuts = [];
+  const made = (fn) => {
+    const from = group.children.length;
+    fn();
+    return group.children.slice(from);
+  };
+
   for (const s of wallSegments(config)) {
     const exterior = s.kind === 'exterior';
     const t = exterior ? EXT_T : INT_T;
     // Outward normal of an exterior wall points away from its room.
     const nx = s.axis === 'z' ? -s.inside : 0;
     const nz = s.axis === 'x' ? -s.inside : 0;
-    const near = exterior && nx * camDir.x + nz * camDir.z > 0.15;
     const a = s.a - (s.freeA ? EXT_T / 2 : 0);
     const b = s.b + (s.freeB ? EXT_T / 2 : 0);
     const type = s.opening?.type;
 
-    if (near) {
-      if (type !== 'door') piece(s, a, b, 0, CURB, t);
-      continue;
-    }
-    if (type === 'door' || type === 'open') continue;
+    const buildFull = () => {
+      if (type === 'door' || type === 'open') return;
 
-    const height = exterior ? H : Hi;
-    if (type === 'window' && exterior) {
-      const { sill, head } = s.opening;
-      piece(s, a, b, 0, sill, t);
-      piece(s, a, b, Math.min(head, H), H, t);
-      const pane = piece(s, a, b, sill, head, 0.03, glass);
-      pane.castShadow = false;
-      const fw = 0.05;
-      const bars = [[a, a + fw, sill, head], [b - fw, b, sill, head], [a, b, sill, sill + fw], [a, b, head - fw, head]];
-      if (b - a > 1.2) bars.push([(a + b) / 2 - fw / 2, (a + b) / 2 + fw / 2, sill, head]);
-      for (const [fa, fb, y0, y1] of bars) piece(s, fa, fb, y0, y1, 0.07, frame);
-      continue;
-    }
-    if (type === 'window') continue; // a window in an interior wall is just a gap
+      const height = exterior ? H : Hi;
+      if (type === 'window' && exterior) {
+        const { sill, head } = s.opening;
+        piece(s, a, b, 0, sill, t);
+        piece(s, a, b, Math.min(head, H), H, t);
+        const pane = piece(s, a, b, sill, head, 0.03, glass);
+        pane.castShadow = false;
+        const fw = 0.05;
+        const bars = [[a, a + fw, sill, head], [b - fw, b, sill, head], [a, b, sill, sill + fw], [a, b, head - fw, head]];
+        if (b - a > 1.2) bars.push([(a + b) / 2 - fw / 2, (a + b) / 2 + fw / 2, sill, head]);
+        for (const [fa, fb, y0, y1] of bars) piece(s, fa, fb, y0, y1, 0.07, frame);
+        return;
+      }
+      if (type === 'window') return; // a window in an interior wall is just a gap
 
-    piece(s, a, b, 0, height, t);
-    // Interior walls are drawn cut low, but lamps should still be contained by the
-    // real, full-height wall: an invisible shadow caster fills in the missing part.
-    if (!exterior && Hi < H) piece(s, a, b, Hi, H, 0.04, blocker).receiveShadow = false;
+      piece(s, a, b, 0, height, t);
+      // Interior walls are drawn cut low, but lamps should still be contained by the
+      // real, full-height wall: an invisible shadow caster fills in the missing part.
+      if (!exterior && Hi < H) piece(s, a, b, Hi, H, 0.04, blocker).receiveShadow = false;
+    };
+
+    if (exterior) {
+      const curb = type !== 'door' ? made(() => piece(s, a, b, 0, CURB, t)) : [];
+      cuts.push({ nx, nz, curb, full: made(buildFull) });
+    } else {
+      buildFull();
+    }
   }
 
-  return { group, floors };
+  /** Shows the cut-down form of every exterior wall facing `camDir` (a unit vector on the ground plane). */
+  const setView = (camDir) => {
+    for (const c of cuts) {
+      const near = c.nx * camDir.x + c.nz * camDir.z > 0.15;
+      for (const m of c.curb) m.visible = near;
+      for (const m of c.full) m.visible = !near;
+    }
+  };
+  setView(camDir);
+
+  return { group, floors, setView };
 }
