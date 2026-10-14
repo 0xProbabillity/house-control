@@ -32,6 +32,8 @@ public final class SyncServer {
     /// A phone that disconnects does not take its code down: it is scanned from another
     /// app on that phone, and iOS cuts the connection as soon as ours leaves the screen.
     public var onShowQR: ((String?, String) -> Void)?
+    /// A phone sends the devices of its Apple Home (which only it can reach), for the editor.
+    public var onCatalog: (([[String: Any]], String) -> Void)?
 
     /// `store` keeps the pairing (by default `sync.json` next to the plan, readable by its user only).
     public init(store: SecretStore) {
@@ -165,6 +167,9 @@ public final class SyncServer {
         case "showQR":
             guard !peer.name.isEmpty else { return }
             onShowQR?(message["content"] as? String, peer.name)
+        case "catalog":
+            guard !peer.name.isEmpty, let devices = message["devices"] as? [[String: Any]] else { return }
+            onCatalog?(devices, peer.name)
         default:
             break
         }

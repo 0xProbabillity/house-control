@@ -250,7 +250,8 @@ export function createStore(config) {
   setInterval(() => {
     let any = false;
     for (const [id, a] of Object.entries(state.acs)) {
-      if (acCfg.get(id).tuya?.sensorId) continue; // a real sensor reports this room
+      const cfg = acCfg.get(id);
+      if (cfg.tuya?.sensorId || cfg.sensor?.id || cfg.link?.id) continue; // a real sensor or unit reports this room
       const ambient = Math.min(config.outdoorTemp - 2, 27);
       const goal = a.on && a.mode !== 'fan' ? a.target : ambient;
       const step = a.on ? 0.2 : 0.1;

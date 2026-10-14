@@ -17,6 +17,7 @@ final class WebHost: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     /// True once the page has started and reported "ready"; false again while it reloads.
     private(set) var isReady = false
     private var bootProvider: () -> [String: Any]
+    private var evalTimer: Timer?
 
     /// Where the web UI lives: the app bundle, or a directory / dev server given by the environment.
     static var assetRoot: URL {
@@ -47,6 +48,29 @@ final class WebHost: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         if ProcessInfo.processInfo.environment["HOUSE_RENDER_HIDDEN"] != nil,
            webView.responds(to: Selector(("_setWindowOcclusionDetectionEnabled:"))) {
             webView.setValue(false, forKey: "windowOcclusionDetectionEnabled")
+        }
+        if let folder = ProcessInfo.processInfo.environment["HOUSE_EVAL_DIR"] { watchScripts(in: URL(fileURLWithPath: folder)) }
+    }
+
+    /// HOUSE_EVAL_DIR=<folder>: scripted UI checks. A file `<mode>.js` put there is run in that
+    /// page as the body of an async function, then removed; what it returns is written to
+    /// `<mode>.json` (or `{"error": …}`). For test instances only.
+    private func watchScripts(in folder: URL) {
+        let script = folder.appendingPathComponent("\(mode).js")
+        let result = folder.appendingPathComponent("\(mode).json")
+        evalTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
+            guard let self, let source = try? String(contentsOf: script, encoding: .utf8) else { return }
+            try? FileManager.default.removeItem(at: script)
+            self.webView.callAsyncJavaScript(source, arguments: [:], in: nil, in: .page) { outcome in
+                let value: Any
+                switch outcome {
+                case .success(let v): value = ["result": v]
+                case .failure(let e): value = ["error": "\(e)"]
+                }
+                let data = (try? JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted, .fragmentsAllowed]))
+                    ?? Data("{\"result\": \"(not JSON)\"}".utf8)
+                try? data.write(to: result, options: .atomic)
+            }
         }
     }
 

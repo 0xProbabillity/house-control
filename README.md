@@ -6,7 +6,7 @@
 
 <p align="center">
   Your home as a live 3D model — in the Mac's menu bar, around its notch and on your iPhone —<br>
-  controlling its lights and air conditioners, Smart Life / Tuya devices included.
+  controlling its lights and air conditioners through Smart Life, Home Assistant, Philips Hue and Apple Home.
 </p>
 
 <p align="center">
@@ -22,6 +22,8 @@
 - **Air conditioners.** Power, target temperature, mode and fan speed, with the room temperature from a real sensor if you have one.
 - **Scenes.** One tap sets every light and AC — "Cozy", "Movie", "Night", or your own.
 - **A visual editor.** Draw the rooms, drop in furniture, place lamps and ACs, and link each one to a real device.
+- **Your devices, wherever they live.** Smart Life / Tuya, Home Assistant (and the thousands of brands it runs),
+  Philips Hue and Apple Home — mixed freely in one home. See [Connect real devices](#connect-real-devices).
 - **An island around the notch.** Rest the pointer on the MacBook's notch and a small live model of the home drops
   out of it, with scenes and every device one click away. See [The island](#the-island).
 - **AI Access.** Give ChatGPT, Claude or any AI assistant a private link — or connect it over MCP — and it runs your
@@ -34,6 +36,15 @@
 Both apps are a small native Swift shell (AppKit on the Mac, SwiftUI on the iPhone) around one
 [Three.js](https://threejs.org) web UI, and share their device clients and sync as a Swift package.
 No frameworks, no Electron, no server, no account of its own.
+
+## Download
+
+Get the latest `HouseControl-<version>.dmg` from [Releases](https://github.com/0xProbabillity/house-control/releases),
+open it and drag **House Control** into **Applications**. It is signed and notarized by Apple and runs on any Mac
+with macOS 13 or newer, Apple silicon or Intel. Open it from Applications and look for the house in the menu bar;
+to start it with your Mac, add it under **System Settings → General → Login Items**.
+
+To build it yourself instead, read on.
 
 ## Requirements
 
@@ -185,25 +196,34 @@ The plan is a single JSON file, `~/Library/Application Support/HouseControl/plan
 export it, or import someone else's: see [docs/floor-plan.md](docs/floor-plan.md) for every field.
 The demo plans in [`web/public/plans`](web/public/plans) are good starting points.
 
-## Connect real devices (Smart Life / Tuya)
+## Connect real devices
 
-You need the **Smart Life** (or **Tuya Smart**) phone app with your devices already added to it.
-No Tuya developer account is required.
+<p align="center">
+  <img src="docs/connections.png" width="820" alt="The editor's Connections: Smart Life, Home Assistant, Philips Hue and Apple Home">
+</p>
 
-1. In the phone app open **Me → ⚙ Settings → Account and Security** and copy the **User Code** at the bottom.
-2. In House Control: right-click the icon → **Edit Home… → Smart Life**. Enter the User Code and press **Show QR code**.
-3. Scan the code with the phone app (the scanner on its Home tab) and confirm the login.
-4. Your devices appear in the editor. Select a lamp or an AC on the plan, pick its device under
-   **Smart Life device**, and press **Save & apply**.
+Right-click the icon → **Edit Home… → Connections**, and connect what you have:
 
-From then on the panel controls the real device, and re-reads the state of your devices every 12 seconds while it is open.
+| Platform | How | Details |
+| --- | --- | --- |
+| **Smart Life / Tuya** | Scan a QR code with the Smart Life app. No Tuya developer account | [docs/smart-life.md](docs/smart-life.md) |
+| **Home Assistant** | Found on your network by itself; paste a long-lived access token | [docs/connections.md](docs/connections.md#home-assistant) |
+| **Philips Hue** | Found on your network by itself; press the button on the bridge | [docs/connections.md](docs/connections.md#philips-hue) |
+| **Apple Home** | Allow access on your iPhone; its devices are listed on the Mac for linking | [docs/connections.md](docs/connections.md#apple-home) |
 
-More detail — what works with which device, infrared air conditioners, temperature sensors, the Tuya Cloud
-alternative, and how to diagnose a device that does not react — is in [docs/smart-life.md](docs/smart-life.md).
+Then select a lamp or an AC on the plan, choose its device under **Real device** (lamps take over what the
+device can do), and press **Save & apply**. From then on the panel controls the real device. Changes made
+elsewhere show up at once from Home Assistant and Hue, and within 12 seconds from Smart Life.
+
+Your iPhone receives the Home Assistant and Hue connections from the Mac with the floor plan, and switches
+Apple Home devices itself. Why there is no Google Home or Alexa yet, and how to get Tuya devices into Apple Home:
+[docs/connections.md](docs/connections.md). No hardware at hand? [`tools/lab`](tools/lab/README.md) has pretend
+versions of Home Assistant, a Hue Bridge and a HomeKit bridge.
 
 ## Privacy
 
-House Control talks to Tuya's servers and to nothing else. There is no telemetry and no backend of its own.
+House Control talks to the platforms you connect — Tuya's servers for Smart Life, your own Home Assistant,
+your Hue Bridge, Apple Home on the iPhone — and to nothing else. There is no telemetry and no backend of its own.
 The one exception is yours to switch on: [AI Access](#ai-access) opens a Cloudflare tunnel to your Mac while it is on.
 
 Everything personal stays in `~/Library/Application Support/HouseControl/` on your Mac:
@@ -214,6 +234,9 @@ Everything personal stays in `~/Library/Application Support/HouseControl/` on yo
 | `settings.json` | Which plan is active |
 | `smartlife.json` | The Smart Life session tokens. Readable only by you (mode `600`) |
 | `tuya.json` | Tuya Cloud project credentials, only if you use that option. Mode `600` |
+| `homeassistant.json` | Your Home Assistant's address and access token. Mode `600` |
+| `hue.json` | Your Hue Bridge's address, the key it issued and its certificate's fingerprint. Mode `600` |
+| `homekit-devices.json` | The Apple Home devices your iPhone listed for the editor: names and ids |
 | `events.log` | Commands sent to real devices and the cloud's answers. No tokens |
 | `sync.json` | The key your paired iPhones use. Only there once you paired one. Mode `600` |
 | `cloudflared.yml`, `bin/cloudflared` | An empty config for AI Access's tunnel, and Cloudflare's connector if you let the app download it |
@@ -221,7 +244,8 @@ Everything personal stays in `~/Library/Application Support/HouseControl/` on yo
 None of these are part of this repository, and the build does not embed them in the app.
 **Sign out** in the editor deletes `smartlife.json`. Deleting the folder resets the app to the demo plan.
 
-On the iPhone the floor plan lives in the app's own folder, and the Smart Life session and the pairing key in the Keychain.
+On the iPhone the floor plan lives in the app's own folder, and the Smart Life session, the pairing key and the
+Home Assistant and Hue connections the Mac shared in the Keychain.
 
 ## Development
 
@@ -230,8 +254,10 @@ web/      the UI: Three.js scene, panel, island, editor, AI Access window and th
 core/     what both apps share: Smart Life and Tuya clients, plan store, Mac ⇄ iPhone sync, the AI gateway (SwiftPM, with tests)
 macos/    the Mac shell: menu bar item, panel, island and editor windows (SwiftPM)
 ios/      the iPhone shell: SwiftUI, generated into an Xcode project by XcodeGen
-scripts/  build-app.sh, build-ios.sh and ios-sim.sh build the apps, make-icon.swift draws the icon
-docs/     floor plan reference, Smart Life guide, screenshots
+scripts/  build-app.sh, build-ios.sh and ios-sim.sh build the apps, release-mac.sh makes the notarized .dmg,
+          make-icon.swift and make-dmg-background.swift draw the icon and the disk image's window
+tools/lab pretend Home Assistant, Hue Bridge and HomeKit bridge for testing without hardware
+docs/     floor plan reference, connection guides, screenshots
 ```
 
 The shared package has unit tests, including the sync over a real TLS connection:
@@ -260,7 +286,7 @@ Environment variables understood by the app:
 | `HOUSE_WEB_DIR=/path/to/dist` | Load the UI from another folder |
 | `HOUSE_DATA_DIR=/some/folder` | Keep plan, session and log there instead of Application Support, and do not persist panel state. Handy for a clean test run |
 | `HOUSE_OPEN_ON_LAUNCH=1` | Open the panel at launch |
-| `HOUSE_OPEN_EDITOR=1` | Open the editor at launch (`smartlife` opens it on the Smart Life section) |
+| `HOUSE_OPEN_EDITOR=1` | Open the editor at launch (`connections`, `smartlife`, `homeassistant`, `hue` or `homekit` opens it on that screen) |
 | `HOUSE_OPEN_DEVICE=<id>` | Start the panel on that light's or AC's sheet |
 | `HOUSE_PIN=1` | Keep the panel open when it loses focus |
 | `HOUSE_DOCK=1` | Show a Dock icon, so UI automation tools can see the app |
@@ -273,8 +299,9 @@ Environment variables understood by the app:
 | `HOUSE_OPEN_AGENT=1` | Open the AI Access window at launch (`start` also starts the link) |
 | `HOUSE_AGENT_REACH=local` | Serve AI Access on this Mac only for one run (`internet` for the tunnel) |
 | `HOUSE_AGENT_LINK_FILE=/some/file` | Write the live AI Access link there, for scripted tests |
+| `HOUSE_EVAL_DIR=/some/folder` | Scripted UI checks: a `panel.js` / `editor.js` / `island.js` dropped there runs in that page (as an async function body) and its result is written to `<mode>.json` |
 
-The iPhone app understands `HOUSE_DATA_DIR`, `HOUSE_OPEN_DEVICE` and `HOUSE_SCREEN=home|settings|pairing|smartlife|welcome`;
+The iPhone app understands `HOUSE_DATA_DIR`, `HOUSE_OPEN_DEVICE` and `HOUSE_SCREEN=home|settings|connections|pairing|smartlife|welcome`;
 `scripts/ios-sim.sh` passes any `HOUSE_*` variable on to the simulator.
 
 For example, a throw-away instance on the demo plan, pinned open:
@@ -292,13 +319,24 @@ The binary has a few offline self-checks and one read-only diagnostic:
 | `HouseControl --selftest-transport` | The Smart Life request envelope for fixed inputs, to compare with the reference SDK |
 | `HouseControl --diagnose <device id>…` | What Smart Life reports for those devices. Reads only; sends nothing |
 
+### Releasing the Mac app
+
+```bash
+ASC_KEY_ID=… ASC_ISSUER_ID=… ./scripts/release-mac.sh --publish
+```
+
+builds a universal app, signs it with your **Developer ID Application** certificate, has Apple notarize it, packs
+it into `build/HouseControl-<version>.dmg` and attaches that to a GitHub release. The script lists what it needs;
+`UNSIGNED=1` makes a test image without any of it.
+
 ## Limitations
 
-- Built from source: there is no signed, notarized Mac download, and the iPhone app is not on the App Store.
+- The iPhone app is not on the App Store (it is on TestFlight for the author's testers).
 - The floor plan is edited on the Mac only. The iPhone receives it, and only while both are on the same network.
 - Rooms are axis-aligned rectangles. An L-shaped room is two rooms.
-- Smart Life is the only device backend. Devices are reached through Tuya's cloud, not over the local network,
-  so they need an internet connection.
+- Apple Home devices are switched by the iPhone app only: macOS gives HomeKit to App Store apps only.
+- Smart Life devices are reached through Tuya's cloud, not over the local network, so they need an internet
+  connection (Home Assistant and Hue work on your network alone).
 - Infrared air conditioners are one-way: the app shows what was last sent, not what the unit is doing.
 
 ## Acknowledgements and disclaimer

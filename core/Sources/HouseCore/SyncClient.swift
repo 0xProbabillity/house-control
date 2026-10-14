@@ -27,6 +27,8 @@ public final class SyncClient {
     /// What the Mac should be showing for this phone, and whether it has been told yet.
     private var qrContent: String?
     private var qrUnsent = false
+    /// This phone's Apple Home devices, waiting to be sent to the Mac.
+    private var catalog: [[String: Any]]?
     /// Set to connect straight to a host and port instead of browsing (tests).
     var fixedEndpoint: NWEndpoint?
 
@@ -99,6 +101,19 @@ public final class SyncClient {
         qrContent = content
         qrUnsent = true
         return flushQR()
+    }
+
+    /// Hands the Mac this phone's Apple Home devices (the Mac cannot see Apple Home itself),
+    /// now or as soon as it is connected.
+    public func sendCatalog(_ devices: [[String: Any]]) {
+        catalog = devices
+        flushCatalog()
+    }
+
+    private func flushCatalog() {
+        guard let catalog, let channel, status == .connected else { return }
+        channel.send(["type": "catalog", "devices": catalog])
+        self.catalog = nil
     }
 
     private func flushQR() -> Bool {
@@ -175,6 +190,7 @@ public final class SyncClient {
             guard let self, let state = SyncState(message: message) else { return }
             self.set(.connected)
             _ = self.flushQR()
+            self.flushCatalog()
             self.onState?(state)
         }
         channel.onClose = { [weak self] error in

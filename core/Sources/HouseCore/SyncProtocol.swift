@@ -73,19 +73,26 @@ public struct SyncState {
     /// It identifies the account; it is not a credential.
     public var userCode: String
     public var smartLifeConnected: Bool
+    /// The Mac's Home Assistant and Hue connections (address and token / bridge key), so the
+    /// phone controls the same devices without setting anything up. Only ever sent over this
+    /// channel, which nothing but a paired phone can open. Nil from a Mac that predates them.
+    public var connections: [String: Any]?
 
-    public init(macName: String, revision: String, plan: Data?, userCode: String, smartLifeConnected: Bool) {
+    public init(macName: String, revision: String, plan: Data?, userCode: String, smartLifeConnected: Bool,
+                connections: [String: Any]? = nil) {
         self.macName = macName
         self.revision = revision
         self.plan = plan
         self.userCode = userCode
         self.smartLifeConnected = smartLifeConnected
+        self.connections = connections
     }
 
     func message(includingPlan: Bool) -> [String: Any] {
         var out: [String: Any] = ["type": "state", "mac": macName, "rev": revision,
                                   "userCode": userCode, "smartLife": smartLifeConnected]
         if includingPlan, let plan, let text = String(data: plan, encoding: .utf8) { out["plan"] = text }
+        if let connections { out["connections"] = connections }
         return out
     }
 
@@ -95,7 +102,8 @@ public struct SyncState {
                   revision: message["rev"] as? String ?? "",
                   plan: (message["plan"] as? String).map { Data($0.utf8) },
                   userCode: message["userCode"] as? String ?? "",
-                  smartLifeConnected: message["smartLife"] as? Bool ?? false)
+                  smartLifeConnected: message["smartLife"] as? Bool ?? false,
+                  connections: message["connections"] as? [String: Any])
     }
 }
 

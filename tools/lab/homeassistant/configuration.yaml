@@ -1,0 +1,23 @@
+# A Home Assistant with pretend devices, for testing House Control without hardware.
+# Started by ../homeassistant.sh. The "demo" integration adds lights (dimmable, white,
+# colour), thermostats / heat pumps and temperature sensors that answer like real ones.
+homeassistant:
+  name: House Control Lab
+  unit_system: metric
+  temperature_unit: C
+  time_zone: UTC
+  country: GB
+  latitude: 51.5
+  longitude: -0.12
+  elevation: 10
+
+http:
+  server_port: 8123
+
+api:
+websocket_api:
+frontend:
+config:
+zeroconf:
+
+demo:

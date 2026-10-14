@@ -1,0 +1,8 @@
+{
+  "domain": "bluetooth",
+  "name": "Bluetooth (disabled in the lab)",
+  "version": "0.0.1",
+  "documentation": "https://github.com/0xProbabillity/house-control",
+  "codeowners": [],
+  "iot_class": "local_push"
+}

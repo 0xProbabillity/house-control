@@ -29,6 +29,7 @@ events.log
 # and the signing team is personal.
 ios/HouseControl.xcodeproj/
 ios/Config/Info.plist
+ios/Config/HouseControl.entitlements
 ios/Config/Local.xcconfig
 ios/build/
 core/.build/

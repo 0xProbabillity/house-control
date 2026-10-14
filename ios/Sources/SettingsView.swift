@@ -19,6 +19,7 @@ struct SettingsView: View {
                     homeSection
                     macSection
                     smartLifeSection
+                    connectionsSection
                     aboutSection
                 }
                 .padding(.horizontal, 18)
@@ -227,8 +228,8 @@ struct SettingsView: View {
                     HStack(alignment: .top, spacing: 14) {
                         IconBadge(symbol: "lightbulb.2.fill", tint: Theme.warm)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Devices are simulated").font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
-                            Text("Sign in with your Smart Life or Tuya Smart account and the lamps and air conditioners linked in your floor plan become the real ones.")
+                            Text("Not signed in").font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
+                            Text("Sign in with your Smart Life or Tuya Smart account and the lamps and air conditioners linked to it in your floor plan become the real ones.")
                                 .font(.system(size: 14))
                                 .foregroundStyle(Theme.muted)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -243,6 +244,90 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Home Assistant, Hue, Apple Home
+
+    private var connectionsSection: some View {
+        VStack(spacing: 10) {
+            SectionTitle("More connections")
+            Card {
+                serviceRow(symbol: "server.rack", tint: Color(red: 0.09, green: 0.74, blue: 0.95), title: "Home Assistant",
+                           detail: model.homeAssistantName.map { "\($0) · from \(model.macName ?? "your Mac")" } ?? "Connect it on the Mac; it comes over by itself",
+                           on: model.homeAssistantName != nil)
+                RowDivider()
+                serviceRow(symbol: "lightbulb.led.fill", tint: Color(red: 0.76, green: 0.55, blue: 1), title: "Philips Hue",
+                           detail: model.hueName.map { "\($0) · from \(model.macName ?? "your Mac")" } ?? "Pair the bridge on the Mac; it comes over by itself",
+                           on: model.hueName != nil)
+                RowDivider()
+                homeKitRow
+            }
+            footnote(homeKitFootnote)
+        }
+    }
+
+    private func serviceRow(symbol: String, tint: Color, title: String, detail: String, on: Bool) -> some View {
+        HStack(spacing: 14) {
+            IconBadge(symbol: symbol, tint: tint)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
+                HStack(spacing: 7) {
+                    if on { StatusDot(color: Theme.green, pulsing: false) }
+                    Text(detail).font(.system(size: 13.5)).foregroundStyle(Theme.muted).lineLimit(2)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .frame(minHeight: 70)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var homeKitRow: some View {
+        HStack(spacing: 14) {
+            IconBadge(symbol: "homekit", tint: Color(red: 1, green: 0.7, blue: 0.25))
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Apple Home").font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
+                HStack(spacing: 7) {
+                    if case .ready = model.homeKit { StatusDot(color: Theme.green, pulsing: false) }
+                    Text(homeKitDetail).font(.system(size: 13.5)).foregroundStyle(Theme.muted).lineLimit(2)
+                }
+            }
+            Spacer(minLength: 8)
+            switch model.homeKit {
+            case .off:
+                Button("Connect") { model.connectHomeKit() }.buttonStyle(PillButtonStyle())
+            case .waiting:
+                ProgressView().tint(Theme.muted)
+            case .denied:
+                Button("Allow") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                }.buttonStyle(PillButtonStyle())
+            case .ready:
+                Button("Turn off") { model.disconnectHomeKit() }.buttonStyle(PillButtonStyle(tint: Theme.muted))
+            }
+        }
+        .padding(.horizontal, 14)
+        .frame(minHeight: 70)
+        .animation(.snappy, value: model.homeKit)
+    }
+
+    private var homeKitDetail: String {
+        switch model.homeKit {
+        case .off: return "Lamps, ACs and sensors from the Home app"
+        case .waiting: return "Opening your homes…"
+        case .denied: return "Not allowed. Turn on House Control in Settings → Privacy → HomeKit"
+        case .ready(let homes, let accessories):
+            if homes.isEmpty { return "No homes yet. Set one up in the Home app" }
+            return "\(accessories) accessor\(accessories == 1 ? "y" : "ies") · \(homes.joined(separator: ", "))"
+        }
+    }
+
+    private var homeKitFootnote: String {
+        if case .ready = model.homeKit, model.macName != nil {
+            return "Your Apple Home devices are listed in the Mac's editor, to link to the lamps and ACs of the plan. This iPhone switches them; macOS lets only App Store apps use HomeKit."
+        }
+        return "Home Assistant and Hue are set up once on the Mac and come over with the floor plan, over your paired, encrypted link."
+    }
+
     // MARK: - About
 
     private var aboutSection: some View {
@@ -253,7 +338,7 @@ struct SettingsView: View {
                 RowDivider().padding(.leading, -52)
                 infoRow("Privacy", value: "No account, no analytics")
             }
-            footnote("House Control talks to Tuya's servers to reach your devices, and to your own Mac. Nothing else leaves this iPhone.")
+            footnote("House Control talks to your own devices: Tuya's servers for Smart Life, your Home Assistant, your Hue Bridge, Apple Home, and your Mac. Nothing else leaves this iPhone.")
         }
     }
 

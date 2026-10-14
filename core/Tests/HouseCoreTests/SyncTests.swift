@@ -141,6 +141,33 @@ final class SyncTests: XCTestCase {
         await fulfillment(of: [back, hidden], timeout: 10)
     }
 
+    func testConnectionsGoToThePhoneAndAppleHomeComesBack() async throws {
+        let (server, client) = makePair()
+        defer { client.stop(); server.stop() }
+        let shared: [String: Any] = ["homeassistant": ["url": "http://ha.local:8123", "token": "t"],
+                                     "hue": ["host": "10.0.0.2", "key": "k"]]
+        server.snapshot = { SyncState(macName: "Test Mac", revision: "", plan: nil, userCode: "", smartLifeConnected: false,
+                                      connections: shared) }
+        // Catalogs sent before the Mac is reachable are delivered once it is.
+        client.sendCatalog([["id": "A1", "name": "Hall lamp", "kind": "light"]])
+        let state = expectation(description: "state")
+        var connections: [String: Any]?
+        client.onState = { connections = $0.connections; state.fulfill() }
+        let catalog = expectation(description: "catalog")
+        server.onCatalog = { devices, phone in
+            XCTAssertEqual(phone, "Test iPhone")
+            XCTAssertEqual(devices.first?["name"] as? String, "Hall lamp")
+            catalog.fulfill()
+        }
+        client.fixedEndpoint = try await waitForPort(server)
+        client.start()
+        await fulfillment(of: [state, catalog], timeout: 10)
+        XCTAssertEqual((connections?["homeassistant"] as? [String: Any])?["token"] as? String, "t")
+        XCTAssertEqual((connections?["hue"] as? [String: Any])?["key"] as? String, "k")
+        // A Mac that predates connections sends none: the phone must keep its own.
+        XCTAssertNil(SyncState(message: ["type": "state", "mac": "Old Mac"])?.connections)
+    }
+
     func testAWrongKeyIsRefused() async throws {
         let (server, client) = makePair(clientKey: Data(repeating: 7, count: 32))
         defer { client.stop(); server.stop() }

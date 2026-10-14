@@ -50,7 +50,7 @@ final class DeviceTests: XCTestCase {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
-        let hub = DeviceHub(directory: dir, session: MemorySecretStore())
+        let hub = DeviceHub(directory: dir, secret: { _ in MemorySecretStore() })
         hub.setLinks(from: ["lights": [["id": "a", "tuya": ["deviceId": "dev1"]], ["id": "b"], ["id": "c", "tuya": ["deviceId": ""]]],
                             "acs": [["id": "ac", "tuya": ["deviceId": "dev2", "sensorId": "s1"]]]])
         XCTAssertEqual(hub.linkedDeviceCount, 2)

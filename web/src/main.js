@@ -1,4 +1,4 @@
-import { loadRawConfig, normalize } from './config.js';
+import { loadRawConfig, normalize, isLinked } from './config.js';
 import { createStore } from './store.js';
 import { createWorld } from './three/world.js';
 import { createPanel } from './ui/panel.js';
@@ -51,7 +51,7 @@ async function boot() {
   }
 
   const store = createStore(config);
-  const linked = [...config.lights, ...config.acs].some((d) => d.tuya?.deviceId);
+  const linked = [...config.lights, ...config.acs].some(isLinked);
   // Never invent a starting state for real hardware: it reports its own.
   if (!store.restored && !linked) {
     // First launch: start with something worth looking at.

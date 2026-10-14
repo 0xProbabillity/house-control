@@ -7,6 +7,27 @@ const WALLS = ['north', 'south', 'east', 'west'];
 export class ConfigError extends Error {}
 
 export const LIGHT_KINDS = LIGHT_TYPES;
+
+// A lamp or an AC is real when it is linked to a device of a connected platform:
+// `link: { service, id }` (Home Assistant, Philips Hue, Apple Home) or, for Smart Life,
+// `tuya: { deviceId }`. An AC's `sensor: { service, id }` is a thermometer for its room.
+export const LINK_FIELDS = ['tuya', 'link', 'sensor'];
+
+export function linkOf(d) {
+  if (d?.link?.service && d.link.id) return { service: d.link.service, id: d.link.id };
+  if (d?.tuya?.deviceId) return { service: 'smartlife', id: d.tuya.deviceId };
+  return null;
+}
+
+export const isLinked = (d) => Boolean(linkOf(d));
+
+/** The platforms House Control can link to, in the order the editor lists them. */
+export const SERVICES = {
+  smartlife: { name: 'Smart Life', short: 'Smart Life' },
+  homeassistant: { name: 'Home Assistant', short: 'Home Assistant' },
+  hue: { name: 'Philips Hue', short: 'Hue' },
+  homekit: { name: 'Apple Home', short: 'Apple Home' },
+};
 export const FLOOR_KINDS = ['oak', 'walnut', 'tile', 'stone'];
 
 // The plan exactly as written on disk (the editor works on this form).

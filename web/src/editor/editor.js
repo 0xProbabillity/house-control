@@ -1,12 +1,13 @@
 // Home editor (separate window): a top-down plan you can drag things around on,
-// an inspector for the selected item, a live 3D preview and the Smart Life links.
+// an inspector for the selected item, a live 3D preview and the links to real devices.
 import './editor.css';
-import { normalize, loadRawConfig, LIGHT_KINDS, FLOOR_KINDS } from '../config.js';
+import { normalize, loadRawConfig, LIGHT_KINDS, FLOOR_KINDS, isLinked } from '../config.js';
 import { createWorld } from '../three/world.js';
 import { FURNITURE_TYPES, footprint } from '../three/furniture.js';
 import { h, clamp } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { isNative, call } from '../bridge.js';
+import { createConnections } from './connections.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
 const sv = (tag, attrs = {}, ...kids) => {
@@ -34,7 +35,11 @@ export async function bootEditor(root) {
   let doc = structuredClone(await loadRawConfig());
   for (const key of Object.values(KEYS)) doc[key] ||= [];
 
-  let sel = { kind: window.__HOUSE_BOOT__?.section === 'tuya' ? 'tuya' : 'home' };
+  // HOUSE_OPEN_EDITOR=connections|smartlife|homeassistant|hue|homekit opens a connection screen.
+  const startAt = window.__HOUSE_BOOT__?.section || new URLSearchParams(location.search).get('section') || '';
+  let sel = startAt === 'connections' ? { kind: 'connections' }
+    : startAt.startsWith('service:') ? { kind: 'service', service: startAt.slice(8) }
+      : startAt === 'tuya' ? { kind: 'service', service: 'smartlife' } : { kind: 'home' };
   let dirty = false;
   let world = null;
   let previewLights = true;
@@ -46,6 +51,17 @@ export async function bootEditor(root) {
     devices: null, busy: false, error: null, qr: null,
     get linked() { return this.account.connected || this.info.configured; },
   };
+  const links = createConnections({
+    rerender: () => {
+      renderSidebar();
+      if (['connections', 'service', 'light', 'ac'].includes(sel.kind)) renderInspector();
+    },
+    toast,
+    usedBy: () => links.usedMap(doc),
+    onOpen: (service) => select(service ? { kind: 'service', service } : { kind: 'connections' }),
+  });
+  // Smart Life signed in or out on its own screen: the overview and the pickers follow.
+  const smartLifeChanged = () => links.refreshInfo().then(() => links.load({ quiet: true }));
 
   /* ---------- layout ---------- */
 
@@ -127,10 +143,10 @@ export async function bootEditor(root) {
   function validate() {
     try {
       valid = normalize(structuredClone(doc));
-      const linked = [...doc.lights, ...doc.acs].filter((d) => d.tuya?.deviceId).length;
+      const linked = [...doc.lights, ...doc.acs].filter(isLinked).length;
       status.className = 'status';
       status.replaceChildren(h('span.ok', '●'), ` ${doc.rooms.length} rooms · ${doc.lights.length} lights · ${doc.acs.length} ACs · `,
-        `${linked} linked to Smart Life`, dirty ? h('span.dirty', ' · unsaved changes') : '');
+        `${linked} linked to real devices`, dirty ? h('span.dirty', ' · unsaved changes') : '');
     } catch (e) {
       valid = null;
       status.className = 'status bad';
@@ -194,9 +210,7 @@ export async function bootEditor(root) {
   function renderSidebar() {
     const nodes = [h(`button.row.home-row${sel.kind === 'home' ? '.active' : ''}`, { onclick: () => select({ kind: 'home' }) },
       icon('home', 15), h('span.row-name', 'Home settings')),
-    h(`button.row.tuya-row${sel.kind === 'tuya' ? '.active' : ''}`, { onclick: () => select({ kind: 'tuya' }) },
-      icon('plug', 15), h('span.row-name', 'Smart Life'),
-      h(`span.pill${tuya.linked ? '.on' : ''}`, tuya.linked ? 'Connected' : 'Demo mode'))];
+    links.sidebarRow(sel.kind === 'connections' || sel.kind === 'service', () => select({ kind: 'connections' }))];
     for (const kind of Object.keys(KEYS)) {
       const items = doc[KEYS[kind]];
       nodes.push(h('div.group',
@@ -207,7 +221,7 @@ export async function bootEditor(root) {
         const active = sel.kind === kind && sel.index === index;
         nodes.push(h(`div.row${active ? '.active' : ''}`, { role: 'button', tabindex: 0, onclick: () => select({ kind, index }) },
           h('span.row-name', name),
-          item.tuya?.deviceId ? h('span.linked', { title: 'Linked to a Smart Life device' }, icon('plug', 12, 2.2)) : null,
+          isLinked(item) ? h('span.linked', { title: 'Linked to a real device' }, icon('link', 12, 2.2)) : null,
           h('span.row-sub', sub),
           h('button.del', { title: 'Remove', 'aria-label': `Remove ${name}`, onclick: (e) => { e.stopPropagation(); remove(kind, index); } }, icon('close', 13, 2.4))));
       });
@@ -332,7 +346,7 @@ export async function bootEditor(root) {
 
     doc.lights.forEach((l, i) => {
       const g = sv('g', {
-        class: `p-light ${l.type}${isSel('light', i) ? ' sel' : ''}${l.tuya?.deviceId ? ' linked' : ''}`, 'data-kind': 'light', 'data-index': i,
+        class: `p-light ${l.type}${isSel('light', i) ? ' sel' : ''}${isLinked(l) ? ' linked' : ''}`, 'data-kind': 'light', 'data-index': i,
         transform: `translate(${l.pos[0]} ${l.pos[1]}) rotate(${-(l.rot || 0)})`,
       });
       if (l.type === 'strip') {
@@ -486,31 +500,8 @@ export async function bootEditor(root) {
   const row = (...fields) => h('div.fields', fields);
   const section = (title, ...nodes) => h('section.block', h('h3', title), nodes);
 
-  function deviceLink(item) {
-    const current = item.tuya?.deviceId || '';
-    const setId = (id) => {
-      if (!id) delete item.tuya;
-      else item.tuya = { ...(item.tuya || {}), deviceId: id };
-    };
-    const options = [['', 'Not linked — simulated']];
-    for (const d of tuya.devices || []) options.push([d.id, `${d.name}${d.online ? '' : ' (offline)'}`]);
-    if (current && !options.some((o) => o[0] === current)) options.push([current, `${current} (manual)`]);
-    const picker = choice(options);
-    const manual = text();
-    manual.placeholder = 'or paste a device ID';
-    const info = h('p.note');
-    const describe = () => {
-      const d = (tuya.devices || []).find((x) => x.id === item.tuya?.deviceId);
-      info.textContent = d ? `${d.product || d.category} · functions: ${d.codes.join(', ') || 'none reported'}`
-        : tuya.linked ? (tuya.devices ? '' : 'Open “Smart Life” on the left to load your devices, then pick one here.')
-          : 'Set up the Smart Life connection to control a real device. Until then this device is simulated.';
-    };
-    describe();
-    return section('Smart Life device',
-      bind('Device', picker, { get: () => current, set: (v) => { setId(v); manual.value = v; describe(); }, event: 'change' }),
-      bind('Device ID', manual, { get: () => current, set: (v) => { setId(v.trim()); describe(); } }),
-      info);
-  }
+  // Linking to a real device: links.deviceSection / links.sensorSection (connections.js).
+  const linkHooks = { snapshot: () => snapshot(), changed: (note) => { touch(); if (note) toast(note); } };
 
   function renderInspector() {
     const kind = sel.kind;
@@ -531,9 +522,14 @@ export async function bootEditor(root) {
         h('p.note', 'Walls facing the camera are cut away, so the azimuth decides which side of the home is open.')),
       section('How it works',
         h('p.note', 'Pick anything on the plan or in the list to edit it. “Save & apply” writes the plan to disk and reloads the menu bar panel. Coordinates are metres: x grows to the right (east), z grows downwards (south).')));
-    } else if (kind === 'tuya') {
-      head('Smart Life', 'Control the real devices of your Smart Life account');
-      nodes.push(...tuyaPanel());
+    } else if (kind === 'connections') {
+      head('Connections', 'Where your real lamps and air conditioners live');
+      nodes.push(...links.overview());
+    } else if (kind === 'service') {
+      nodes.push(h('button.back-link', { onclick: () => { links.stopPairing(); select({ kind: 'connections' }); } }, icon('back', 14, 2.2), 'Connections'));
+      nodes.push(h('div.insp-head.svc-head', links.tile(sel.service, 40),
+        h('div', h('h2', links.title(sel.service)), h('span', links.blurb(sel.service)))));
+      nodes.push(...[links.detail(sel.service, tuyaPanel)].flat());
     } else if (!item) {
       head('Nothing selected');
     } else if (kind === 'room') {
@@ -567,7 +563,7 @@ export async function bootEditor(root) {
           bind('White temperature', h('input', { type: 'checkbox' }), { ...cap('temp'), event: 'change' }),
           bind('Colour', h('input', { type: 'checkbox' }), { ...cap('color'), event: 'change' })),
         h('p.note', 'Leave all three off for a lamp on a plain smart plug: it is then a simple on/off switch.')),
-      deviceLink(item));
+      links.deviceSection(item, 'light', linkHooks));
     } else if (kind === 'ac') {
       head(item.name || item.id, `id: ${item.id}`);
       nodes.push(section('Air conditioner',
@@ -583,17 +579,8 @@ export async function bootEditor(root) {
             parse: (v) => { const m = /^(\d+)\s*-\s*(\d+)$/.exec(v.trim()); return m && +m[1] < +m[2] ? [+m[1], +m[2]] : undefined; },
           })),
         h('p.note', 'Dragging the unit on the plan snaps it to the nearest wall of its room.')),
-      deviceLink(item),
-      section('Room temperature',
-        bind('Temperature sensor (device ID, optional)', text(), {
-          get: () => item.tuya?.sensorId || '',
-          set: (v) => {
-            const id = v.trim();
-            if (id) item.tuya = { ...(item.tuya || {}), sensorId: id };
-            else if (item.tuya) delete item.tuya.sensorId;
-          },
-        }),
-        h('p.note', 'A Smart Life temperature sensor in the same room. Without one the room temperature is estimated.')));
+      links.deviceSection(item, 'ac', linkHooks),
+      links.sensorSection(item, linkHooks));
     } else if (kind === 'furniture') {
       head(item.type, 'Decoration only');
       nodes.push(section('Furniture',
@@ -636,11 +623,21 @@ export async function bootEditor(root) {
           event: 'change',
         })));
     }
-    const key = `${sel.kind}:${sel.index}`;
-    const top = key === inspector.dataset.key ? inspector.scrollTop : 0;
+    const key = `${sel.kind}:${sel.index ?? sel.service ?? ''}`;
+    const same = key === inspector.dataset.key;
+    const top = same ? inspector.scrollTop : 0;
+    // A refresh of the same screen (devices arriving) keeps the field being typed in.
+    const fields = () => [...inspector.querySelectorAll('input, select, textarea')];
+    const focused = same ? fields().indexOf(document.activeElement) : -1;
+    const caret = focused >= 0 ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
     inspector.dataset.key = key;
-    inspector.replaceChildren(...nodes.flat().filter(Boolean));
+    inspector.replaceChildren(...nodes.flat(2).filter(Boolean));
     inspector.scrollTop = top;
+    if (focused >= 0) {
+      const el = fields()[focused];
+      el?.focus();
+      try { if (caret?.[0] != null) el.setSelectionRange(caret[0], caret[1]); } catch { /* not a text field */ }
+    }
   }
 
   /* ---------- Smart Life ---------- */
@@ -650,7 +647,7 @@ export async function bootEditor(root) {
 
   async function fetchDevices() {
     tuya.busy = true; tuya.error = null;
-    if (sel.kind === 'tuya') renderInspector();
+    if (sel.kind === 'service') renderInspector();
     try {
       tuya.devices = (await call('tuya.devices')).devices;
     } catch (e) {
@@ -659,7 +656,7 @@ export async function bootEditor(root) {
     }
     tuya.busy = false;
     renderSidebar();
-    if (sel.kind === 'tuya') renderInspector();
+    if (sel.kind === 'service') renderInspector();
   }
 
   function deviceList() {
@@ -688,6 +685,7 @@ export async function bootEditor(root) {
             tuya.account = await call('smartlife.signOut');
             tuya.devices = null; tuya.qr = null;
             renderSidebar(); renderInspector();
+            smartLifeChanged();
           } }, 'Sign out')),
         h('p.note', 'Pick a lamp or an AC on the plan, choose its device under “Smart Life device”, then press “Save & apply”.')),
       deviceList());
@@ -717,6 +715,7 @@ export async function bootEditor(root) {
             tuya.account = r.info;
             renderSidebar();
             renderInspector();
+            smartLifeChanged();
           }, 2000);
         } catch (e) {
           message.className = 'note bad';
@@ -746,6 +745,7 @@ export async function bootEditor(root) {
       try {
         tuya.info = await call('tuya.save', { accessId: idInput.value, accessSecret: secretInput.value, region: region.value });
         renderSidebar();
+        smartLifeChanged();
         if (tuya.info.configured) await fetchDevices(); else renderInspector();
       } catch (e) { toast(e.message, true); }
     };
@@ -857,5 +857,5 @@ export async function bootEditor(root) {
   dirty = false;
   validate();
   schedulePreview(0);
-  window.__editor = { get doc() { return doc; }, select, tuya };
+  window.__editor = { get doc() { return doc; }, select, tuya, links };
 }

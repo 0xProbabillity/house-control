@@ -8,7 +8,7 @@ every device in the plan is simulated.
 You need the phone app with your devices already added to it. No Tuya developer account is required.
 
 1. In the phone app: **Me → ⚙ Settings → Account and Security**. Copy the **User Code** at the bottom of the screen.
-2. In House Control: right-click the menu bar icon → **Edit Home… → Smart Life**. Enter the User Code and press **Show QR code**.
+2. In House Control: right-click the menu bar icon → **Edit Home… → Connections → Smart Life**. Enter the User Code and press **Show QR code**.
 3. Scan the code with the phone app (the scanner icon on its Home tab) and confirm.
 4. The editor lists the devices of the account.
 
@@ -21,12 +21,13 @@ user, and is refreshed automatically. **Sign out** in the editor deletes it.
 
 ## Linking devices to the plan
 
-Select a lamp or an AC in the editor, choose its device under **Smart Life device**, and press **Save & apply**.
+Select a lamp or an AC in the editor, choose its device under **Real device**, and press **Save & apply**.
 
-- A lamp's sliders follow the plan, not the device: give the light the capabilities it really has
-  (`brightness`, `temp`, `color`). A smart plug has none and only switches.
-- For an AC you can also enter the device ID of a **temperature sensor** in the same room. The sheet then
-  shows the measured room temperature instead of an estimate.
+- A lamp's sliders follow the plan: picking a device sets the capabilities it reports (`brightness`, `temp`,
+  `color`); adjust them under **What it can do** if the device reports less than it can do. A smart plug has
+  none and only switches.
+- For an AC you can also pick a **thermometer** in the same room. The sheet then shows the measured room
+  temperature instead of an estimate.
 
 While the panel is open, the app reads the state of all linked devices every 12 seconds, so changes made in
 the phone app or on a wall switch show up.

@@ -129,7 +129,7 @@ Decoration only. Every piece has `type`, `pos` (`[x, z]` of its centre) and an o
 | `length` | Length of a `strip` |
 | `capabilities` | Any of `brightness`, `temp`, `color`. Leave it out for a plain smart plug that only switches |
 | `color` | Initial colour of a colour light |
-| `tuya` | Link to a real device — see below |
+| `link`, `tuya` | Link to a real device — see below |
 
 ## `acs`
 
@@ -140,7 +140,8 @@ Decoration only. Every piece has `type`, `pos` (`[x, z]` of its centre) and an o
 | `pos` | `[x, z]`, on that wall |
 | `y` | Height. Default `2.2` |
 | `min`, `max` | Range of the target temperature. Defaults `16` and `30` |
-| `tuya` | Link to a real device — see below |
+| `link`, `tuya` | Link to a real device — see below |
+| `sensor` | A thermometer for the room — see below |
 
 ## `scenes`
 
@@ -155,26 +156,37 @@ In both maps the key `"*"` applies to every device, and a device's own entry ove
 
 ## Linking real devices
 
-A light or an AC becomes real when it has a `tuya` object. The editor fills it in when you pick a device;
-by hand it looks like this:
+A light or an AC becomes real when it is linked to a device of a connected platform. The editor fills the link
+in when you pick a device under **Real device**; by hand it looks like this:
 
 ```jsonc
+// Home Assistant (an entity id), Philips Hue (the bridge's light id), Apple Home (HomeKit's service id)
 { "id": "living.floor", "name": "Floor lamp", "room": "living", "type": "floor", "pos": [5.8, 0.6],
-  "tuya": { "deviceId": "<device id>" } }
+  "link": { "service": "homeassistant", "id": "light.floor_lamp" } }
 
+// An AC with a thermometer from any platform for its room temperature
 { "id": "living.ac", "name": "Living AC", "room": "living", "wall": "west", "pos": [0, 0.8],
-  "tuya": { "deviceId": "<device id>", "sensorId": "<id of a temperature sensor in the room>" } }
+  "link": { "service": "homeassistant", "id": "climate.living_room" },
+  "sensor": { "service": "hue", "id": "<id of a Hue motion sensor's thermometer>" } }
+
+// Smart Life keeps its own object
+{ "id": "bed.ac", "name": "Bedroom AC", "room": "bedroom", "wall": "north", "pos": [2, 0],
+  "tuya": { "deviceId": "<device id>", "sensorId": "<id of a Smart Life temperature sensor in the room>" } }
 ```
 
 | Field | Meaning |
 | --- | --- |
-| `deviceId` | The Smart Life device |
-| `sensorId` | ACs only, optional: a temperature sensor whose reading is shown as the room temperature |
-| `codes.switch` | Optional: the data point that switches the device, when it is not the usual one — e.g. `"switch_2"` for the second gang of a double switch |
+| `link.service` | `homeassistant`, `hue` or `homekit` |
+| `link.id` | The device on that platform |
+| `sensor` | ACs only, optional: `{ "service", "id" }` of a temperature sensor whose reading is shown as the room temperature. A simulated AC can have one too |
+| `tuya.deviceId` | The Smart Life device |
+| `tuya.sensorId` | ACs linked to Smart Life only, optional: a Smart Life temperature sensor |
+| `tuya.codes.switch` | Optional: the data point that switches the device, when it is not the usual one — e.g. `"switch_2"` for the second gang of a double switch |
 
-Devices without a `tuya` object stay simulated, so a plan can mix real and imaginary ones.
+Devices without a link stay simulated, so a plan can mix real and imaginary ones, and one home can mix
+platforms: Hue lamps, a Home Assistant air conditioner and a Smart Life plug side by side.
 
-Device IDs identify your hardware. Remove the `tuya` objects before you share a plan.
+Device IDs identify your hardware. Remove the `link`, `sensor` and `tuya` objects before you share a plan.
 
 ## Errors
 

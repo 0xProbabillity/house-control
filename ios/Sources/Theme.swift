@@ -127,3 +127,19 @@ struct RowButtonStyle: ButtonStyle {
             .background(configuration.isPressed ? Theme.surfaceHigh : .clear)
     }
 }
+
+/// A small capsule button at the end of a row ("Connect", "Turn off").
+struct PillButtonStyle: ButtonStyle {
+    var tint: Color = Theme.accent
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(tint == Theme.accent ? .white : tint)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 32)
+            .background(tint == Theme.accent ? AnyShapeStyle(Theme.accent) : AnyShapeStyle(Theme.surfaceHigh), in: Capsule())
+            .scaleEffect(configuration.isPressed ? 0.94 : 1)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}

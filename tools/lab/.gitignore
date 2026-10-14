@@ -1,0 +1,4 @@
+.homekit/
+.hue/
+.ha/
+node_modules/

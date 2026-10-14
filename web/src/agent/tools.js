@@ -4,7 +4,7 @@
 // shell only carries requests here (see AgentGateway.swift).
 import { AC_MODES, AC_FANS } from '../store.js';
 import { applyOperations, replacePlan, redactPlan, furnitureCatalog, PlanEditError, SCENE_ICONS, WALLS } from './plan-edit.js';
-import { LIGHT_KINDS, FLOOR_KINDS } from '../config.js';
+import { LIGHT_KINDS, FLOOR_KINDS, isLinked } from '../config.js';
 
 export const COLORS = {
   red: '#ff3b30', orange: '#ff9500', yellow: '#ffd60a', green: '#34c759',
@@ -48,11 +48,11 @@ export function createAgent({ store, config, raw, render, onAction }) {
 
   const lightJSON = (cfg) => ({
     id: cfg.id, name: cfg.name, room: cfg.room, type: cfg.type, abilities: cfg.capabilities,
-    real: Boolean(cfg.tuya?.deviceId), ...state.lights[cfg.id],
+    real: isLinked(cfg), ...state.lights[cfg.id],
     brightness: Math.round(state.lights[cfg.id].brightness * 100),
   });
   const acJSON = (cfg) => ({
-    id: cfg.id, name: cfg.name, room: cfg.room, real: Boolean(cfg.tuya?.deviceId),
+    id: cfg.id, name: cfg.name, room: cfg.room, real: isLinked(cfg),
     min: cfg.min, max: cfg.max, modes: store.acFeatures(cfg.id).modes, fans: store.acFeatures(cfg.id).fans,
     on: state.acs[cfg.id].on, target: state.acs[cfg.id].target, mode: state.acs[cfg.id].mode,
     fan: state.acs[cfg.id].fan, roomTemp: state.acs[cfg.id].roomTemp,

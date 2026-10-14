@@ -1,0 +1,13 @@
+{
+  "name": "house-control-lab",
+  "private": true,
+  "description": "Pretend smart homes for testing House Control without hardware",
+  "type": "module",
+  "scripts": {
+    "homekit": "node homekit.mjs",
+    "hue": "node hue.mjs"
+  },
+  "dependencies": {
+    "hap-nodejs": "1.2.0"
+  }
+}

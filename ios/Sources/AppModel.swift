@@ -9,6 +9,14 @@ struct Banner: Equatable, Identifiable {
     var tint: Color = Theme.accent
 }
 
+enum HomeKitStatus: Equatable {
+    case off
+    /// Asking iOS, or waiting for HomeKit to load the homes.
+    case waiting
+    case denied
+    case ready(homes: [String], accessories: Int)
+}
+
 /// Where the settings sheet opens.
 enum SettingsRoute: Hashable {
     case pairing
@@ -39,6 +47,12 @@ final class AppModel {
     private(set) var macName: String?
     private(set) var lastSync: Date?
 
+    // Home Assistant and Hue (shared by the Mac), Apple Home (this phone's own)
+    private(set) var homeAssistantName: String?
+    private(set) var hueName: String?
+    private(set) var homeKit: HomeKitStatus = .off
+    @ObservationIgnored let homeKitService = HomeKitService()
+
     // Smart Life
     private(set) var smartLifeConnected: Bool
     private(set) var smartLifeAccount: String
@@ -61,7 +75,7 @@ final class AppModel {
             sandboxed ? FileSecretStore(url: directory.appendingPathComponent("\(name).json"))
                       : KeychainSecretStore(service: "io.github.0xprobabillity.HouseControl", account: name)
         }
-        hub = DeviceHub(directory: directory, session: secret("smartlife"))
+        hub = DeviceHub(directory: directory, secret: secret, homeKit: homeKitService)
         sync = SyncClient(store: secret("sync"))
         web = HomeWeb(persistent: !sandboxed)
 
@@ -75,7 +89,14 @@ final class AppModel {
         lastSync = UserDefaults.standard.object(forKey: "lastSync") as? Date
 
         hub.onStale = { [weak self] in self?.poll() }
+        homeKitService.onCatalogChange = { [weak self] in
+            guard let self else { return }
+            self.refreshConnections()
+            self.sendCatalog()
+            self.startPolling()
+        }
         reloadLinks()
+        refreshConnections()
 
         sync.deviceName = UIDevice.current.name
         sync.planRevision = { [plans] in plans.customPlanRevision }
@@ -93,6 +114,7 @@ final class AppModel {
         case "settings": showSettings = true
         case "pairing": showSettings = true; settingsPath = [.pairing]
         case "smartlife": showSettings = true; settingsPath = [.smartLife]
+        case "connections": showSettings = true
         case "welcome": showWelcome = true
         case "home": break
         default: showWelcome = !sandboxed && !UserDefaults.standard.bool(forKey: "welcomed")
@@ -229,6 +251,12 @@ final class AppModel {
         lastSync = Date()
         UserDefaults.standard.set(lastSync, forKey: "lastSync")
         suggestedUserCode = state.userCode
+        if let shared = state.connections {
+            hub.adoptConnections(shared)
+            refreshConnections()
+            startPolling()
+        }
+        sendCatalog()
         guard let data = state.plan, (try? PlanStore.validate(data)) != nil else { return }
         // The first plan from the Mac becomes this phone's home; later ones only replace it
         // (someone who switched to a demo plan stays there).
@@ -272,6 +300,53 @@ final class AppModel {
         smartLifeAccount = ""
         pollTimer?.invalidate()
         pollTimer = nil
+    }
+
+    // MARK: - Home Assistant, Hue, Apple Home
+
+    private func refreshConnections() {
+        let ha = hub.homeAssistant.info
+        homeAssistantName = ha["connected"] as? Bool == true ? (ha["name"] as? String ?? "Home Assistant") : nil
+        let hue = hub.hue.info
+        hueName = hue["connected"] as? Bool == true ? (hue["name"] as? String ?? "Hue Bridge") : nil
+        let info = homeKitService.info
+        if !homeKitService.isEnabled {
+            homeKit = .off
+        } else if homeKitService.isDenied {
+            homeKit = .denied
+        } else if info["connected"] as? Bool == true {
+            homeKit = .ready(homes: info["homes"] as? [String] ?? [], accessories: info["accessories"] as? Int ?? 0)
+        } else {
+            homeKit = .waiting
+        }
+        linkedDevices = hub.linkedDeviceCount
+    }
+
+    /// Turns Apple Home on: iOS asks for permission the first time.
+    func connectHomeKit() {
+        homeKit = .waiting
+        Task { @MainActor in
+            await homeKitService.enable()
+            refreshConnections()
+            sendCatalog()
+            startPolling()
+            if case .ready = homeKit { Haptics.shared.play("success") }
+        }
+    }
+
+    func disconnectHomeKit() {
+        homeKitService.disconnect()
+        sync.sendCatalog([])
+        refreshConnections()
+    }
+
+    /// The Mac cannot see Apple Home, so this phone tells it what is there, for the editor.
+    private func sendCatalog() {
+        guard homeKitService.isConnected, sync.isPaired else { return }
+        Task { @MainActor in
+            guard let devices = try? await homeKitService.devices() else { return }
+            sync.sendCatalog(devices.map { $0.dictionary(service: "homekit") })
+        }
     }
 
     // MARK: - Welcome, banners

@@ -1,6 +1,6 @@
 // Edits to the floor plan an AI asks for: small, checked operations on the plan as it is
 // written on disk. Nothing here touches the page, so it runs (and is tested) under Node too.
-import { normalize, LIGHT_KINDS, FLOOR_KINDS } from '../config.js';
+import { normalize, LIGHT_KINDS, FLOOR_KINDS, LINK_FIELDS, isLinked } from '../config.js';
 import { FURNITURE_TYPES, footprint } from '../three/furniture.js';
 
 export const SCENE_ICONS = ['sun', 'sofa', 'film', 'moon', 'door', 'bed', 'tv', 'sparkles'];
@@ -22,7 +22,10 @@ export function redactPlan(raw) {
   const plan = structuredClone(raw);
   for (const list of [plan.lights || [], plan.acs || []]) {
     for (const d of list) {
-      if (d.tuya) { delete d.tuya; d.linked = true; }
+      if (LINK_FIELDS.some((k) => d[k])) {
+        for (const k of LINK_FIELDS) delete d[k];
+        d.linked = true;
+      }
     }
   }
   return plan;
@@ -31,11 +34,11 @@ export function redactPlan(raw) {
 /** Puts the hardware links of `old` back into a plan an AI wrote from a redacted copy. */
 export function restoreLinks(plan, old) {
   for (const key of ['lights', 'acs']) {
-    const links = new Map((old[key] || []).filter((d) => d.tuya).map((d) => [d.id, d.tuya]));
+    const links = new Map((old[key] || []).map((d) => [d.id, pick(d, LINK_FIELDS)]));
     for (const d of plan[key] || []) {
       delete d.linked;
-      delete d.tuya; // an AI cannot invent links to devices; they are made in the editor
-      if (links.has(d.id)) d.tuya = links.get(d.id);
+      for (const k of LINK_FIELDS) delete d[k]; // an AI cannot invent links to devices; they are made in the editor
+      Object.assign(d, links.get(d.id) || {});
     }
   }
   return plan;
@@ -149,7 +152,7 @@ export function applyOperations(raw, operations) {
       case 'remove_room': {
         const i = findById(plan.rooms, op.id, 'room');
         const devices = [...plan.lights, ...plan.acs].filter((d) => d.room === op.id);
-        if (devices.some((d) => d.tuya)) fail(`${where}: this room has devices linked to real hardware; unlink them in the editor first`);
+        if (devices.some(isLinked)) fail(`${where}: this room has devices linked to real hardware; unlink them in the editor first`);
         const room = plan.rooms[i];
         plan.furniture.forEach((f, k) => { if (k < originalFurniture && roomAt({ rooms: [room] }, f.pos)) dropFurniture.add(k); });
         plan.lights = plan.lights.filter((d) => d.room !== op.id);
@@ -223,7 +226,7 @@ export function applyOperations(raw, operations) {
         const list = isLight ? plan.lights : plan.acs;
         const i = findById(list, op.id, isLight ? 'light' : 'AC');
         const set = pick(op.set, (isLight ? LIGHT_KEYS : AC_KEYS).filter((k) => k !== 'id'));
-        if (op.set?.tuya || op.set?.linked != null) fail(`${where}: links to real devices are made in the editor, not here`);
+        if (LINK_FIELDS.some((k) => op.set?.[k]) || op.set?.linked != null) fail(`${where}: links to real devices are made in the editor, not here`);
         Object.assign(list[i], set);
         changes.push(`changed ${list[i].name || list[i].id}`);
         break;
@@ -233,7 +236,7 @@ export function applyOperations(raw, operations) {
         const isLight = op.op === 'remove_light';
         const list = isLight ? plan.lights : plan.acs;
         const i = findById(list, op.id, isLight ? 'light' : 'AC');
-        if (list[i].tuya) fail(`${where}: "${list[i].name}" is a real device; unlink it in the editor before removing it`);
+        if (isLinked(list[i])) fail(`${where}: "${list[i].name}" is a real device; unlink it in the editor before removing it`);
         const [gone] = list.splice(i, 1);
         for (const s of plan.scenes) delete s[isLight ? 'lights' : 'acs']?.[gone.id];
         changes.push(`removed ${gone.name || gone.id}`);
@@ -301,7 +304,7 @@ export function replacePlan(old, next) {
   const plan = restoreLinks(structuredClone(next), old);
   plan.furniture = (plan.furniture || []).map((f, i) => cleanFurniture(f, `Furniture #${i}`));
   if (old.version != null && plan.version == null) plan.version = old.version;
-  const lost = [...(old.lights || []), ...(old.acs || [])].filter((d) => d.tuya
+  const lost = [...(old.lights || []), ...(old.acs || [])].filter((d) => isLinked(d)
     && ![...(plan.lights || []), ...(plan.acs || [])].some((n) => n.id === d.id));
   if (lost.length) {
     fail(`The new plan drops devices linked to real hardware: ${lost.map((d) => `${d.name} (${d.id})`).join(', ')}. Keep them, with the same ids.`);

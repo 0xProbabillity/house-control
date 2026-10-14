@@ -25,6 +25,10 @@ targets:
         buildPhase: resources
     dependencies:
       - package: HouseCore
+    entitlements:
+      path: Config/HouseControl.entitlements
+      properties:
+        com.apple.developer.homekit: true
     info:
       path: Config/Info.plist
       properties:
@@ -38,8 +42,12 @@ targets:
         UIRequiresFullScreen: true
         UIUserInterfaceStyle: Dark
         ITSAppUsesNonExemptEncryption: false
-        NSLocalNetworkUsageDescription: House Control looks for your Mac on this Wi-Fi network to receive the floor plan you made there.
+        NSLocalNetworkUsageDescription: House Control looks for your Mac on this Wi-Fi network to receive the floor plan you made there, and talks to your Home Assistant and Hue Bridge.
         NSBonjourServices: [_housecontrol._tcp]
+        NSHomeKitUsageDescription: House Control shows the lamps, air conditioners and thermometers of your homes in its 3D view and switches them for you.
+        # Home Assistant answers plain HTTP on the local network, the Hue Bridge HTTPS with its own certificate.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
         NSCameraUsageDescription: The camera reads the pairing code shown by House Control on your Mac.
         CFBundleURLTypes:
           - CFBundleURLName: io.github.0xprobabillity.HouseControl.pair

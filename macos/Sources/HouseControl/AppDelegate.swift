@@ -194,7 +194,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         var boot = plans.bootPayload()
         boot["tuya"] = hub.tuyaInfo
         boot["smartLife"] = hub.smartLifeInfo
-        if ProcessInfo.processInfo.environment["HOUSE_OPEN_EDITOR"] == "smartlife" { boot["section"] = "tuya" }
+        boot["services"] = hub.servicesInfo
+        switch ProcessInfo.processInfo.environment["HOUSE_OPEN_EDITOR"] {
+        case "smartlife": boot["section"] = "service:smartlife"
+        case "homeassistant", "hue", "homekit", "connections":
+            let section = ProcessInfo.processInfo.environment["HOUSE_OPEN_EDITOR"]!
+            boot["section"] = section == "connections" ? "connections" : "service:\(section)"
+        default: break
+        }
         boot["agentLive"] = agent.isLive
         // HOUSE_OPEN_DEVICE=<id> starts the panel on that light's or AC's detail sheet.
         if let device = ProcessInfo.processInfo.environment["HOUSE_OPEN_DEVICE"] { boot["openDevice"] = device }
@@ -203,6 +210,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func reloadLinks() {
         hub.setLinks(from: plans.activePlan == "custom" ? plans.customPlan() : nil)
+    }
+
+    /// A platform was connected or disconnected: read the devices again and tell the phones.
+    private func connectionsChanged() {
+        reloadLinks()
+        setPolling(false) // reads at once while the panel or the island is open
+        sync.broadcast()
     }
 
     @objc private func reloadAll() {
@@ -369,6 +383,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             hub.signOut()
             host.reply(to: message, hub.smartLifeInfo)
             sync.broadcast()
+
+        // Home Assistant, Philips Hue, Apple Home
+        case "services.info":
+            host.reply(to: message, hub.servicesInfo)
+        case "devices.all":
+            Task { @MainActor in
+                let (devices, errors) = await hub.allDevices()
+                host.reply(to: message, ["devices": devices, "errors": errors])
+            }
+        case "services.discover":
+            let service = message["service"] as? String ?? ""
+            Task { @MainActor in
+                let found = service == "hue" ? await ServiceDiscovery.hueBridges() : await ServiceDiscovery.homeAssistants()
+                host.reply(to: message, ["found": found])
+            }
+        case "homeassistant.connect":
+            Task { @MainActor in
+                do {
+                    try await hub.homeAssistant.connect(url: message["url"] as? String ?? "", token: message["token"] as? String ?? "")
+                    connectionsChanged()
+                    host.reply(to: message, hub.servicesInfo)
+                } catch {
+                    host.reply(to: message, ["error": error.localizedDescription])
+                }
+            }
+        case "hue.pair":
+            Task { @MainActor in
+                do {
+                    try await hub.hue.pair(host: message["host"] as? String ?? "", bridgeId: message["bridgeId"] as? String,
+                                           name: message["name"] as? String)
+                    connectionsChanged()
+                    host.reply(to: message, hub.servicesInfo)
+                } catch is HueService.ButtonNotPressed {
+                    host.reply(to: message, ["waiting": true])
+                } catch {
+                    host.reply(to: message, ["error": error.localizedDescription])
+                }
+            }
+        case "service.disconnect":
+            hub.services.first { $0.id == message["service"] as? String }?.disconnect()
+            connectionsChanged()
+            host.reply(to: message, hub.servicesInfo)
         default:
             break
         }
@@ -446,7 +502,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                       revision: self.plans.customPlanRevision ?? "",
                       plan: try? Data(contentsOf: self.plans.customPlanURL),
                       userCode: self.hub.smartLifeUserCode,
-                      smartLifeConnected: self.hub.isSmartLifeConnected)
+                      smartLifeConnected: self.hub.isSmartLifeConnected,
+                      connections: self.hub.shareableConnections)
+        }
+        sync.onCatalog = { [weak self] devices, phone in
+            guard let self, let catalog = self.hub.homeKit as? RemoteCatalogService else { return }
+            catalog.update(devices: devices, from: phone)
+            self.editor?.host.call("servicesChanged", self.hub.servicesInfo)
         }
         sync.onPeersChanged = { [weak self] in self?.refreshPairingWindow() }
         sync.onShowQR = { [weak self] content, device in self?.showLoginCode(content, for: device) }
