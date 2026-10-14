@@ -85,6 +85,8 @@ Heights (`y`, `sill`, `head`) are metres above the floor. Angles are degrees.
 | `floor` | `oak`, `walnut`, `tile` or `stone` |
 
 Rooms are rectangles. Where two of them touch, an inner wall appears on its own; make an L-shaped room out of two.
+The building's outline gets thick outer walls; a wall where a room meets a recess inside that outline (a stairwell,
+a light well) is drawn like an inner wall, and is never cut away for the camera.
 
 ## `openings`
 

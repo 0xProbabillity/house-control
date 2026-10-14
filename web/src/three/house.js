@@ -1,68 +1,9 @@
 // Turns the rooms + openings of a plan into floors, walls and windows.
 import * as THREE from 'three';
 import { box, mat, at, floorMesh } from './kit.js';
+import { planWalls, facesCamera } from './walls.js';
 
-const EXT_T = 0.2;   // exterior wall thickness
-const INT_T = 0.1;   // interior wall thickness
 const CURB = 0.14;   // height of the cut-away walls on the camera side
-const EPS = 1e-4;
-
-const key = (v) => Math.round(v * 1000);
-
-// Splits every room edge into wall segments, classifying each as exterior / interior
-// and attaching the opening (door, window, ...) that covers it, if any.
-function wallSegments(config) {
-  const lines = new Map();
-  const line = (axis, c) => {
-    const k = `${axis}:${key(c)}`;
-    if (!lines.has(k)) lines.set(k, { axis, c, edges: [], openings: [] });
-    return lines.get(k);
-  };
-
-  for (const r of config.rooms) {
-    line('x', r.z).edges.push({ a: r.x, b: r.x + r.w, inside: 1 });
-    line('x', r.z + r.d).edges.push({ a: r.x, b: r.x + r.w, inside: -1 });
-    line('z', r.x).edges.push({ a: r.z, b: r.z + r.d, inside: 1 });
-    line('z', r.x + r.w).edges.push({ a: r.z, b: r.z + r.d, inside: -1 });
-  }
-  for (const o of config.openings) {
-    const alongX = o.from[1] === o.to[1];
-    const k = alongX ? `x:${key(o.from[1])}` : `z:${key(o.from[0])}`;
-    const l = lines.get(k);
-    if (!l) continue; // opening that is not on any wall: ignore
-    const p = alongX ? [o.from[0], o.to[0]] : [o.from[1], o.to[1]];
-    l.openings.push({ ...o, a: Math.min(...p), b: Math.max(...p) });
-  }
-
-  const segments = [];
-  for (const l of lines.values()) {
-    const pts = [...new Set([...l.edges, ...l.openings].flatMap((e) => [key(e.a), key(e.b)]))]
-      .sort((p, q) => p - q).map((p) => p / 1000);
-    const run = [];
-    for (let i = 0; i < pts.length - 1; i++) {
-      const mid = (pts[i] + pts[i + 1]) / 2;
-      const covering = l.edges.filter((e) => e.a < mid && mid < e.b);
-      if (!covering.length) continue;
-      const seg = {
-        axis: l.axis, c: l.c, a: pts[i], b: pts[i + 1],
-        kind: covering.length > 1 ? 'interior' : 'exterior',
-        inside: covering[0].inside,
-        opening: l.openings.find((o) => o.a < mid && mid < o.b) || null,
-      };
-      const prev = run[run.length - 1];
-      if (prev && Math.abs(prev.b - seg.a) < EPS && prev.kind === seg.kind
-        && prev.inside === seg.inside && prev.opening === seg.opening) prev.b = seg.b;
-      else run.push(seg);
-    }
-    // Free ends get a small extension so corners close up.
-    run.forEach((s, i) => {
-      s.freeA = !(run[i - 1] && Math.abs(run[i - 1].b - s.a) < EPS);
-      s.freeB = !(run[i + 1] && Math.abs(run[i + 1].a - s.b) < EPS);
-    });
-    segments.push(...run);
-  }
-  return segments;
-}
 
 export function buildHouse(config, camDir) {
   const group = new THREE.Group();
@@ -106,15 +47,11 @@ export function buildHouse(config, camDir) {
     return m;
   };
 
-  for (const s of wallSegments(config)) {
+  for (const s of planWalls(config)) {
     const exterior = s.kind === 'exterior';
-    const t = exterior ? EXT_T : INT_T;
-    // Outward normal of an exterior wall points away from its room.
-    const nx = s.axis === 'z' ? -s.inside : 0;
-    const nz = s.axis === 'x' ? -s.inside : 0;
-    const near = exterior && nx * camDir.x + nz * camDir.z > 0.15;
-    const a = s.a - (s.freeA ? EXT_T / 2 : 0);
-    const b = s.b + (s.freeB ? EXT_T / 2 : 0);
+    const t = s.thickness;
+    const near = facesCamera(s, camDir);
+    const { from: a, to: b } = s;
     const type = s.opening?.type;
 
     if (near) {
