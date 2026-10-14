@@ -13,7 +13,6 @@ export const STAGE_BG = '#0a0e1a';
 
 const rad = THREE.MathUtils.degToRad;
 const clamp = THREE.MathUtils.clamp;
-const ORBIT_AZ = 40;       // degrees of freedom either side of the plan's default view
 const EL_MIN = 26;
 const EL_MAX = 70;
 const ZOOM_MIN = 0.55;     // closest
@@ -150,7 +149,14 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
     const { dist, center: c } = fitDistance(box, rig.goal.az, rig.goal.el, fill);
     rig.goal.dist = dist * rig.zoom;
     rig.goal.target.copy(c);
+    // A tall, narrow view (the island stretched far down) pushes the camera well past the
+    // default far plane, and the whole home is clipped away. Keep the far plane behind the model.
+    const farNeeded = Math.max(120, rig.goal.dist * 1.8 + 60, rig.dist * 1.8 + 60);
+    if (Math.abs(camera.far - farNeeded) > 1) { camera.far = farNeeded; camera.updateProjectionMatrix(); }
   }
+
+  let cutAz = baseAz;
+  const cutDir = new THREE.Vector3();
 
   function updateRig(dt, instant = false) {
     const k = instant ? 1 : 1 - Math.exp(-dt * 5.5);
@@ -161,6 +167,10 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
     rig.el += (g.el - rig.el) * k;
     rig.dist += (g.dist - rig.dist) * k;
     rig.target.lerp(g.target, k);
+    if (Math.abs(rig.az - cutAz) > 0.25) {
+      cutAz = rig.az;
+      house.setView(cutDir.set(Math.sin(rad(rig.az)), 0, Math.cos(rad(rig.az))));
+    }
     basis(rig.az, rig.el);
     camera.position.copy(rig.target).addScaledVector(fwd, -rig.dist);
     camera.up.set(0, 1, 0);
@@ -264,7 +274,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
       const dy = ev.clientY - drag.y;
       if (!drag.moved && Math.hypot(dx, dy) > 5) { drag.moved = true; setHover(null); canvas.style.cursor = 'grabbing'; }
       if (drag.moved) {
-        rig.goal.az = clamp(drag.az - dx * 0.35, baseAz - ORBIT_AZ, baseAz + ORBIT_AZ);
+        rig.goal.az = drag.az - dx * 0.35; // all the way round
         rig.goal.el = clamp(drag.el + dy * 0.3, EL_MIN, EL_MAX);
         frameGoal();
         wake();
@@ -359,7 +369,9 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
     focus(next) {
       rig.focus = next;
       rig.zoom = 1;
-      rig.goal.az = baseAz + (next?.kind === 'ac' ? (WALL_SIDE[acs.get(next.id).cfg.wall] ?? 0) : 0);
+      // The nearest equivalent angle, so coming back from a full orbit does not spin round again.
+      const wanted = baseAz + (next?.kind === 'ac' ? (WALL_SIDE[acs.get(next.id).cfg.wall] ?? 0) : 0);
+      rig.goal.az = rig.goal.az + ((((wanted - rig.goal.az) % 360) + 540) % 360) - 180;
       rig.goal.el = next?.kind === 'ac' ? 30 : config.camera.elevation;
       frameGoal();
       wake();
