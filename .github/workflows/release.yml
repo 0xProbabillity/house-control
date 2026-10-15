@@ -83,6 +83,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
+          # The notes are this version's section of CHANGELOG.md, or GitHub's list of commits without one.
+          awk -v v="$VERSION" '$0 ~ "^## " { if (on) exit; on = index($0, "## " v " ") == 1; next } on' CHANGELOG.md > build/notes.md
+          if [ -s build/notes.md ]; then
+            printf '\n**Full changelog:** [CHANGELOG.md](%s/%s/blob/%s/CHANGELOG.md)\n' \
+              "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" >> build/notes.md
+            notes=(--notes-file build/notes.md)
+          else
+            notes=(--generate-notes)
+          fi
           gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
-            --title "House Control $VERSION" --generate-notes \
+            --title "House Control $VERSION" "${notes[@]}" \
             "build/HouseControl-$VERSION.dmg" "build/HouseControl-$VERSION.dmg.sha256"

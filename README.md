@@ -61,6 +61,8 @@ No frameworks, no Electron, no server, no account of its own.
    - Or, in Terminal: `xattr -dr com.apple.quarantine "/Applications/House Control.app"`
 4. Look for the house in the menu bar — there is no Dock icon and no window. Click it.
 
+What is new in each release: [CHANGELOG.md](CHANGELOG.md).
+
 It starts with a bundled demo plan, so you can try everything before connecting anything. Then:
 [make it your home](#make-it-your-home) and [connect real devices](#connect-real-devices).
 To start it with your Mac, add it under **System Settings → General → Login Items**.
@@ -76,6 +78,8 @@ gh attestation verify HouseControl-<version>.dmg --repo 0xProbabillity/house-con
 ```
 
 The second command proves the image was built by this repository's workflow, and shows from which commit.
+Images from 1.0.0 on carry an attestation; 0.1.0 was built while the repository was still private, when GitHub
+does not store attestations for free accounts, so for it only the SHA-256 can be checked.
 
 ### Why the app is not notarized
 
@@ -415,10 +419,11 @@ The binary has a few offline self-checks and one read-only diagnostic:
 
 ### Releasing the Mac app
 
-Set `MARKETING_VERSION` in `ios/Config/Base.xcconfig`, commit, then tag and push:
+Set `MARKETING_VERSION` in `ios/Config/Base.xcconfig`, add a `## <version> — <date>` section to
+[CHANGELOG.md](CHANGELOG.md) (it becomes the release notes), commit, then tag and push:
 
 ```bash
-git tag v0.1.0 && git push origin v0.1.0
+git tag v1.0.0 && git push origin v1.0.0
 ```
 
 [`release.yml`](.github/workflows/release.yml) builds the universal app on a GitHub macOS runner
@@ -431,8 +436,8 @@ signed and notarized image locally instead; the script lists what it needs.
 
 ## Limitations
 
-- The iPhone app is not on the App Store (it is on TestFlight for the author's testers).
-- The floor plan is edited on the Mac only. The iPhone receives it, and only while both are on the same network.
+- The iPhone app is not on the App Store yet (it is on TestFlight for the author's testers).
+- The Mac and the iPhone sync only while both are on the same network; there is no cloud in between.
 - Rooms are axis-aligned rectangles. An L-shaped room is two rooms.
 - Apple Home devices are switched by the iPhone app only: macOS gives HomeKit to App Store apps only.
 - Smart Life devices are reached through Tuya's cloud, not over the local network, so they need an internet
