@@ -37,8 +37,10 @@ final class HomeWeb: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         webView.backgroundColor = UIColor(Theme.background)
         webView.scrollView.backgroundColor = UIColor(Theme.background)
         webView.scrollView.isScrollEnabled = false
-        // The editor's text fields must not zoom the page in, nor drag it about.
-        webView.scrollView.pinchGestureRecognizer?.isEnabled = false
+        // The page itself keeps text fields from zooming it in (`maximum-scale=1` in index.html).
+        // Never disable the scroll view's pinch recognizer for that: WebKit's own gestures depend
+        // on it, and on iOS 17 a disabled one leaves a hole in UIKit's gesture graph that aborts
+        // the app on the first touch.
         webView.scrollView.bounces = false
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.allowsLinkPreview = false
