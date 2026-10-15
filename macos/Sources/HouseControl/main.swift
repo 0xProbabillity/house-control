@@ -1,5 +1,6 @@
 import AppKit
 import HouseCore
+import HouseSmartLife
 
 MainActor.assumeIsolated {
     // `--selftest-mapper`, `--selftest-infrared`, `--selftest-transport` and

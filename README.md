@@ -205,8 +205,21 @@ Try it in the simulator:
 ```
 
 To put it on a phone, write your Apple developer team into `ios/Config/Local.xcconfig`
-(`DEVELOPMENT_TEAM = ABCDE12345`), run `cd ios && xcodegen generate`, open `ios/HouseControl.xcodeproj` and run it
-on your device. `./scripts/build-ios.sh --upload` archives it and sends it to TestFlight; the script lists what it needs.
+(`DEVELOPMENT_TEAM = ABCDE12345`), run `cd ios && xcodegen generate --spec project-smartlife.yml`, open
+`ios/HouseControl.xcodeproj` and run it on your device. `./scripts/build-ios.sh --upload` archives it and sends it to
+TestFlight; the script lists what it needs.
+
+The iPhone app comes in two editions, built from the same code:
+
+| Edition | What it has | Built from |
+| --- | --- | --- |
+| **App Store** | Home Assistant, Philips Hue, Apple Home | `ios/project.yml` · `EDITION=appstore` |
+| **Smart Life** | all of the above plus Smart Life / Tuya, for TestFlight and your own phone | `ios/project-smartlife.yml` (the scripts' default) |
+
+Smart Life is reached through the sign-in Home Assistant's Tuya integration uses, not through an API Tuya offers to
+apps, so it stays out of the App Store edition entirely: its code lives in its own module (`core/Sources/HouseSmartLife`)
+that only the Smart Life edition and the Mac app link, and `build-ios.sh` refuses an App Store archive that contains it.
+The two editions are separate apps (bundle id and App Group), so both can sit on one phone.
 
 ### Sync with the Mac
 
@@ -229,7 +242,7 @@ pre-shared key that only the QR code carries, so a device that never saw the cod
 
 ### Real devices on the iPhone
 
-The phone signs in to Smart Life on its own: **Settings → Connect Smart Life**. The User Code is filled in from the
+In the Smart Life edition the phone signs in to Smart Life on its own: **Settings → Connect Smart Life**. The User Code is filled in from the
 Mac if you are signed in there. The sign-in code has to be scanned by the Smart Life app, which is on the very phone
 you are holding. So **Save code to Photos**, then in Smart Life tap **+ → Scan** and open the picture from its photo
 button. A paired Mac also puts the code on its screen for you, and **Share code** sends it to any other screen.
@@ -330,7 +343,8 @@ Home Assistant and Hue connections the Mac shared in the Keychain.
 
 ```
 web/      the UI: Three.js scene, panel, island, editor, AI Access window and the AI tools (Vite, plain ES modules)
-core/     what both apps share: Smart Life and Tuya clients, plan store, Mac ⇄ iPhone sync, the AI gateway (SwiftPM, with tests)
+core/     what both apps share: plan store, device platforms, Mac ⇄ iPhone sync, the AI gateway, and the Smart Life
+          and Tuya clients as a separate module (SwiftPM, with tests)
 macos/    the Mac shell: menu bar item, panel, island and editor windows (SwiftPM)
 ios/      the iPhone shell: SwiftUI, generated into an Xcode project by XcodeGen
 scripts/  build-app.sh, build-ios.sh and ios-sim.sh build the apps, release-mac.sh makes the .dmg,

@@ -1,12 +1,15 @@
 import AppKit
 import UniformTypeIdentifiers
 import HouseCore
+import HouseSmartLife
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let plans = PlanStore()
     /// The Smart Life / Tuya side: device links, commands and state.
-    private lazy var hub = DeviceHub(directory: plans.directory)
+    private lazy var hub = DeviceHub(directory: plans.directory, cloud: SmartLifePlatform.init)
+    /// Smart Life is always part of the Mac app.
+    private var smartLife: SmartLifePlatform { hub.smartLife! }
     /// Hands the floor plan to paired iPhones on the local network.
     private lazy var sync = SyncServer(store: FileSecretStore(url: plans.directory.appendingPathComponent("sync.json")))
     private var island: IslandController?
@@ -191,6 +194,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 item.image = NSImage(systemSymbolName: "iphone", accessibilityDescription: nil)
             }
             menu.addItem(.separator())
+            menu.addItem(aboutMenuItem())
             menu.addItem(withTitle: "Reload", action: #selector(reloadAll), keyEquivalent: "").target = self
             menu.addItem(withTitle: "Quit House Control", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
             statusItem.menu = menu
@@ -210,11 +214,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func bootPayload() -> [String: Any] {
         var boot = plans.bootPayload()
-        boot["tuya"] = hub.tuyaInfo
-        var smartLife = hub.smartLifeInfo
+        boot["tuya"] = smartLife.tuyaInfo
+        var account = smartLife.smartLifeInfo
         // Not signed in here yet: offer the User Code a paired iPhone signed in with.
-        if !hub.isSmartLifeConnected, !phoneUserCode.isEmpty { smartLife["userCode"] = phoneUserCode }
-        boot["smartLife"] = smartLife
+        if !smartLife.isSmartLifeConnected, !phoneUserCode.isEmpty { account["userCode"] = phoneUserCode }
+        boot["smartLife"] = account
         boot["services"] = hub.servicesInfo
         switch ProcessInfo.processInfo.environment["HOUSE_OPEN_EDITOR"] {
         case "smartlife": boot["section"] = "service:smartlife"
@@ -267,6 +271,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func revealPlan() {
         let url = plans.hasCustomPlan ? plans.customPlanURL : WebHost.assetRoot.appendingPathComponent("plans/\(plans.activePlan).json")
         NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
+    /// "About House Control": the version, the website and where to find the developer.
+    private func aboutMenuItem() -> NSMenuItem {
+        let about = NSMenu()
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+        about.addItem(withTitle: "House Control\(version.map { " \($0)" } ?? "")", action: nil, keyEquivalent: "")
+        about.addItem(.separator())
+        let links: [(String, String, URL)] = [
+            ("Website", "globe", About.website),
+            ("Privacy Policy", "hand.raised", About.privacy),
+            ("Support", "questionmark.circle", About.support),
+            ("", "", About.website),
+            ("\(About.developer) on X", "at", About.x),
+            ("\(About.developer) on GitHub", "chevron.left.forwardslash.chevron.right", About.github),
+            ("Source Code", "shippingbox", About.source),
+        ]
+        for (title, symbol, url) in links {
+            guard !title.isEmpty else { about.addItem(.separator()); continue }
+            let item = about.addItem(withTitle: title, action: #selector(openLink(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = url
+            item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        }
+        let item = NSMenuItem(title: "About House Control", action: nil, keyEquivalent: "")
+        item.submenu = about
+        return item
+    }
+
+    @objc private func openLink(_ sender: NSMenuItem) {
+        if let url = sender.representedObject as? URL { NSWorkspace.shared.open(url) }
     }
 
     @objc private func revealLog() {
@@ -370,17 +405,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         case "tuya.save":
             do {
-                try hub.saveTuya(accessId: message["accessId"] as? String ?? "",
+                try smartLife.saveTuya(accessId: message["accessId"] as? String ?? "",
                                  accessSecret: message["accessSecret"] as? String ?? "",
                                  region: message["region"] as? String ?? "eu")
-                host.reply(to: message, hub.tuyaInfo)
+                host.reply(to: message, smartLife.tuyaInfo)
             } catch {
                 host.reply(to: message, ["error": error.localizedDescription])
             }
         case "tuya.devices":
             Task { @MainActor in
                 do {
-                    host.reply(to: message, ["devices": try await hub.listDevices()])
+                    host.reply(to: message, ["devices": try await smartLife.listDevices()])
                 } catch {
                     host.reply(to: message, ["error": error.localizedDescription])
                 }
@@ -389,7 +424,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let userCode = message["userCode"] as? String ?? ""
             Task { @MainActor in
                 do {
-                    let login = try await hub.beginLogin(userCode: userCode)
+                    let login = try await smartLife.beginLogin(userCode: userCode)
                     let png = QRCode.png(for: login.qrContent).map { "data:image/png;base64,\($0.base64EncodedString())" }
                     host.reply(to: message, ["token": login.token, "qr": png ?? ""])
                 } catch {
@@ -400,13 +435,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let token = message["token"] as? String ?? ""
             let userCode = message["userCode"] as? String ?? ""
             Task { @MainActor in
-                let done = await hub.finishLogin(token: token, userCode: userCode)
-                host.reply(to: message, ["connected": done, "info": hub.smartLifeInfo])
+                let done = await smartLife.finishLogin(token: token, userCode: userCode)
+                host.reply(to: message, ["connected": done, "info": smartLife.smartLifeInfo])
                 if done { sync.broadcast() }
             }
         case "smartlife.signOut":
-            hub.signOut()
-            host.reply(to: message, hub.smartLifeInfo)
+            smartLife.signOut()
+            host.reply(to: message, smartLife.smartLifeInfo)
             sync.broadcast()
 
         // Home Assistant, Philips Hue, Apple Home
@@ -526,8 +561,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             SyncState(macName: self.computerName,
                       revision: self.plans.customPlanRevision ?? "",
                       plan: try? Data(contentsOf: self.plans.customPlanURL),
-                      userCode: self.hub.smartLifeUserCode,
-                      smartLifeConnected: self.hub.isSmartLifeConnected,
+                      userCode: self.smartLife.userCode,
+                      smartLifeConnected: self.smartLife.isSmartLifeConnected,
                       connections: self.hub.shareableConnections)
         }
         sync.onCatalog = { [weak self] devices, phone in

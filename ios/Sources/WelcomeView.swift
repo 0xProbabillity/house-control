@@ -35,7 +35,9 @@ struct WelcomeView: View {
                 feature("pencil.and.ruler.fill", Theme.accent, "Draw it here or on your Mac",
                         "Rooms, lamps and ACs, on this iPhone. Pair a Mac any time: both stay in sync.")
                 feature("lightbulb.2.fill", Theme.green, "Your real devices",
-                        "Smart Life, Home Assistant, Philips Hue and Apple Home. Until you connect one, everything is simulated.")
+                        AppModel.includesSmartLife
+                            ? "Smart Life, Home Assistant, Philips Hue and Apple Home. Until you connect one, everything is simulated."
+                            : "Home Assistant, Philips Hue and Apple Home. Until you connect one, everything is simulated.")
             }
             .padding(.horizontal, 6)
             .frame(maxHeight: .infinity)

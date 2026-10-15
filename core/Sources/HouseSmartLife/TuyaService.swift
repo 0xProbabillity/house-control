@@ -1,4 +1,5 @@
 import Foundation
+import HouseCore
 import CryptoKit
 
 /// Minimal client for the Tuya Cloud OpenAPI ("Smart Home" project with the Smart Life

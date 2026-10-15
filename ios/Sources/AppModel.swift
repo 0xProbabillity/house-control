@@ -1,5 +1,8 @@
 import SwiftUI
 import HouseCore
+#if SMART_LIFE
+import HouseSmartLife
+#endif
 
 /// A short message that slides in under the status bar.
 struct Banner: Equatable, Identifiable {
@@ -31,7 +34,7 @@ enum SettingsRoute: Hashable, Identifiable {
     /// The screen a connection id of the web editor ("smartlife", "hue"…) stands for.
     init?(service: String) {
         switch service {
-        case "smartlife": self = .smartLife
+        case "smartlife" where AppModel.includesSmartLife: self = .smartLife
         case "homeassistant": self = .homeAssistant
         case "hue": self = .hue
         default: return nil
@@ -90,9 +93,15 @@ final class AppModel {
     private(set) var homeKit: HomeKitStatus = .off
     @ObservationIgnored let homeKitService = HomeKitService()
 
-    // Smart Life
-    private(set) var smartLifeConnected: Bool
-    private(set) var smartLifeAccount: String
+    // Smart Life: only in the builds that include it (TestFlight). The App Store edition is
+    // built without the HouseSmartLife module, so none of its code is in that app.
+    #if SMART_LIFE
+    nonisolated static let includesSmartLife = true
+    #else
+    nonisolated static let includesSmartLife = false
+    #endif
+    private(set) var smartLifeConnected = false
+    private(set) var smartLifeAccount = ""
     /// The User Code entered on the Mac, offered here so it need not be typed again.
     private(set) var suggestedUserCode = ""
 
@@ -125,7 +134,11 @@ final class AppModel {
             sandboxed ? FileSecretStore(url: directory.appendingPathComponent("\(name).json"))
                       : KeychainSecretStore(service: Bundle.main.bundleIdentifier ?? "HouseControl", account: name)
         }
+        #if SMART_LIFE
+        hub = DeviceHub(directory: directory, secret: secret, homeKit: homeKitService, cloud: SmartLifePlatform.init)
+        #else
         hub = DeviceHub(directory: directory, secret: secret, homeKit: homeKitService)
+        #endif
         sync = SyncClient(store: secret("sync"))
         web = HomeWeb(persistent: !sandboxed)
 
@@ -134,8 +147,10 @@ final class AppModel {
         customPlanName = plans.customPlanName
         syncStatus = sync.status
         macName = sync.pairing?.name
-        smartLifeConnected = hub.isSmartLifeConnected
-        smartLifeAccount = hub.smartLifeAccount
+        #if SMART_LIFE
+        smartLifeConnected = hub.smartLife?.isSmartLifeConnected ?? false
+        smartLifeAccount = hub.smartLife?.account ?? ""
+        #endif
         lastSync = UserDefaults.standard.object(forKey: "lastSync") as? Date
 
         hub.onStale = { [weak self] in self?.poll() }
@@ -224,7 +239,9 @@ final class AppModel {
 
     private func bootPayload() -> [String: Any] {
         var boot = plans.bootPayload()
-        boot["smartLife"] = hub.smartLifeInfo
+        #if SMART_LIFE
+        boot["smartLife"] = hub.smartLife?.smartLifeInfo
+        #endif
         if let device = ProcessInfo.processInfo.environment["HOUSE_OPEN_DEVICE"] { boot["openDevice"] = device }
         return boot
     }
@@ -364,8 +381,10 @@ final class AppModel {
     private func editorBoot() -> [String: Any] {
         var boot = plans.bootPayload()
         if boot["config"] == nil, let plan = currentPlan { boot["config"] = plan }
-        boot["smartLife"] = hub.smartLifeInfo
-        boot["tuya"] = hub.tuyaInfo
+        #if SMART_LIFE
+        boot["smartLife"] = hub.smartLife?.smartLifeInfo
+        boot["tuya"] = hub.smartLife?.tuyaInfo
+        #endif
         boot["services"] = hub.servicesInfo
         if let section = ProcessInfo.processInfo.environment["HOUSE_OPEN_EDITOR"] { boot["section"] = section }
         return boot
@@ -480,6 +499,7 @@ final class AppModel {
         case "service.disconnect":
             disconnect(service: message["service"] as? String ?? "")
             reply(hub.servicesInfo)
+        #if SMART_LIFE
         case "smartlife.begin":
             Task { @MainActor in
                 do {
@@ -493,23 +513,24 @@ final class AppModel {
         case "smartlife.poll":
             Task { @MainActor in
                 let done = await finishLogin(token: message["token"] as? String ?? "", userCode: message["userCode"] as? String ?? "")
-                reply(["connected": done, "info": hub.smartLifeInfo])
+                reply(["connected": done, "info": smartLife.smartLifeInfo])
             }
         case "smartlife.signOut":
             signOut()
-            reply(hub.smartLifeInfo)
+            reply(smartLife.smartLifeInfo)
         case "tuya.devices":
             Task { @MainActor in
-                do { reply(["devices": try await hub.listDevices()]) } catch { reply(["error": error.localizedDescription]) }
+                do { reply(["devices": try await smartLife.listDevices()]) } catch { reply(["error": error.localizedDescription]) }
             }
         case "tuya.save":
             do {
-                try hub.saveTuya(accessId: message["accessId"] as? String ?? "", accessSecret: message["accessSecret"] as? String ?? "",
+                try smartLife.saveTuya(accessId: message["accessId"] as? String ?? "", accessSecret: message["accessSecret"] as? String ?? "",
                                  region: message["region"] as? String ?? "eu")
-                reply(hub.tuyaInfo)
+                reply(smartLife.tuyaInfo)
             } catch {
                 reply(["error": error.localizedDescription])
             }
+        #endif
         default:
             break
         }
@@ -608,7 +629,7 @@ final class AppModel {
             startPolling()
         }
         // Whatever this phone connected (or disconnected) since goes the other way.
-        sync.sendConnections(hub.shareableConnections, userCode: hub.smartLifeUserCode)
+        sync.sendConnections(hub.shareableConnections, userCode: smartLifeUserCode)
         sendCatalog()
         reconcilePlan(with: state)
     }
@@ -682,17 +703,30 @@ final class AppModel {
 
     // MARK: - Smart Life
 
+    /// The User Code of the Smart Life account, for the Mac (empty without Smart Life).
+    private var smartLifeUserCode: String {
+        #if SMART_LIFE
+        hub.smartLife?.userCode ?? ""
+        #else
+        ""
+        #endif
+    }
+
+    #if SMART_LIFE
+    /// Always there in the builds that include Smart Life.
+    private var smartLife: SmartLifePlatform { hub.smartLife! }
+
     func beginLogin(userCode: String) async throws -> (token: String, qrContent: String) {
-        try await hub.beginLogin(userCode: userCode)
+        try await smartLife.beginLogin(userCode: userCode)
     }
 
     /// True once the login was confirmed in the Smart Life app.
     func finishLogin(token: String, userCode: String) async -> Bool {
-        guard await hub.finishLogin(token: token, userCode: userCode) else { return false }
-        smartLifeConnected = hub.isSmartLifeConnected
-        smartLifeAccount = hub.smartLifeAccount
+        guard await smartLife.finishLogin(token: token, userCode: userCode) else { return false }
+        smartLifeConnected = smartLife.isSmartLifeConnected
+        smartLifeAccount = smartLife.account
         sync.showQR(nil)
-        sync.sendConnections(hub.shareableConnections, userCode: hub.smartLifeUserCode)
+        sync.sendConnections(hub.shareableConnections, userCode: smartLifeUserCode)
         editorWeb?.call("servicesChanged", hub.servicesInfo)
         Haptics.shared.play("success")
         startPolling()
@@ -703,12 +737,13 @@ final class AppModel {
     func showOnMac(_ qrContent: String?) -> Bool { sync.showQR(qrContent) }
 
     func signOut() {
-        hub.signOut()
+        smartLife.signOut()
         smartLifeConnected = false
         smartLifeAccount = ""
         pollTimer?.invalidate()
         pollTimer = nil
     }
+    #endif
 
     // MARK: - Home Assistant, Hue, Apple Home
 
@@ -741,7 +776,7 @@ final class AppModel {
         reloadLinks()
         startPolling()
         poll()
-        sync.sendConnections(hub.shareableConnections, userCode: hub.smartLifeUserCode)
+        sync.sendConnections(hub.shareableConnections, userCode: smartLifeUserCode)
         editorWeb?.call("servicesChanged", hub.servicesInfo)
     }
 

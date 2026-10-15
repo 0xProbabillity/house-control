@@ -2,10 +2,12 @@
 # Builds the iPhone app for the simulator and launches it there.
 #   ./scripts/ios-sim.sh                 build + install + launch on the booted simulator
 #   HOUSE_SCREEN=settings ./scripts/ios-sim.sh   …opening on a given screen (settings, pairing, smartlife, welcome, home)
+#   EDITION=appstore ./scripts/ios-sim.sh        …the App Store edition, without Smart Life
 # Any HOUSE_* variable set here is passed on to the app.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DEVICE="${DEVICE:-iPhone 17 Pro}"
+DEVICE="${DEVICE:-iPhone 17 Pro}"   # a simulator's name or UDID
+[[ "$DEVICE" =~ ^[0-9A-F-]{36}$ ]] && DEST="id=$DEVICE" || DEST="name=$DEVICE"
 
 if [ -z "${SKIP_WEB:-}" ]; then
   cd "$ROOT/web"
@@ -14,9 +16,10 @@ if [ -z "${SKIP_WEB:-}" ]; then
 fi
 
 cd "$ROOT/ios"
-xcodegen generate --quiet
+[ "${EDITION:-smartlife}" = appstore ] && SPEC=project.yml || SPEC=project-smartlife.yml
+xcodegen generate --spec "$SPEC" --quiet
 xcodebuild -project HouseControl.xcodeproj -scheme HouseControl -configuration Debug \
-  -destination "platform=iOS Simulator,name=$DEVICE" -derivedDataPath build/DerivedData \
+  -destination "platform=iOS Simulator,$DEST" -derivedDataPath build/DerivedData \
   CODE_SIGN_IDENTITY=- build 2>&1 | grep -E "error|warning: |BUILD" | grep -v appintentsmetadataprocessor || true
 APP="build/DerivedData/Build/Products/Debug-iphonesimulator/HouseControl.app"
 [ -d "$APP" ] || { echo "Build failed"; exit 1; }
@@ -33,4 +36,4 @@ fi
 xcrun simctl bootstatus "$DEVICE" -b >/dev/null
 xcrun simctl install "$DEVICE" "$APP"
 for name in $(compgen -v | grep '^HOUSE_' || true); do export "SIMCTL_CHILD_$name=${!name}"; done
-xcrun simctl launch --terminate-running-process "$DEVICE" io.github.0xprobabillity.HouseControl
+xcrun simctl launch --terminate-running-process "$DEVICE" "$(/usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" "$APP/Info.plist")"

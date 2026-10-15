@@ -18,7 +18,9 @@ struct EditorScreen: View {
             NavigationStack {
                 Group {
                     switch route {
+                    #if SMART_LIFE
                     case .smartLife: SmartLifeView()
+                    #endif
                     case .homeAssistant: HomeAssistantView()
                     case .hue: HueView()
                     default: EmptyView()

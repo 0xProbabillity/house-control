@@ -1,4 +1,5 @@
 import Foundation
+import HouseCore
 
 /// Offline self-checks and the read-only diagnostic behind the Mac binary's command line
 /// flags (`--selftest-mapper`, `--selftest-infrared`, `--selftest-transport`, `--diagnose`).
@@ -52,9 +53,10 @@ public enum SelfTest {
         // (status + specification). It only reads; nothing is sent to the devices.
         if let flag = arguments.firstIndex(of: "--diagnose") {
             let ids = Array(arguments[(flag + 1)...])
-            let hub = DeviceHub(directory: PlanStore().directory)
+            let directory = PlanStore().directory
+            let cloud = SmartLifePlatform(directory: directory) { FileSecretStore(url: directory.appendingPathComponent("\($0).json")) }
             Task { @MainActor in
-                let dump = await hub.diagnostics(for: ids)
+                let dump = await cloud.diagnostics(for: ids)
                 let data = (try? JSONSerialization.data(withJSONObject: dump, options: [.prettyPrinted, .sortedKeys])) ?? Data()
                 print(String(data: data, encoding: .utf8) ?? "{}")
                 exit(0)

@@ -1,0 +1,30 @@
+# The Smart Life edition of the iPhone app: everything in project.yml plus the Smart Life /
+# Tuya module (HouseSmartLife). Smart Life is reached through the sign-in Home Assistant's
+# Tuya integration uses, not through an API Tuya offers to apps, so this edition is for
+# TestFlight and own use only, never the App Store. It is its own app (bundle id and App
+# Group), so both editions can sit on one iPhone without mixing their widgets:
+#   xcodegen generate --spec project-smartlife.yml
+# scripts/build-ios.sh and scripts/ios-sim.sh build it unless EDITION=appstore.
+include: [project.yml]
+targets:
+  HouseControl:
+    dependencies:
+      - package: HouseCore
+        product: HouseSmartLife
+    info:
+      properties:
+        NSPhotoLibraryAddUsageDescription: House Control saves the Smart Life sign-in code to Photos, so the Smart Life app on this iPhone can scan it from there.
+    settings:
+      base:
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) SMART_LIFE
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.0xprobabillity.HouseControl
+        HOUSE_APP_GROUP: group.io.github.0xprobabillity.HouseControl
+  HouseWidgets:
+    dependencies:
+      - package: HouseCore
+        product: HouseSmartLife
+    settings:
+      base:
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) SMART_LIFE
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.0xprobabillity.HouseControl.Widgets
+        HOUSE_APP_GROUP: group.io.github.0xprobabillity.HouseControl

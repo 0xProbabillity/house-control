@@ -1,3 +1,4 @@
+#if SMART_LIFE
 import SwiftUI
 import Photos
 import HouseCore
@@ -300,3 +301,4 @@ private struct QRImage: Transferable {
             .suggestedFileName("Smart Life sign-in code.png")
     }
 }
+#endif

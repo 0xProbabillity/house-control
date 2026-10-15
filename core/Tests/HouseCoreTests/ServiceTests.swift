@@ -248,13 +248,6 @@ final class ServiceTests: XCTestCase {
         XCTAssertTrue(fake.sent.count == 1)
     }
 
-    func testSmartLifeDevicesGetAKind() {
-        XCTAssertEqual(DeviceHub.smartLifeDevice(["id": "1", "category": "dj", "codes": ["switch_led", "bright_value_v2", "temp_value_v2"]])["kind"] as? String, "light")
-        XCTAssertEqual(DeviceHub.smartLifeDevice(["id": "2", "category": "infrared_ac", "codes": ["PowerOn", "T"]])["kind"] as? String, "ac")
-        XCTAssertEqual(DeviceHub.smartLifeDevice(["id": "3", "category": "wsdcg", "codes": ["temp_current"]])["kind"] as? String, "sensor")
-        XCTAssertEqual(DeviceHub.smartLifeDevice(["id": "1", "category": "dj", "codes": ["switch_led", "bright_value_v2"]])["capabilities"] as? [String], ["brightness"])
-    }
-
     // MARK: - A real Home Assistant (opt-in)
 
     func testLiveHomeAssistant() async throws {

@@ -27,8 +27,11 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
     pairing: null,   // { host, until } while waiting for the Hue button
   };
 
+  // The platforms this app offers: the native side lists them (the iPhone's App Store
+  // edition has no Smart Life). A plain browser shows them all.
+  const offered = () => (isNative && boot.services ? ORDER.filter((id) => id in state.info) : ORDER);
   const connected = (id) => Boolean(state.info[id]?.connected);
-  const anyConnected = () => ORDER.some(connected);
+  const anyConnected = () => offered().some(connected);
   const devicesOf = (id) => (state.devices || []).filter((d) => d.service === id);
 
   async function refreshInfo() {
@@ -58,7 +61,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
   /* ---------- sidebar ---------- */
 
   function sidebarRow(active, select) {
-    const n = ORDER.filter(connected).length;
+    const n = offered().filter(connected).length;
     return h(`button.row.tuya-row${active ? '.active' : ''}`, { onclick: select },
       icon('link', 15), h('span.row-name', 'Connections'),
       h(`span.pill${n ? '.on' : ''}`, n ? `${n} connected` : 'Demo mode'));
@@ -84,12 +87,12 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
   function overview() {
     if (anyConnected() && !state.devices && !state.loading) setTimeout(() => load(), 0);
     return [
-      h('div.svc-cards', ORDER.map((id) => h('button.svc-card', { onclick: () => onOpen(id) },
+      h('div.svc-cards', offered().map((id) => h('button.svc-card', { onclick: () => onOpen(id) },
         tile(id),
         h('div.svc-text', h('b', SERVICES[id].name), h('span', LOOK[id].blurb)),
         h(`span.svc-status${connected(id) ? '.on' : ''}`, connected(id) ? icon('ok', 13, 2.4) : null, statusText(id)),
         icon('next', 16)))),
-      h('p.note', 'Lamps and ACs stay simulated until you link them: pick one on the plan, then choose its device under “Real device”. One home can mix all four.'),
+      h('p.note', 'Lamps and ACs stay simulated until you link them: pick one on the plan, then choose its device under “Real device”. One home can mix them all.'),
       isNative ? null : h('p.note.bad', 'Connecting works inside the House Control app (this is the browser preview).'),
     ];
   }
@@ -307,7 +310,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
     const select = h('select');
     select.append(h('option', { value: '' }, kind === 'sensor' ? 'None — estimated' : 'Not linked — simulated'));
     let found = false;
-    for (const id of ORDER) {
+    for (const id of offered()) {
       const list = devicesOf(id).filter((d) => d.kind === kind && include(d));
       if (!list.length) continue;
       select.append(h('optgroup', { label: SERVICES[id].name }, list.map((d) => {

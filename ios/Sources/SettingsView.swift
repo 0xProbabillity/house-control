@@ -20,7 +20,9 @@ struct SettingsView: View {
                     homeSection
                     shortcutsSection
                     macSection
+                    #if SMART_LIFE
                     smartLifeSection
+                    #endif
                     connectionsSection
                     aboutSection
                 }
@@ -40,7 +42,11 @@ struct SettingsView: View {
             .navigationDestination(for: SettingsRoute.self) { route in
                 switch route {
                 case .pairing: PairingView()
+                #if SMART_LIFE
                 case .smartLife: SmartLifeView()
+                #else
+                case .smartLife: EmptyView()
+                #endif
                 case .quickActions: QuickActionsView()
                 case .homeAssistant: HomeAssistantView()
                 case .hue: HueView()
@@ -264,6 +270,7 @@ struct SettingsView: View {
 
     // MARK: - Smart Life
 
+    #if SMART_LIFE
     private var smartLifeSection: some View {
         VStack(spacing: 10) {
             SectionTitle("Smart Life")
@@ -311,12 +318,13 @@ struct SettingsView: View {
             }
         }
     }
+    #endif
 
     // MARK: - Home Assistant, Hue, Apple Home
 
     private var connectionsSection: some View {
         VStack(spacing: 10) {
-            SectionTitle("More connections")
+            SectionTitle(AppModel.includesSmartLife ? "More connections" : "Connections")
             Card {
                 NavigationLink(value: SettingsRoute.homeAssistant) {
                     serviceRow(symbol: "server.rack", tint: ConnectionLook.homeAssistant, title: "Home Assistant",
@@ -412,7 +420,25 @@ struct SettingsView: View {
                 RowDivider().padding(.leading, -52)
                 infoRow("Privacy", value: "No account, no analytics")
             }
-            footnote("House Control talks to your own devices: Tuya's servers for Smart Life, your Home Assistant, your Hue Bridge, Apple Home, and your Mac. Nothing else leaves this iPhone.")
+            footnote(AppModel.includesSmartLife
+                ? "House Control talks to your own devices: Tuya's servers for Smart Life, your Home Assistant, your Hue Bridge, Apple Home, and your Mac. Nothing else leaves this iPhone."
+                : "House Control talks to your own devices: your Home Assistant, your Hue Bridge, Apple Home, and your Mac. Nothing else leaves this iPhone.")
+            Card {
+                webRow(About.website, symbol: "globe", tint: Theme.accent, title: "Website", detail: "Features, help and the Mac app")
+                RowDivider()
+                webRow(About.privacy, symbol: "hand.raised.fill", tint: Theme.green, title: "Privacy Policy", detail: "Nothing is collected")
+                RowDivider()
+                webRow(About.support, symbol: "questionmark.circle.fill", tint: Theme.warm, title: "Support", detail: "Questions and problems")
+            }
+            SectionTitle("Developer").padding(.top, 20)
+            Card {
+                webRow(About.x, symbol: "at", tint: Theme.text, title: "\(About.developer) on X", detail: "@0xProbabillity")
+                RowDivider()
+                webRow(About.github, symbol: "chevron.left.forwardslash.chevron.right", tint: Theme.text,
+                       title: "\(About.developer) on GitHub", detail: "github.com/0xProbabillity")
+                RowDivider()
+                webRow(About.source, symbol: "shippingbox.fill", tint: Theme.text, title: "Source code", detail: "House Control is open source")
+            }
         }
     }
 
@@ -429,6 +455,26 @@ struct SettingsView: View {
         }
         .padding(.horizontal, 16)
         .frame(minHeight: 52)
+    }
+
+    /// A row that opens a web page in the browser.
+    private func webRow(_ url: URL, symbol: String, tint: Color, title: String, detail: String) -> some View {
+        Link(destination: url) {
+            HStack(spacing: 14) {
+                IconBadge(symbol: symbol, tint: tint)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
+                    Text(detail).font(.system(size: 13.5)).foregroundStyle(Theme.muted).lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "arrow.up.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.faint)
+            }
+            .padding(.horizontal, 14)
+            .frame(minHeight: 66)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(RowButtonStyle())
+        .accessibilityHint("Opens in Safari")
     }
 
     private func footnote(_ text: String) -> some View {

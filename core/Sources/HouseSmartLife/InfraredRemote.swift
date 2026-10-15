@@ -1,4 +1,5 @@
 import Foundation
+import HouseCore
 
 /// Drives air conditioners that are a remote control learned by an infrared blaster.
 ///

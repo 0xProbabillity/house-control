@@ -9,7 +9,8 @@ let package = Package(
     ],
     targets: [
         .executableTarget(name: "HouseControl",
-                          dependencies: [.product(name: "HouseCore", package: "core")],
+                          dependencies: [.product(name: "HouseCore", package: "core"),
+                                         .product(name: "HouseSmartLife", package: "core")],
                           path: "Sources/HouseControl")
     ]
 )

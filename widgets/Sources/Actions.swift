@@ -1,6 +1,9 @@
 import Foundation
 import WidgetKit
 import HouseCore
+#if SMART_LIFE
+import HouseSmartLife
+#endif
 
 /// Carries out what a widget or a control asked for.
 ///
@@ -8,8 +11,8 @@ import HouseCore
 /// at once) and queued for the app. On the Mac the app is running in the menu bar: it takes
 /// the queue straight away and sends the change through the panel, like a click there.
 /// On the iPhone the app is usually not running, so the widget reaches Home Assistant, Hue
-/// and Smart Life itself, with the connections the app keeps in the shared Keychain group;
-/// what it cannot reach from here (Apple Home) waits for the app to open.
+/// and Smart Life (where it is built in) itself, with the connections the app keeps in the
+/// shared Keychain group; what it cannot reach from here (Apple Home) waits for the app to open.
 enum WidgetActions {
     /// Returns false when the action could not be applied (no home yet, or nothing changed).
     @discardableResult
@@ -39,7 +42,11 @@ enum WidgetActions {
 
     #if os(iOS)
     /// The platforms a widget can reach without the app.
+    #if SMART_LIFE
     private static let reachable: Set<String> = ["smartlife", "homeassistant", "hue"]
+    #else
+    private static let reachable: Set<String> = ["homeassistant", "hue"]
+    #endif
 
     /// True when every change reached its device (simulated devices always do).
     @MainActor
@@ -49,8 +56,13 @@ enum WidgetActions {
         guard !real.isEmpty else { return true }
         if real.contains(where: { !reachable.contains((services[$0.id] ?? nil) ?? "") }) { return false }
         let app = appBundleIdentifier
-        let hub = DeviceHub(directory: shared.directory.appendingPathComponent("Hub", isDirectory: true),
-                            secret: { KeychainSecretStore(service: app, account: $0) })
+        let directory = shared.directory.appendingPathComponent("Hub", isDirectory: true)
+        let secret: (String) -> SecretStore = { KeychainSecretStore(service: app, account: $0) }
+        #if SMART_LIFE
+        let hub = DeviceHub(directory: directory, secret: secret, cloud: SmartLifePlatform.init)
+        #else
+        let hub = DeviceHub(directory: directory, secret: secret)
+        #endif
         hub.setLinks(from: home.linksPlan)
         var ok = true
         for change in real {

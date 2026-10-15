@@ -1,4 +1,6 @@
 # The Xcode project is generated from this file: `xcodegen generate` (scripts/build-ios.sh does it).
+# This is the App Store edition: Home Assistant, Philips Hue and Apple Home. The edition with
+# Smart Life on top (TestFlight, own use) is project-smartlife.yml, which includes this file.
 name: HouseControl
 options:
   bundleIdPrefix: io.github.0xprobabillity
@@ -32,13 +34,13 @@ targets:
       properties:
         com.apple.developer.homekit: true
         # Shared with the widgets: the home they draw, and the connections they use.
-        com.apple.security.application-groups: [group.io.github.0xprobabillity.HouseControl]
+        com.apple.security.application-groups: [$(HOUSE_APP_GROUP)]
         keychain-access-groups: [$(AppIdentifierPrefix)io.github.0xprobabillity.HouseControl]
     info:
       path: Config/Info.plist
       properties:
         CFBundleDisplayName: House Control
-        HouseAppGroup: group.io.github.0xprobabillity.HouseControl
+        HouseAppGroup: $(HOUSE_APP_GROUP)
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.lifestyle
@@ -55,13 +57,14 @@ targets:
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
         NSCameraUsageDescription: The camera reads the pairing code shown by House Control on your Mac.
-        NSPhotoLibraryAddUsageDescription: House Control saves the Smart Life sign-in code to Photos, so the Smart Life app on this iPhone can scan it from there.
         CFBundleURLTypes:
           - CFBundleURLName: io.github.0xprobabillity.HouseControl.pair
             CFBundleURLSchemes: [housecontrol]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: io.github.0xprobabillity.HouseControl
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.0xprobabillity.HouseControl3D
+        # Shared with the widgets: the home they draw, and the actions they queue.
+        HOUSE_APP_GROUP: group.io.github.0xprobabillity.HouseControl3D
         PRODUCT_NAME: HouseControl
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -84,7 +87,7 @@ targets:
     entitlements:
       path: ../widgets/Config/iOS.entitlements
       properties:
-        com.apple.security.application-groups: [group.io.github.0xprobabillity.HouseControl]
+        com.apple.security.application-groups: [$(HOUSE_APP_GROUP)]
         keychain-access-groups: [$(AppIdentifierPrefix)io.github.0xprobabillity.HouseControl]
     info:
       path: ../widgets/Config/Info-iOS.plist
@@ -92,12 +95,13 @@ targets:
         CFBundleDisplayName: House Control
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        HouseAppGroup: group.io.github.0xprobabillity.HouseControl
+        HouseAppGroup: $(HOUSE_APP_GROUP)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: io.github.0xprobabillity.HouseControl.Widgets
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.0xprobabillity.HouseControl3D.Widgets
+        HOUSE_APP_GROUP: group.io.github.0xprobabillity.HouseControl3D
         PRODUCT_NAME: HouseWidgets
         TARGETED_DEVICE_FAMILY: "1"
         SWIFT_VERSION: "5.0"
