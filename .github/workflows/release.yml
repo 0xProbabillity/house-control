@@ -93,7 +93,9 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           # The notes are this version's section of CHANGELOG.md, or GitHub's list of commits without one.
-          awk -v v="$VERSION" '$0 ~ "^## " { if (on) exit; on = index($0, "## " v " ") == 1; next } on' CHANGELOG.md > build/notes.md
+          # Lines wrapped inside a list item are joined: release notes keep every line break.
+          awk -v v="$VERSION" '$0 ~ "^## " { if (on) exit; on = index($0, "## " v " ") == 1; next } on' CHANGELOG.md |
+            perl -0pe 's/\n {2,}(?=\S)/ /g' > build/notes.md
           if [ -s build/notes.md ]; then
             printf '\n**Full changelog:** [CHANGELOG.md](%s/%s/blob/%s/CHANGELOG.md)\n' \
               "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" >> build/notes.md

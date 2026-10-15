@@ -13,7 +13,7 @@ What changed in each release of House Control. The Mac app is on
 - **Quick actions** on the iPhone's app icon, chosen in Settings.
 - Every widget is live: tap a lamp, a scene or an AC and it switches without opening the app. On the Mac the app in
   the menu bar carries it out; on the iPhone the widget talks to Home Assistant, Hue and Smart Life itself.
-  See [docs/widgets.md](docs/widgets.md).
+  See [docs/widgets.md](https://github.com/0xProbabillity/house-control/blob/main/docs/widgets.md).
 
 ### An iPhone app that needs no Mac
 
