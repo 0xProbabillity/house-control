@@ -1098,7 +1098,14 @@ export async function bootEditor(root) {
     const lift = (ev) => {
       if (!fingers.delete(ev.pointerId)) return;
       if (!gesture) return;
-      if (gesture.type === 'drag') { endDrag(); gesture = null; return; }
+      if (gesture.type === 'drag') {
+        // A tap on what is already selected (just added, say) brings up its details.
+        const tapped = ev.type === 'pointerup' && drag && !drag.moved && drag.kind !== 'resize';
+        endDrag();
+        gesture = null;
+        if (tapped && ui.sheet === 'closed') { haptic('light'); setSheet('peek'); }
+        return;
+      }
       if (gesture.type === 'pinch') {
         // One finger stays down: it carries on panning from here.
         const [rest] = [...fingers.values()];
