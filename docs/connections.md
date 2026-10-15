@@ -11,12 +11,15 @@ Everything you do not link stays simulated.
 | **Philips Hue** | ✓ | ✓ (from the Mac) | The Hue Bridge's own API, on your network | Press the bridge's button once |
 | **Apple Home** | Linking only | ✓ | HomeKit, on the iPhone | Allow access to your Home data |
 
-All four are set up in the editor: right-click the menu bar icon → **Edit Home… → Connections**. Then select a
-lamp or an AC on the plan, choose its device under **Real device**, and press **Save & apply**. Picking a lamp
-fills in what it can do (dimming, white temperature, colour); picking an AC takes over its temperature range.
+On the Mac all four are set up in the editor: right-click the menu bar icon → **Edit Home… → Connections**. Then
+select a lamp or an AC on the plan, choose its device under **Real device**, and press **Save & apply**. Picking a
+lamp fills in what it can do (dimming, white temperature, colour); picking an AC takes over its temperature range.
 
-The iPhone gets the Home Assistant and Hue connections from the Mac together with the floor plan, over the
-paired, encrypted link, so there is nothing to set up twice.
+On the iPhone they are in **Settings**: Smart Life, Home Assistant and Philips Hue each have their own screen, and
+**Settings → Devices** links the plan's lamps and ACs (or adds your devices to a room, already linked). No Mac is
+needed. When a Mac is paired, the Home Assistant and Hue connections travel between the two over their encrypted
+link, in whichever direction they were set up, so there is nothing to set up twice. Smart Life signs in on each
+device separately: its session cannot be shared, Tuya renews it as it is used.
 
 ## Home Assistant
 
@@ -108,10 +111,10 @@ emulator and a HomeKit bridge you can add to the Home app. See [tools/lab/README
 
 ## Privacy
 
-Credentials stay on your Mac, in `~/Library/Application Support/HouseControl/` (readable only by you):
+Credentials stay on your devices. On the Mac they are in `~/Library/Application Support/HouseControl/` (readable only by you):
 `homeassistant.json` (address and token), `hue.json` (bridge address, key and certificate fingerprint) and
 `homekit-devices.json` (the device list your iPhone sent: names and HomeKit ids, no credentials).
-**Disconnect** deletes them. Paired iPhones receive the Home Assistant and Hue connections over their encrypted
-link and keep them in the Keychain. Nothing goes through a server of ours — there is none.
+On the iPhone they are in the Keychain. **Disconnect** deletes them, on both when they are paired. A Mac and its
+paired iPhones exchange the Home Assistant and Hue connections over their encrypted link. Nothing goes through a server of ours — there is none.
 
 When something does not react, **Reveal Device Log** in the menu bar icon's menu shows each command and the answer.

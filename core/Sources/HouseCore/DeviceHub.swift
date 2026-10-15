@@ -49,6 +49,7 @@ public final class DeviceHub {
     public init(directory: URL, secret: ((String) -> SecretStore)? = nil, homeKit: DeviceService? = nil) {
         let vault = secret ?? { FileSecretStore(url: directory.appendingPathComponent("\($0).json")) }
         log = EventLog(directory: directory)
+        stampsURL = directory.appendingPathComponent("connections-sync.json")
         tuya = TuyaService(directory: directory)
         smartLife = SmartLifeService(vault: vault("smartlife"))
         homeAssistant = HomeAssistantService(vault: vault("homeassistant"))
@@ -353,19 +354,96 @@ public final class DeviceHub {
         return out
     }
 
-    /// The connections a paired iPhone may take over: Home Assistant and Hue. (Apple Home
-    /// is the phone's own; the Smart Life session cannot be shared, Tuya rotates its tokens.)
+    // MARK: - Connections shared between the Mac and its iPhones
+
+    /// The platforms whose connection travels between paired devices. (Apple Home is the
+    /// phone's own; a Smart Life session cannot be shared, Tuya rotates its tokens.)
+    public static let shareablePlatforms = ["homeassistant", "hue"]
+
+    /// When each shareable platform was last connected or disconnected on this device, or
+    /// adopted from another one: the newer side wins when two devices disagree.
+    private var stamps: [String: Double] {
+        get {
+            guard let data = try? Data(contentsOf: stampsURL),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Double] else { return [:] }
+            return json
+        }
+        set { try? JSONSerialization.data(withJSONObject: newValue).write(to: stampsURL, options: .atomic) }
+    }
+    private let stampsURL: URL
+
+    private func shareable(_ id: String) -> [String: Any]? {
+        id == "homeassistant" ? homeAssistant.shareable : id == "hue" ? hue.shareable : nil
+    }
+
+    /// Connects Home Assistant (checking the address and token first) and remembers when.
+    public func connectHomeAssistant(url: String, token: String) async throws {
+        try await homeAssistant.connect(url: url, token: token)
+        stamp("homeassistant")
+    }
+
+    /// Pairs with a Hue Bridge; throws `HueService.ButtonNotPressed` until its button is pressed.
+    public func pairHue(host: String, bridgeId: String?, name: String?) async throws {
+        try await hue.pair(host: host, bridgeId: bridgeId, name: name)
+        stamp("hue")
+    }
+
+    /// Disconnects a platform; for Home Assistant and Hue the paired devices follow.
+    public func disconnect(service id: String) {
+        services.first { $0.id == id }?.disconnect()
+        if Self.shareablePlatforms.contains(id) { stamp(id) }
+    }
+
+    private func stamp(_ id: String) {
+        var all = stamps
+        all[id] = max(Date().timeIntervalSince1970, (all[id] ?? 0) + 0.001)
+        stamps = all
+    }
+
+    /// This device's Home Assistant and Hue connections for its paired devices: the address
+    /// and token / bridge key plus when they were set, or `removed` after a disconnect.
     public var shareableConnections: [String: Any] {
+        let known = stamps
         var out: [String: Any] = [:]
-        if let ha = homeAssistant.shareable { out["homeassistant"] = ha }
-        if let hue = hue.shareable { out["hue"] = hue }
+        for id in Self.shareablePlatforms {
+            let updated = known[id] ?? 0
+            if var config = shareable(id) {
+                config["updated"] = updated
+                out[id] = config
+            } else if updated > 0 {
+                out[id] = ["removed": true, "updated": updated]
+            }
+        }
         return out
     }
 
-    /// Takes the connections the Mac shared; a platform missing from them is disconnected.
-    public func adoptConnections(_ shared: [String: Any]) {
-        homeAssistant.adopt(shared["homeassistant"] as? [String: Any])
-        hue.adopt(shared["hue"] as? [String: Any])
+    /// Takes what another device shared, platform by platform, where it is newer than what
+    /// this device has. A platform missing from `shared` is left alone. Returns true when a
+    /// connection changed here.
+    @discardableResult
+    public func adoptConnections(_ shared: [String: Any]) -> Bool {
+        var known = stamps
+        var changed = false
+        for id in Self.shareablePlatforms {
+            guard let incoming = shared[id] as? [String: Any] else { continue }
+            let theirs = (incoming["updated"] as? NSNumber)?.doubleValue ?? 0
+            let ours = known[id]
+            // A peer without stamps (an older version) only fills in what was never set here.
+            let newer = theirs > 0 ? theirs > (ours ?? 0) : (ours ?? 0) == 0
+            guard newer else { continue }
+            let before = shareable(id).map { NSDictionary(dictionary: $0) }
+            if incoming["removed"] as? Bool == true {
+                services.first { $0.id == id }?.disconnect()
+            } else if id == "homeassistant" {
+                homeAssistant.adopt(incoming)
+            } else {
+                hue.adopt(incoming)
+            }
+            known[id] = theirs
+            if shareable(id).map({ NSDictionary(dictionary: $0) }) != before { changed = true }
+        }
+        stamps = known
+        return changed
     }
 
     /// Read-only snapshot of what Smart Life reports for the given devices.

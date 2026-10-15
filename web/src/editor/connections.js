@@ -90,7 +90,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
         h(`span.svc-status${connected(id) ? '.on' : ''}`, connected(id) ? icon('ok', 13, 2.4) : null, statusText(id)),
         icon('next', 16)))),
       h('p.note', 'Lamps and ACs stay simulated until you link them: pick one on the plan, then choose its device under “Real device”. One home can mix all four.'),
-      isNative ? null : h('p.note.bad', 'Connecting is only available inside the macOS app (this is the browser preview).'),
+      isNative ? null : h('p.note.bad', 'Connecting works inside the House Control app (this is the browser preview).'),
     ];
   }
 

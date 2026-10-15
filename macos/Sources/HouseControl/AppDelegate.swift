@@ -31,6 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return agent
     }()
     private var lastSummary: [String: Any] = [:]
+    /// The Smart Life User Code a paired iPhone signed in with, to save typing it here.
+    private var phoneUserCode = ""
     /// Desktop widgets and Control Center controls: what they show, what they asked for.
     private let widgets = WidgetBridge()
 
@@ -209,7 +211,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func bootPayload() -> [String: Any] {
         var boot = plans.bootPayload()
         boot["tuya"] = hub.tuyaInfo
-        boot["smartLife"] = hub.smartLifeInfo
+        var smartLife = hub.smartLifeInfo
+        // Not signed in here yet: offer the User Code a paired iPhone signed in with.
+        if !hub.isSmartLifeConnected, !phoneUserCode.isEmpty { smartLife["userCode"] = phoneUserCode }
+        boot["smartLife"] = smartLife
         boot["services"] = hub.servicesInfo
         switch ProcessInfo.processInfo.environment["HOUSE_OPEN_EDITOR"] {
         case "smartlife": boot["section"] = "service:smartlife"
@@ -421,7 +426,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "homeassistant.connect":
             Task { @MainActor in
                 do {
-                    try await hub.homeAssistant.connect(url: message["url"] as? String ?? "", token: message["token"] as? String ?? "")
+                    try await hub.connectHomeAssistant(url: message["url"] as? String ?? "", token: message["token"] as? String ?? "")
                     connectionsChanged()
                     host.reply(to: message, hub.servicesInfo)
                 } catch {
@@ -431,8 +436,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "hue.pair":
             Task { @MainActor in
                 do {
-                    try await hub.hue.pair(host: message["host"] as? String ?? "", bridgeId: message["bridgeId"] as? String,
-                                           name: message["name"] as? String)
+                    try await hub.pairHue(host: message["host"] as? String ?? "", bridgeId: message["bridgeId"] as? String,
+                                          name: message["name"] as? String)
                     connectionsChanged()
                     host.reply(to: message, hub.servicesInfo)
                 } catch is HueService.ButtonNotPressed {
@@ -442,7 +447,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         case "service.disconnect":
-            hub.services.first { $0.id == message["service"] as? String }?.disconnect()
+            hub.disconnect(service: message["service"] as? String ?? "")
             connectionsChanged()
             host.reply(to: message, hub.servicesInfo)
         default:
@@ -530,9 +535,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             catalog.update(devices: devices, from: phone)
             self.editor?.host.call("servicesChanged", self.hub.servicesInfo)
         }
+        // A home set up or edited on the iPhone becomes this Mac's home too.
+        sync.onPlan = { [weak self] data, phone in self?.receivedPlan(data, from: phone) }
+        sync.onConnections = { [weak self] shared, userCode, _ in
+            guard let self else { return }
+            if !userCode.isEmpty { self.phoneUserCode = userCode }
+            if self.hub.adoptConnections(shared) {
+                self.connectionsChanged()
+                self.editor?.host.call("servicesChanged", self.hub.servicesInfo)
+            }
+        }
         sync.onPeersChanged = { [weak self] in self?.refreshPairingWindow() }
         sync.onShowQR = { [weak self] content, device in self?.showLoginCode(content, for: device) }
         sync.start() // only listens once a phone has been paired
+    }
+
+    /// Stores a plan an iPhone saved. The first one becomes the active home; later ones
+    /// replace it (a Mac that switched to a demo plan stays there, like the phone does).
+    private func receivedPlan(_ data: Data, from phone: String) {
+        let first = !plans.hasCustomPlan
+        do {
+            try plans.saveCustom(data: data, select: first || plans.activePlan == "custom")
+        } catch {
+            NSLog("House Control: could not store the plan from %@: %@", phone, error.localizedDescription)
+            return
+        }
+        reloadLinks()
+        widgets.isReady = false
+        panel.host.load()
+        if island?.isShown == true { island?.host.load() }
+        sync.broadcast()
+        // An open editor takes the new plan unless it holds unsaved changes of its own.
+        if let editor, let plan = plans.customPlan() { editor.host.call("planArrived", plan, phone) }
     }
 
     /// Shows the QR code an iPhone scans once to find this Mac and receive its floor plan.
@@ -553,7 +587,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         pairingWindow?.show(code: pairing.link,
                             headline: "Scan with House Control on your iPhone",
                             detail: "On the iPhone open Settings → Pair with Mac. Both devices must be on the same Wi-Fi. "
-                                + "Your floor plan is sent straight from this Mac to the phone, encrypted with the key in this code.")
+                                + "Your floor plan, device links and connections stay the same on both, whichever one you edit; "
+                            + "they travel straight between them, encrypted with the key in this code.")
         refreshPairingWindow()
     }
 

@@ -29,6 +29,9 @@ public final class SyncClient {
     private var qrUnsent = false
     /// This phone's Apple Home devices, waiting to be sent to the Mac.
     private var catalog: [[String: Any]]?
+    /// This phone's Home Assistant and Hue connections and Smart Life User Code, waiting to be
+    /// sent to the Mac.
+    private var connections: (shared: [String: Any], userCode: String)?
     /// Set to connect straight to a host and port instead of browsing (tests).
     var fixedEndpoint: NWEndpoint?
 
@@ -108,6 +111,29 @@ public final class SyncClient {
     public func sendCatalog(_ devices: [[String: Any]]) {
         catalog = devices
         flushCatalog()
+    }
+
+    /// Hands the Mac this phone's connections, now or as soon as it is connected. The Mac
+    /// keeps whichever side changed a platform last.
+    public func sendConnections(_ shared: [String: Any], userCode: String) {
+        connections = (shared, userCode)
+        flushConnections()
+    }
+
+    private func flushConnections() {
+        guard let connections, let channel, status == .connected else { return }
+        channel.send(["type": "connections", "connections": connections.shared, "userCode": connections.userCode])
+        self.connections = nil
+    }
+
+    /// Sends a floor plan edited on this phone to the Mac (the file byte for byte, so both
+    /// sides compute the same revision). Not queued: false when the Mac is not connected
+    /// right now, and the next state it sends decides what happens to the edit.
+    @discardableResult
+    public func sendPlan(_ data: Data) -> Bool {
+        guard let channel, status == .connected, let text = String(data: data, encoding: .utf8) else { return false }
+        channel.send(["type": "plan", "plan": text])
+        return true
     }
 
     private func flushCatalog() {
@@ -191,6 +217,7 @@ public final class SyncClient {
             self.set(.connected)
             _ = self.flushQR()
             self.flushCatalog()
+            self.flushConnections()
             self.onState?(state)
         }
         channel.onClose = { [weak self] error in

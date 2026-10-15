@@ -38,7 +38,8 @@
 - **Widgets and controls.** The home in 3D on the iPhone's Home Screen and the Mac's desktop, scenes, lamps and
   air conditioners a tap away, Lock Screen and Control Center controls, and quick actions on the app icon.
   See [Widgets](#widgets).
-- **An iPhone app.** The same home in your pocket, kept in sync with the Mac over your own Wi-Fi.
+- **An iPhone app that needs no Mac.** Draw the home, connect Smart Life, Home Assistant, Hue and Apple Home and
+  link the devices, all on the phone. Pair a Mac later and both stay in sync, whichever one you edit.
   See [iPhone app](#iphone-app).
 - **Works without any hardware.** Until you sign in, every device is simulated, so you can try everything first.
 
@@ -185,6 +186,18 @@ Details, every tool, and the privacy model: [docs/ai-access.md](docs/ai-access.m
 The iPhone app is the panel made for a thumb: tap a lamp in the 3D view or its tile, drag across a tile to dim,
 touch and hold a light for brightness and colour, pinch the model to zoom, swipe in from the left edge to go back.
 
+It needs no Mac. Everything is set up on the phone, under **Settings** (the sliders button):
+
+- **New home** starts your own plan — one room, or the Studio or Apartment layout to adapt — and opens the editor.
+- **Edit floor plan** is the Mac's editor laid out for a finger: tap a room, lamp or AC to select it, drag what is
+  selected, drag anywhere else to pan, pinch to zoom. Its details come up in a sheet from the bottom; **Add**,
+  **Items**, **3D** and **Home** sit along the bottom edge. **Save** keeps the plan on the phone (and sends it to a
+  paired Mac).
+- **Devices** lists every lamp and AC of the plan by room; tap one and pick its real device from everything your
+  connected platforms have, or **Add devices to a room** to put several in at once, already linked.
+- **Smart Life**, **Home Assistant**, **Philips Hue** and **Apple Home** connect right there. Home Assistant servers
+  and Hue Bridges on the Wi-Fi are found by themselves.
+
 Try it in the simulator:
 
 ```bash
@@ -197,16 +210,18 @@ on your device. `./scripts/build-ios.sh --upload` archives it and sends it to Te
 
 ### Sync with the Mac
 
-Your floor plan — rooms, furniture, lamps, scenes and the links to real devices — is drawn on the Mac and travels
-to the phone by itself.
+Optional. Pair a Mac and your floor plan — rooms, furniture, lamps, scenes and the links to real devices — plus the
+Home Assistant and Hue connections stay the same on both, whichever one you set up or edit first.
 
 1. On the Mac: right-click the menu bar icon → **Pair iPhone…**. A QR code appears.
    macOS asks once whether House Control may find devices on your local network: allow it.
 2. On the iPhone: **Settings** (the sliders button) → **Pair with Mac**, and point the camera at the code.
    Or press **Copy Pairing Link** on the Mac and paste it on the phone.
 
-From then on, whenever both are on the same Wi-Fi and the app is open, the phone has what the Mac has:
-**Save & apply** in the editor updates the phone a moment later.
+From then on, whenever both are on the same Wi-Fi and the app is open, a plan saved on one reaches the other a
+moment later. A home set up on the phone first goes to the Mac when you pair them. If both changed the plan while
+apart, the phone asks which one to keep. A Home Assistant or Hue Bridge connected, or disconnected, on either side
+is the newest one on both.
 
 Nothing goes through a server. The Mac advertises itself with Bonjour and the two talk over TLS with a
 pre-shared key that only the QR code carries, so a device that never saw the code cannot connect.
@@ -216,7 +231,8 @@ pre-shared key that only the QR code carries, so a device that never saw the cod
 
 The phone signs in to Smart Life on its own: **Settings → Connect Smart Life**. The User Code is filled in from the
 Mac if you are signed in there. The sign-in code has to be scanned by the Smart Life app, which is on the very phone
-you are holding — so the paired Mac puts the code on its screen for you. Without a Mac, share the code to any other screen.
+you are holding. So **Save code to Photos**, then in Smart Life tap **+ → Scan** and open the picture from its photo
+button. A paired Mac also puts the code on its screen for you, and **Share code** sends it to any other screen.
 
 The session is kept in the iPhone's Keychain and never leaves the device.
 
@@ -364,7 +380,8 @@ Environment variables understood by the app:
 | `HOUSE_AGENT_LINK_FILE=/some/file` | Write the live AI Access link there, for scripted tests |
 | `HOUSE_EVAL_DIR=/some/folder` | Scripted UI checks: a `panel.js` / `editor.js` / `island.js` dropped there runs in that page (as an async function body) and its result is written to `<mode>.json` |
 
-The iPhone app understands `HOUSE_DATA_DIR`, `HOUSE_OPEN_DEVICE` and `HOUSE_SCREEN=home|settings|connections|pairing|smartlife|welcome`;
+The iPhone app understands `HOUSE_DATA_DIR`, `HOUSE_OPEN_DEVICE`, `HOUSE_SYNC_ENDPOINT=host:port` (a Mac test instance
+without Bonjour) and `HOUSE_SCREEN=home|settings|connections|pairing|smartlife|homeassistant|hue|devices|newhome|editor|welcome`;
 `scripts/ios-sim.sh` passes any `HOUSE_*` variable on to the simulator.
 
 For example, a throw-away instance on the demo plan, pinned open:

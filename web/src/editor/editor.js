@@ -1,12 +1,14 @@
-// Home editor (separate window): a top-down plan you can drag things around on,
-// an inspector for the selected item, a live 3D preview and the links to real devices.
+// Home editor (a window on the Mac, full screen on the iPhone): a top-down plan you can drag
+// things around on, an inspector for the selected item, a live 3D preview and the links to
+// real devices. On a phone the same pieces are laid out for a finger: the plan fills the
+// screen, the inspector is a sheet from the bottom, pinch zooms and drag pans.
 import './editor.css';
 import { normalize, loadRawConfig, LIGHT_KINDS, FLOOR_KINDS, isLinked } from '../config.js';
 import { createWorld } from '../three/world.js';
 import { FURNITURE_TYPES, footprint } from '../three/furniture.js';
 import { h, clamp } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
-import { isNative, call } from '../bridge.js';
+import { isNative, isPhone, call, post, haptic, incoming } from '../bridge.js';
 import { createConnections } from './connections.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -42,6 +44,7 @@ export async function bootEditor(root) {
       : startAt === 'tuya' ? { kind: 'service', service: 'smartlife' } : { kind: 'home' };
   let dirty = false;
   let world = null;
+  let phone = null; // the iPhone's layout and gestures, set up by buildPhoneLayout()
   let previewLights = true;
   const undo = [];
   const redo = [];
@@ -58,7 +61,9 @@ export async function bootEditor(root) {
     },
     toast,
     usedBy: () => links.usedMap(doc),
-    onOpen: (service) => select(service ? { kind: 'service', service } : { kind: 'connections' }),
+    // On the iPhone the connection screens are native ones, shown over the editor.
+    onOpen: (service) => (isPhone && service ? post('openConnection', { service })
+      : select(service ? { kind: 'service', service } : { kind: 'connections' })),
   });
   // Smart Life signed in or out on its own screen: the overview and the pickers follow.
   const smartLifeChanged = () => links.refreshInfo().then(() => links.load({ quiet: true }));
@@ -69,6 +74,8 @@ export async function bootEditor(root) {
   nameInput.addEventListener('input', () => { snapshot('name'); doc.name = nameInput.value; touch({ inspector: sel.kind === 'home' }); });
   const status = h('div.status');
   const saveBtn = h('button.btn.primary', { onclick: save }, icon('check', 15, 2.4), 'Save & apply');
+  const hint = h('div.hint', isPhone ? 'Tap to select · drag what is selected · pinch to zoom'
+    : 'Drag rooms, lamps and furniture · drag a room’s corner to resize · everything snaps to 5 cm');
   const toastEl = h('div.toast');
 
   const sidebar = h('aside.side');
@@ -77,7 +84,8 @@ export async function bootEditor(root) {
   const previewHost = h('div.preview');
   const previewToggle = h('button.chip', { onclick: () => { previewLights = !previewLights; schedulePreview(0); } });
 
-  root.replaceChildren(h('div.editor',
+  if (isPhone) buildPhoneLayout();
+  else root.replaceChildren(h('div.editor',
     h('header.bar',
       h('div.bar-title', icon('home', 17), nameInput),
       h('div.bar-actions',
@@ -87,7 +95,7 @@ export async function bootEditor(root) {
         h('button.btn', { onclick: exportPlan }, 'Export…'),
         saveBtn)),
     sidebar,
-    h('main.canvas', plan, h('div.hint', 'Drag rooms, lamps and furniture · drag a room’s corner to resize · everything snaps to 5 cm')),
+    h('main.canvas', plan, hint),
     h('aside.right', h('div.preview-wrap', previewHost, previewToggle), inspector),
     h('footer.foot', status),
     toastEl));
@@ -128,6 +136,7 @@ export async function bootEditor(root) {
     renderSidebar();
     renderPlan();
     renderInspector();
+    if (isPhone) phone.selected(next);
   }
 
   function toast(text, bad = false) {
@@ -153,6 +162,7 @@ export async function bootEditor(root) {
       status.textContent = `⚠ ${e.message}`;
     }
     saveBtn.disabled = !valid;
+    if (isPhone) phone.refresh();
   }
 
   function previewStore(cfg) {
@@ -171,6 +181,7 @@ export async function bootEditor(root) {
   function buildPreview() {
     previewToggle.replaceChildren(icon(previewLights ? 'bright' : 'moon', 14), previewLights ? 'Lights on' : 'Lights off');
     if (!valid) return;
+    if (isPhone && !phone.show3D) { world?.dispose(); world = null; previewHost.replaceChildren(); return; }
     world?.dispose();
     world = null;
     const canvas = h('canvas');
@@ -184,7 +195,7 @@ export async function bootEditor(root) {
           if (index >= 0) select({ kind: t.kind, index });
         },
       });
-      world.setInsets(6, 6);
+      world.setInsets(isPhone ? 20 : 6, isPhone ? 20 : 6);
       world.setRunning(true);
       const w = world;
       new ResizeObserver(() => { if (world === w) w.resize(); }).observe(canvas);
@@ -248,7 +259,7 @@ export async function bootEditor(root) {
       list.push({ id: uniqueId('room'), name: 'New room', rect: [fix(maxX), fix(doc.rooms.length ? minZ : 0), 3, 3], floor: 'oak' });
     } else if (kind === 'light') {
       if (!room) return toast('Add a room first', true);
-      list.push({ id: uniqueId(`${room.id}.light`), name: 'New light', room: room.id, type: 'ceiling', pos: center, capabilities: [] });
+      list.push({ id: uniqueId(`${room.id}.light`), name: 'New light', room: room.id, type: 'ceiling', pos: freeSpot(room, center), capabilities: [] });
     } else if (kind === 'ac') {
       if (!room) return toast('Add a room first', true);
       list.push({ id: uniqueId(`${room.id}.ac`), name: `${room.name} AC`, room: room.id, wall: 'north', pos: [center[0], room.rect[1]], y: 2.2 });
@@ -263,6 +274,20 @@ export async function bootEditor(root) {
     }
     sel = { kind, index: list.length - 1 };
     touch();
+  }
+
+  // The middle of the room, or the nearest place around it no other lamp stands on.
+  function freeSpot(room, center) {
+    const [x, z, w, d] = room.rect;
+    const taken = (p) => doc.lights.some((l) => Math.hypot(l.pos[0] - p[0], l.pos[1] - p[1]) < 0.45);
+    for (let ring = 0; ring < 4; ring++) {
+      for (let k = 0; k < Math.max(1, ring * 6); k++) {
+        const a = (k / Math.max(1, ring * 6)) * Math.PI * 2;
+        const p = [fix(round(center[0] + Math.cos(a) * ring * 0.6)), fix(round(center[1] + Math.sin(a) * ring * 0.6))];
+        if (p[0] > x + 0.2 && p[0] < x + w - 0.2 && p[1] > z + 0.2 && p[1] < z + d - 0.2 && !taken(p)) return p;
+      }
+    }
+    return center;
   }
 
   function remove(kind, index) {
@@ -299,7 +324,10 @@ export async function bootEditor(root) {
   function renderPlan() {
     const b = bounds();
     const m = 1.4;
-    plan.setAttribute('viewBox', `${b.minX - m} ${b.minZ - m} ${b.maxX - b.minX + m * 2} ${b.maxZ - b.minZ + m * 2}`);
+    if (isPhone) phone.applyView();
+    else plan.setAttribute('viewBox', `${b.minX - m} ${b.minZ - m} ${b.maxX - b.minX + m * 2} ${b.maxZ - b.minZ + m * 2}`);
+    // Fingers are bigger than a mouse pointer: on a phone small things get a wider target.
+    const big = isPhone;
     const kids = [
       sv('defs', {}, sv('pattern', { id: 'grid', width: 1, height: 1, patternUnits: 'userSpaceOnUse' },
         sv('path', { d: 'M1 0H0V1', fill: 'none', stroke: 'rgba(255,255,255,0.07)', 'stroke-width': 0.015 }),
@@ -329,6 +357,7 @@ export async function bootEditor(root) {
     });
 
     doc.openings.forEach((o, i) => {
+      if (big) kids.push(sv('line', { class: 'p-hit', 'data-kind': 'opening', 'data-index': i, x1: o.from[0], y1: o.from[1], x2: o.to[0], y2: o.to[1] }));
       kids.push(sv('line', {
         class: `p-open ${o.type || 'door'}${isSel('opening', i) ? ' sel' : ''}`, 'data-kind': 'opening', 'data-index': i,
         x1: o.from[0], y1: o.from[1], x2: o.to[0], y2: o.to[1],
@@ -340,7 +369,8 @@ export async function bootEditor(root) {
       kids.push(sv('g', {
         class: `p-ac${isSel('ac', i) ? ' sel' : ''}`, 'data-kind': 'ac', 'data-index': i,
         transform: `translate(${a.pos[0]} ${a.pos[1]}) rotate(${rot})`,
-      }, sv('rect', { x: -0.47, y: 0.08, width: 0.94, height: 0.24, rx: 0.07 }),
+      }, big ? sv('rect', { x: -0.62, y: -0.12, width: 1.24, height: 0.74, class: 'hit' }) : null,
+        sv('rect', { x: -0.47, y: 0.08, width: 0.94, height: 0.24, rx: 0.07 }),
         sv('path', { d: 'M-0.3 0.42v0.22M0 0.42v0.3M0.3 0.42v0.22', class: 'flow' })));
     });
 
@@ -349,6 +379,7 @@ export async function bootEditor(root) {
         class: `p-light ${l.type}${isSel('light', i) ? ' sel' : ''}${isLinked(l) ? ' linked' : ''}`, 'data-kind': 'light', 'data-index': i,
         transform: `translate(${l.pos[0]} ${l.pos[1]}) rotate(${-(l.rot || 0)})`,
       });
+      if (big) g.append(sv('circle', { r: 0.58, class: 'hit' }));
       if (l.type === 'strip') {
         const len = l.length || 1;
         g.append(sv('rect', { x: -len / 2, y: -0.07, width: len, height: 0.14, rx: 0.07 }));
@@ -360,7 +391,8 @@ export async function bootEditor(root) {
 
     if (sel.kind === 'room' && doc.rooms[sel.index]) {
       const [x, z, w, d] = doc.rooms[sel.index].rect;
-      kids.push(sv('circle', { cx: x + w, cy: z + d, r: 0.16, class: 'p-handle', 'data-kind': 'resize', 'data-index': sel.index }));
+      if (big) kids.push(sv('circle', { cx: x + w, cy: z + d, r: 0.55, class: 'hit', 'data-kind': 'resize', 'data-index': sel.index }));
+      kids.push(sv('circle', { cx: x + w, cy: z + d, r: big ? 0.24 : 0.16, class: 'p-handle', 'data-kind': 'resize', 'data-index': sel.index }));
     }
     plan.replaceChildren(...kids);
   }
@@ -392,12 +424,17 @@ export async function bootEditor(root) {
 
   let drag = null;
   plan.addEventListener('pointerdown', (ev) => {
+    if (isPhone) return;
     const el = ev.target.closest('[data-kind]');
     const kind = el?.dataset.kind;
     if (!kind || kind === 'none') { select({ kind: 'home' }); return; }
-    const index = Number(el.dataset.index);
-    const start = planPoint(ev);
     plan.setPointerCapture(ev.pointerId);
+    startDrag(kind, Number(el.dataset.index), ev);
+  });
+
+  // Picks up an item (or a room's resize handle) under the pointer.
+  function startDrag(kind, index, ev) {
+    const start = planPoint(ev);
     if (kind === 'resize') {
       drag = { kind, index, start, rect: [...doc.rooms[index].rect] };
       return;
@@ -422,15 +459,17 @@ export async function bootEditor(root) {
     } else {
       drag.pos = [...item.pos];
     }
-  });
+  }
 
-  plan.addEventListener('pointermove', (ev) => {
+  plan.addEventListener('pointermove', (ev) => { if (!isPhone) moveDrag(ev); });
+
+  function moveDrag(ev) {
     if (!drag) return;
     const [px, pz] = planPoint(ev);
     const dx = round(px - drag.start[0]);
     const dz = round(pz - drag.start[1]);
     if (!drag.moved && !dx && !dz) return;
-    if (!drag.moved) { drag.moved = true; snapshot(); }
+    if (!drag.moved) { drag.moved = true; snapshot(); haptic('tick'); }
     const item = drag.kind === 'resize' ? doc.rooms[drag.index] : doc[KEYS[drag.kind]][drag.index];
 
     if (drag.kind === 'resize') {
@@ -459,11 +498,11 @@ export async function bootEditor(root) {
       }
     }
     touch();
-  });
+  }
 
   const endDrag = () => { drag = null; lastSnapshotKey = null; };
-  plan.addEventListener('pointerup', endDrag);
-  plan.addEventListener('pointercancel', endDrag);
+  plan.addEventListener('pointerup', () => { if (!isPhone) endDrag(); });
+  plan.addEventListener('pointercancel', () => { if (!isPhone) endDrag(); });
 
   /* ---------- inspector ---------- */
 
@@ -507,11 +546,14 @@ export async function bootEditor(root) {
     const kind = sel.kind;
     const item = sel.index != null ? doc[KEYS[kind]]?.[sel.index] : null;
     const nodes = [];
-    const head = (title, sub) => nodes.push(h('div.insp-head', h('h2', title), sub ? h('span', sub) : null));
+    const head = (title, sub) => nodes.push(isPhone
+      ? h('div.insp-head', h('div.insp-titles', h('h2', title), sub ? h('span', sub) : null), phone.headActions())
+      : h('div.insp-head', h('h2', title), sub ? h('span', sub) : null));
 
     if (kind === 'home') {
       head('Home', 'Global settings of this plan');
       doc.camera ||= { azimuth: 34, elevation: 47 };
+      if (isPhone) nodes.push(section('Real devices', links.sidebarRow(false, () => select({ kind: 'connections' }))));
       nodes.push(section('Building',
         row(bind('Wall height, m', number(0.1), { ...prop(doc, 'wallHeight', 2.6), parse: parseNum }),
           bind('Inner walls shown, m', number(0.05), { ...prop(doc, 'interiorWallHeight', 1.25), parse: parseNum })),
@@ -521,9 +563,12 @@ export async function bootEditor(root) {
           bind('Elevation, °', number(1), { ...prop(doc.camera, 'elevation', 47), parse: parseNum })),
         h('p.note', 'Walls facing the camera are cut away, so the azimuth decides which side of the home is open.')),
       section('How it works',
-        h('p.note', 'Pick anything on the plan or in the list to edit it. “Save & apply” writes the plan to disk and reloads the menu bar panel. Coordinates are metres: x grows to the right (east), z grows downwards (south).')));
+        h('p.note', isPhone
+          ? 'Tap anything on the plan, or find it under Items, to edit it. “Save” keeps the plan on this iPhone and sends it to your paired Mac. Coordinates are metres: x grows to the right (east), z grows downwards (south).'
+          : 'Pick anything on the plan or in the list to edit it. “Save & apply” writes the plan to disk and reloads the menu bar panel. Coordinates are metres: x grows to the right (east), z grows downwards (south).')));
     } else if (kind === 'connections') {
       head('Connections', 'Where your real lamps and air conditioners live');
+      if (isPhone) nodes.push(h('button.back-link', { onclick: () => select({ kind: 'home' }) }, icon('back', 14, 2.2), 'Home'));
       nodes.push(...links.overview());
     } else if (kind === 'service') {
       nodes.push(h('button.back-link', { onclick: () => { links.stopPairing(); select({ kind: 'connections' }); } }, icon('back', 14, 2.2), 'Connections'));
@@ -532,6 +577,7 @@ export async function bootEditor(root) {
       nodes.push(...[links.detail(sel.service, tuyaPanel)].flat());
     } else if (!item) {
       head('Nothing selected');
+      if (isPhone) nodes.push(h('p.note', 'Tap a room, a lamp or anything else on the plan.'));
     } else if (kind === 'room') {
       head(item.name || item.id, `id: ${item.id}`);
       nodes.push(section('Room',
@@ -673,7 +719,7 @@ export async function bootEditor(root) {
 
   function tuyaPanel() {
     const nodes = [];
-    if (!isNative) nodes.push(h('p.note.bad', 'Connecting is only available inside the macOS app (this is the browser preview).'));
+    if (!isNative) nodes.push(h('p.note.bad', 'Connecting works inside the House Control app (this is the browser preview).'));
 
     if (tuya.account.connected) {
       nodes.push(section('Smart Life account',
@@ -772,7 +818,8 @@ export async function bootEditor(root) {
       await call('savePlan', { config: doc });
       dirty = false;
       validate();
-      toast('Saved — the menu bar panel now shows this home');
+      haptic('success');
+      toast(isPhone ? 'Saved' : 'Saved — the menu bar panel now shows this home');
     } catch (e) {
       toast(e.message, true);
     }
@@ -850,6 +897,270 @@ export async function bootEditor(root) {
     }
   });
 
+  /* ---------- iPhone ---------- */
+
+  // The plan fills the screen; a bar on top (close, name, undo, save), tools at the bottom
+  // (add, items, 3D, home) and the inspector as a sheet that rises when something is picked.
+  function buildPhoneLayout() {
+    const canvas = h('main.canvas');
+    const sheet = h('section.p-sheet', { 'aria-label': 'Details' });
+    const grip = h('div.p-grip', { role: 'button', 'aria-label': 'Resize details' }, h('span'));
+    const scrim = h('div.p-scrim');
+    const listSheet = h('section.p-modal', { 'aria-label': 'Items' });
+    const addSheet = h('section.p-modal.p-add', { 'aria-label': 'Add' });
+    const confirmSheet = h('section.p-modal.p-confirm', { 'aria-label': 'Unsaved changes' });
+    const undoBtn = h('button.p-icon', { 'aria-label': 'Undo', onclick: () => { stepHistory(undo, redo); haptic('light'); } }, icon('undo', 19, 2.1));
+    const redoBtn = h('button.p-icon', { 'aria-label': 'Redo', onclick: () => { stepHistory(redo, undo); haptic('light'); } }, icon('redo', 19, 2.1));
+    const doneBtn = h('button.p-save', { onclick: () => (dirty ? save() : close()) });
+    const issue = h('div.p-issue');
+    const fitBtn = h('button.p-float', { 'aria-label': 'Show the whole plan', onclick: () => { ui.view = null; ui.applyView(); haptic('light'); } }, icon('fit', 18, 2));
+    const tool = (name, label, onclick) => h('button.p-tool', { onclick }, icon(name, 22, 1.9), h('span', label));
+    const view3d = tool('box', '3D', () => setShow3D(!ui.show3D));
+    const tools = h('nav.p-tools',
+      tool('plus', 'Add', () => openModal(addSheet)),
+      tool('list', 'Items', () => openModal(listSheet)),
+      view3d,
+      tool('home', 'Home', () => { select({ kind: 'home' }); setSheet('full'); }));
+
+    nameInput.setAttribute('enterkeyhint', 'done');
+    nameInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') nameInput.blur(); });
+    sidebar.classList.add('p-list');
+    listSheet.append(h('div.p-modal-head', h('b', 'Items'), h('button.p-text', { onclick: closeModals }, 'Done')), sidebar);
+    const addables = [
+      ['room', 'home', 'Room'], ['light', 'bulb', 'Lamp'], ['ac', 'ac', 'Air conditioner'],
+      ['opening', 'opening', 'Door or window'], ['furniture', 'furniture', 'Furniture'], ['scene', 'sparkles', 'Scene'],
+    ];
+    addSheet.append(h('div.p-modal-head', h('b', 'Add to the plan'), h('button.p-text', { onclick: closeModals }, 'Cancel')),
+      h('div.p-add-grid', addables.map(([kind, name, label]) => h('button.p-add-item', {
+        onclick: () => { closeModals(); add(kind); haptic('light'); ui.reveal(); },
+      }, icon(name, 24, 1.8), h('span', label)))));
+    confirmSheet.append(h('div.p-modal-head', h('b', 'Unsaved changes')),
+      h('p.note', 'Save them before closing? Saved plans reach your paired Mac too.'),
+      h('div.p-confirm-actions',
+        h('button.btn.primary.wide', { onclick: async () => { closeModals(); await save(); if (!dirty) close(); } }, 'Save and close'),
+        h('button.btn.wide.danger', { onclick: () => { closeModals(); dirty = false; close(); } }, 'Discard changes'),
+        h('button.btn.wide', { onclick: closeModals }, 'Keep editing')));
+
+    sheet.append(grip, inspector);
+    canvas.append(plan, h('div.p-preview', previewHost, previewToggle), issue, fitBtn, hint);
+    const shell = h('div.editor.phone',
+      h('header.p-bar', h('button.p-icon', { 'aria-label': 'Close', onclick: requestClose }, icon('close', 20, 2.2)),
+        nameInput, undoBtn, redoBtn, doneBtn),
+      canvas, tools, scrim, sheet, listSheet, addSheet, confirmSheet, toastEl);
+    root.replaceChildren(shell);
+
+    /* sheet: closed, peek (the bottom part of the screen) or full */
+    function setSheet(next) {
+      ui.sheet = next;
+      sheet.dataset.state = next;
+      shell.dataset.sheet = next;
+      sheet.style.height = '';
+      document.activeElement?.blur?.();
+    }
+    let gripDrag = null;
+    const startGrip = (ev) => {
+      if (ev.target.closest('button, input, select, textarea, a')) return;
+      gripDrag = { y: ev.clientY, h: sheet.getBoundingClientRect().height, id: ev.pointerId, moved: false };
+    };
+    grip.addEventListener('pointerdown', startGrip);
+    inspector.addEventListener('pointerdown', (ev) => { if (ev.target.closest('.insp-head')) startGrip(ev); });
+    window.addEventListener('pointermove', (ev) => {
+      if (!gripDrag || ev.pointerId !== gripDrag.id) return;
+      const dy = ev.clientY - gripDrag.y;
+      if (!gripDrag.moved && Math.abs(dy) < 6) return;
+      gripDrag.moved = true;
+      sheet.classList.add('dragging');
+      sheet.style.height = `${Math.max(80, gripDrag.h - dy)}px`;
+    });
+    const endGrip = (ev) => {
+      if (!gripDrag || ev.pointerId !== gripDrag.id) return;
+      const { moved, h: from } = gripDrag;
+      gripDrag = null;
+      sheet.classList.remove('dragging');
+      if (!moved) { if (ev.target.closest('.p-grip')) setSheet(ui.sheet === 'full' ? 'peek' : 'full'); return; }
+      const now = sheet.getBoundingClientRect().height;
+      const screen = window.innerHeight;
+      if (now < Math.min(from, screen * 0.42) * 0.7) closeSheet();
+      else setSheet(now > screen * 0.62 ? 'full' : 'peek');
+    };
+    window.addEventListener('pointerup', endGrip);
+    window.addEventListener('pointercancel', endGrip);
+
+    function closeSheet() {
+      setSheet('closed');
+      if (sel.kind !== 'home') { sel = { kind: 'home' }; renderSidebar(); renderPlan(); renderInspector(); }
+    }
+
+    function openModal(el) {
+      closeModals();
+      if (el === listSheet) renderSidebar();
+      el.classList.add('open');
+      scrim.classList.add('open');
+      haptic('light');
+    }
+    function closeModals() {
+      for (const el of [listSheet, addSheet, confirmSheet]) el.classList.remove('open');
+      scrim.classList.remove('open');
+    }
+    scrim.addEventListener('click', closeModals);
+
+    function requestClose() {
+      if (dirty) openModal(confirmSheet); else close();
+    }
+    function close() { post('close'); }
+
+    function setShow3D(on) {
+      ui.show3D = on;
+      canvas.classList.toggle('show-3d', on);
+      view3d.replaceChildren(icon(on ? 'map' : 'box', 22, 1.9), h('span', on ? 'Plan' : '3D'));
+      schedulePreview(0);
+      haptic('light');
+    }
+
+    /* the plan's view: a box in plan metres with the element's aspect, or null to fit */
+    function fitBox() {
+      const b = bounds();
+      const rect = plan.getBoundingClientRect();
+      const W = rect.width || 390;
+      const H = rect.height || 600;
+      // Clear of the fit button on top, a little air on the other sides.
+      const pad = { top: 64, side: 18, bottom: 18 };
+      const scale = Math.min((W - pad.side * 2) / (b.maxX - b.minX), (H - pad.top - pad.bottom) / (b.maxZ - b.minZ));
+      const w = W / scale;
+      const hh = H / scale;
+      const midY = pad.top + (H - pad.top - pad.bottom) / 2;
+      return { x: (b.minX + b.maxX) / 2 - w / 2, y: (b.minZ + b.maxZ) / 2 - midY / scale, w, h: hh };
+    }
+    new ResizeObserver(() => ui.applyView()).observe(plan);
+
+    // One finger on what is selected drags it; anywhere else it pans, and a tap picks.
+    // Two fingers pinch to zoom.
+    const fingers = new Map();
+    let gesture = null;
+    const box = () => ui.view || fitBox();
+    const spread = () => { const [a, b] = [...fingers.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+    const middle = () => { const [a, b] = [...fingers.values()]; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
+
+    plan.addEventListener('pointerdown', (ev) => {
+      plan.setPointerCapture(ev.pointerId);
+      fingers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (fingers.size === 2) {
+        if (drag) endDrag();
+        const rect = plan.getBoundingClientRect();
+        const v = box();
+        const mid = middle();
+        gesture = { type: 'pinch', d0: spread(), v0: v, at: { x: v.x + (mid.x - rect.left) * v.w / rect.width, y: v.y + (mid.y - rect.top) * v.h / rect.height } };
+        return;
+      }
+      if (fingers.size > 2) return;
+      const el = ev.target.closest('[data-kind]');
+      const kind = el?.dataset.kind;
+      const index = Number(el?.dataset.index);
+      // A selected room is grabbed anywhere inside it, even over its furniture and lamps.
+      const room = sel.kind === 'room' && doc.rooms[sel.index];
+      const [px, pz] = planPoint(ev);
+      const inRoom = room && px >= room.rect[0] && px <= room.rect[0] + room.rect[2] && pz >= room.rect[1] && pz <= room.rect[1] + room.rect[3];
+      if (kind === 'resize' || (kind && kind !== 'none' && isSel(kind, index)) || (inRoom && kind !== 'light' && kind !== 'ac')) {
+        const what = kind === 'resize' || isSel(kind, index) ? [kind, index] : ['room', sel.index];
+        // The view holds still while something is dragged past the plan's edge.
+        if (!ui.view) ui.view = fitBox();
+        startDrag(what[0], what[1], ev);
+        gesture = { type: 'drag' };
+        return;
+      }
+      gesture = { type: 'pan', x: ev.clientX, y: ev.clientY, v0: box(), moved: false, kind, index };
+    });
+
+    plan.addEventListener('pointermove', (ev) => {
+      if (!fingers.has(ev.pointerId)) return;
+      fingers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (!gesture) return;
+      if (gesture.type === 'drag') { moveDrag(ev); return; }
+      const rect = plan.getBoundingClientRect();
+      if (gesture.type === 'pinch' && fingers.size === 2) {
+        const fit = fitBox();
+        const w = clamp(gesture.v0.w * gesture.d0 / Math.max(1, spread()), 1.6, Math.max(fit.w * 2.5, 24));
+        const hh = w * rect.height / rect.width;
+        const mid = middle();
+        ui.view = { x: gesture.at.x - (mid.x - rect.left) * w / rect.width, y: gesture.at.y - (mid.y - rect.top) * hh / rect.height, w, h: hh };
+        ui.applyView();
+      } else if (gesture.type === 'pan') {
+        const dx = ev.clientX - gesture.x;
+        const dy = ev.clientY - gesture.y;
+        if (!gesture.moved && Math.hypot(dx, dy) < 8) return;
+        gesture.moved = true;
+        const v = gesture.v0;
+        ui.view = { ...v, x: v.x - dx * v.w / rect.width, y: v.y - dy * v.h / rect.height };
+        ui.applyView();
+      }
+    });
+
+    const lift = (ev) => {
+      if (!fingers.delete(ev.pointerId)) return;
+      if (!gesture) return;
+      if (gesture.type === 'drag') { endDrag(); gesture = null; return; }
+      if (gesture.type === 'pinch') {
+        // One finger stays down: it carries on panning from here.
+        const [rest] = [...fingers.values()];
+        gesture = rest ? { type: 'pan', x: rest.x, y: rest.y, v0: box(), moved: true } : null;
+        return;
+      }
+      if (gesture.type === 'pan' && !gesture.moved && ev.type === 'pointerup') {
+        const { kind, index } = gesture;
+        if (kind && kind !== 'none' && kind !== 'resize') { haptic('light'); select({ kind, index }); }
+        else if (ui.sheet !== 'closed') closeSheet();
+      }
+      gesture = null;
+    };
+    plan.addEventListener('pointerup', lift);
+    plan.addEventListener('pointercancel', lift);
+
+    const ui = {
+      view: null,
+      sheet: 'closed',
+      show3D: false,
+      applyView() {
+        if (ui.view) {
+          // The plan's box changed shape (the sheet came up): keep the middle and the zoom.
+          const rect = plan.getBoundingClientRect();
+          const hh = rect.width ? ui.view.w * rect.height / rect.width : ui.view.h;
+          ui.view = { ...ui.view, y: ui.view.y + (ui.view.h - hh) / 2, h: hh };
+        }
+        const v = ui.view || fitBox();
+        plan.setAttribute('viewBox', `${v.x} ${v.y} ${v.w} ${v.h}`);
+      },
+      // Something was picked (on the plan, in the list, in 3D): its details come up.
+      selected(next) {
+        closeModals();
+        if (next.kind === 'connections' || next.kind === 'service') setSheet('full');
+        else if (next.kind !== 'home' && ui.sheet === 'closed') setSheet('peek');
+      },
+      // The item just added may lie outside what is shown: show everything again.
+      reveal() { ui.view = null; ui.applyView(); },
+      headActions() {
+        const nodes = [];
+        if (sel.index != null) {
+          nodes.push(h('button.p-icon.danger', {
+            'aria-label': 'Remove', onclick: () => { haptic('medium'); remove(sel.kind, sel.index); setSheet('closed'); },
+          }, icon('trash', 18, 2)));
+        }
+        nodes.push(h('button.p-icon', { 'aria-label': 'Close details', onclick: closeSheet }, icon('down', 20, 2.2)));
+        return h('div.p-head-actions', nodes);
+      },
+      refresh() {
+        doneBtn.textContent = dirty ? 'Save' : 'Done';
+        doneBtn.classList.toggle('primary', dirty);
+        doneBtn.disabled = dirty && !valid;
+        undoBtn.disabled = !undo.length;
+        redoBtn.disabled = !redo.length;
+        issue.textContent = valid ? '' : status.textContent;
+        issue.classList.toggle('show', !valid);
+      },
+    };
+    setSheet(sel.kind === 'connections' || sel.kind === 'service' ? 'full' : 'closed');
+    phone = ui;
+  }
+
   renderSidebar();
   renderPlan();
   renderInspector();
@@ -857,5 +1168,22 @@ export async function bootEditor(root) {
   dirty = false;
   validate();
   schedulePreview(0);
-  window.__editor = { get doc() { return doc; }, select, tuya, links };
+  // A plan saved on the other device (the Mac, or the paired iPhone) while this editor is open.
+  incoming.planArrived = (config, from) => {
+    if (dirty) {
+      toast(`${from || 'Your other device'} saved a newer plan. Saving here replaces it.`, true);
+      return;
+    }
+    doc = structuredClone(config);
+    for (const key of Object.values(KEYS)) doc[key] ||= [];
+    nameInput.value = doc.name || 'Home';
+    if (sel.index != null && !doc[KEYS[sel.kind]]?.[sel.index]) sel = { kind: 'home' };
+    touch();
+    dirty = false;
+    validate();
+    toast(`Updated from ${from || 'your other device'}`);
+  };
+
+  window.__editor = { get doc() { return doc; }, select, tuya, links, phone };
+  post('ready');
 }

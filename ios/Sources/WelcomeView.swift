@@ -32,17 +32,20 @@ struct WelcomeView: View {
             VStack(alignment: .leading, spacing: 26) {
                 feature("hand.tap.fill", Theme.warm, "Tap a lamp, drag to dim",
                         "Lights, colours, air conditioners and scenes, right on the floor plan.")
-                feature("laptopcomputer.and.iphone", Theme.accent, "Drawn on your Mac",
-                        "Pair once and your own floor plan arrives here and stays in sync.")
-                feature("lightbulb.2.fill", Theme.green, "Smart Life and Tuya devices",
-                        "Or none at all: until you sign in, everything is simulated.")
+                feature("pencil.and.ruler.fill", Theme.accent, "Draw it here or on your Mac",
+                        "Rooms, lamps and ACs, on this iPhone. Pair a Mac any time: both stay in sync.")
+                feature("lightbulb.2.fill", Theme.green, "Your real devices",
+                        "Smart Life, Home Assistant, Philips Hue and Apple Home. Until you connect one, everything is simulated.")
             }
             .padding(.horizontal, 6)
             .frame(maxHeight: .infinity)
 
-            Button { model.finishWelcome(pairing: true) } label: { Label("Pair with my Mac", systemImage: "qrcode.viewfinder") }
+            Button { model.finishWelcome(.setUpHere) } label: { Label("Set up my home", systemImage: "house.fill") }
                 .buttonStyle(PrimaryButtonStyle())
-            Button("Explore the demo home") { model.finishWelcome(pairing: false) }
+            Button { model.finishWelcome(.pair) } label: { Label("Pair with my Mac", systemImage: "laptopcomputer.and.iphone") }
+                .buttonStyle(SecondaryButtonStyle())
+                .padding(.top, 10)
+            Button("Explore the demo home") { model.finishWelcome(.demo) }
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(Theme.muted)
                 .frame(minHeight: 50)

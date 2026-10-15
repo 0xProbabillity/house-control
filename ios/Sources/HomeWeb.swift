@@ -3,11 +3,13 @@ import WebKit
 import OSLog
 import HouseCore
 
-/// The WKWebView that shows the 3D home and its panel, plus the JSON bridge in both
-/// directions. It is the same web UI the Mac app shows in its menu bar popover.
+/// A WKWebView showing the web UI, plus the JSON bridge in both directions: the 3D home and
+/// its panel ("panel", the same page the Mac shows in its menu bar popover) or the home
+/// editor ("editor", the Mac's editor window laid out for a phone).
 @MainActor
 final class HomeWeb: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     let webView: WKWebView
+    let mode: String
     var onMessage: (([String: Any]) -> Void)?
     private var boot: () -> [String: Any] = { [:] }
     /// Set by the page's "ready" message; a load that never gets there is retried.
@@ -20,7 +22,8 @@ final class HomeWeb: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         (Bundle.main.resourceURL ?? URL(fileURLWithPath: ".")).appendingPathComponent("dist")
     }
 
-    init(persistent: Bool) {
+    init(persistent: Bool, mode: String = "panel") {
+        self.mode = mode
         let config = WKWebViewConfiguration()
         config.setURLSchemeHandler(AssetSchemeHandler(root: Self.assetRoot), forURLScheme: AssetSchemeHandler.scheme)
         config.allowsInlineMediaPlayback = true
@@ -34,6 +37,8 @@ final class HomeWeb: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         webView.backgroundColor = UIColor(Theme.background)
         webView.scrollView.backgroundColor = UIColor(Theme.background)
         webView.scrollView.isScrollEnabled = false
+        // The editor's text fields must not zoom the page in, nor drag it about.
+        webView.scrollView.pinchGestureRecognizer?.isEnabled = false
         webView.scrollView.bounces = false
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.allowsLinkPreview = false
@@ -51,12 +56,12 @@ final class HomeWeb: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         let controller = webView.configuration.userContentController
         controller.removeAllUserScripts()
         var payload = boot()
-        payload["mode"] = "panel"
+        payload["mode"] = mode
         payload["platform"] = "ios"
         controller.addUserScript(WKUserScript(source: "window.__HOUSE_BOOT__ = \(WebJSON.literal(payload));",
                                               injectionTime: .atDocumentStart, forMainFrameOnly: true))
         controller.addUserScript(WKUserScript(source: Self.errorReporter, injectionTime: .atDocumentStart, forMainFrameOnly: true))
-        webView.load(URLRequest(url: URL(string: "\(AssetSchemeHandler.indexURL)?mode=panel")!))
+        webView.load(URLRequest(url: URL(string: "\(AssetSchemeHandler.indexURL)?mode=\(mode)")!))
 
         // Right after a cold boot WebKit's processes can be slow enough to drop the first
         // load; a page that has not reported in is loaded again, a couple of times at most.
@@ -80,6 +85,13 @@ final class HomeWeb: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         })();
         """
 
+    /// Stops the page from talking back (the message handler holds on to this object).
+    func detach() {
+        watchdog?.cancel()
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "house")
+        webView.stopLoading()
+    }
+
     /// Calls `window.house.<function>(…args)` in the page.
     func call(_ function: String, _ args: Any...) {
         webView.evaluateJavaScript(WebJSON.call(function, args), completionHandler: nil)
@@ -94,7 +106,7 @@ final class HomeWeb: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         MainActor.assumeIsolated {
             guard let body = message.body as? [String: Any] else { return }
             if body["type"] as? String == "log" {
-                Logger(subsystem: Bundle.main.bundleIdentifier ?? "HouseControl", category: "web").error("\(body["text"] as? String ?? "", privacy: .public)")
+                Logger(subsystem: Bundle.main.bundleIdentifier ?? "HouseControl", category: "web-\(mode)").error("\(body["text"] as? String ?? "", privacy: .public)")
                 return
             }
             if body["type"] as? String == "ready" {

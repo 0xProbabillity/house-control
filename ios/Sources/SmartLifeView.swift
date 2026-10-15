@@ -1,9 +1,10 @@
 import SwiftUI
+import Photos
 import HouseCore
 
 /// Signs this iPhone in to Smart Life. The login is confirmed by scanning a QR code with
-/// the Smart Life app — which lives on this very phone, so the code has to be shown on
-/// another screen: the paired Mac puts it up by itself.
+/// the Smart Life app — which lives on this very phone. So the code goes to Photos, where
+/// Smart Life's scanner can open it, or onto another screen: a paired Mac shows it by itself.
 struct SmartLifeView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
@@ -12,6 +13,7 @@ struct SmartLifeView: View {
     @State private var problem: String?
     @State private var login: Login?
     @State private var onMac = false
+    @State private var saved: Bool?
     @FocusState private var typing: Bool
 
     private struct Login: Equatable {
@@ -41,17 +43,24 @@ struct SmartLifeView: View {
         .navigationTitle("Smart Life")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Theme.background, for: .navigationBar)
-        .onAppear { if userCode.isEmpty { userCode = model.suggestedUserCode } }
+        .onAppear {
+            if userCode.isEmpty { userCode = model.suggestedUserCode }
+            // HOUSE_SMARTLIFE_QR=<text> shows the code step with that content (screenshots, UI checks);
+            // nothing is sent to Tuya for it.
+            if login == nil, let demo = ProcessInfo.processInfo.environment["HOUSE_SMARTLIFE_QR"] {
+                login = Login(token: "", content: demo)
+            }
+        }
         .onChange(of: model.suggestedUserCode) { _, code in if userCode.isEmpty { userCode = code } }
         .onDisappear { _ = model.showOnMac(nil) }
         // Back from the Smart Life app: do not wait for the next poll to find out.
         .onChange(of: scenePhase) { _, phase in
-            guard phase == .active, let login, !model.smartLifeConnected else { return }
+            guard phase == .active, let login, !login.token.isEmpty, !model.smartLifeConnected else { return }
             Task { _ = await model.finishLogin(token: login.token, userCode: userCode) }
         }
         // Ask every two seconds whether the login was confirmed, for as long as the code is up.
         .task(id: login) {
-            guard let login else { return }
+            guard let login, !login.token.isEmpty else { return }
             for _ in 0..<150 {
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
                 if Task.isCancelled { return }
@@ -151,14 +160,15 @@ struct SmartLifeView: View {
                 }
             } else {
                 Card(padding: 16) {
-                    HStack(alignment: .top, spacing: 14) {
-                        IconBadge(symbol: "qrcode.viewfinder", tint: Theme.warm)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Scan this with Smart Life").font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
-                            Text("The Smart Life app on this iPhone has to scan it, so put the code on another screen: share it to a computer or tablet, or pair with your Mac and it appears there by itself.")
-                                .font(.system(size: 14)).foregroundStyle(Theme.muted)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("Scan it with Smart Life on this iPhone")
+                            .font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
+                        step(1, "Save the code to Photos (below).")
+                        step(2, "In Smart Life tap **+** → **Scan**, then the **photo** icon, and pick the code.")
+                        step(3, "Confirm the login and come back here.")
+                        Text("Or show it on another screen: share it to a computer or tablet, or pair a Mac and it appears there.")
+                            .font(.system(size: 13.5)).foregroundStyle(Theme.faint)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
@@ -180,6 +190,18 @@ struct SmartLifeView: View {
                     .font(.system(size: 14)).foregroundStyle(Theme.muted)
             }
 
+            if !onMac, let png = QRCode.png(for: login.content, scale: 16) {
+                Button { save(png) } label: {
+                    Label(saved == true ? "Saved to Photos" : "Save code to Photos",
+                          systemImage: saved == true ? "checkmark.circle.fill" : "photo.badge.arrow.down")
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(PrimaryButtonStyle())
+                if saved == false {
+                    ProblemLabel(text: "House Control may not add to Photos. Allow it in Settings → Privacy & Security → Photos, or share the code instead.")
+                }
+            }
+
             HStack(spacing: 10) {
                 if let png = QRCode.png(for: login.content, scale: 16) {
                     ShareLink(item: QRImage(png: png), preview: SharePreview("Smart Life sign-in code")) {
@@ -195,10 +217,47 @@ struct SmartLifeView: View {
             Button("Cancel") {
                 _ = model.showOnMac(nil)
                 self.login = nil
+                saved = nil
             }
             .font(.system(size: 16, weight: .medium))
             .foregroundStyle(Theme.muted)
             .padding(.top, 4)
+        }
+    }
+
+    private func step(_ number: Int, _ text: LocalizedStringKey) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text("\(number)")
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(Theme.warm)
+                .frame(width: 24, height: 24)
+                .background(Theme.warm.opacity(0.16), in: Circle())
+            Text(text)
+                .font(.system(size: 15))
+                .foregroundStyle(Theme.text)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Adds the code to Photos (asking only for permission to add, not to read).
+    private func save(_ png: Data) {
+        Task {
+            let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
+            guard status == .authorized || status == .limited else {
+                saved = false
+                Haptics.shared.play("error")
+                return
+            }
+            do {
+                try await PHPhotoLibrary.shared().performChanges {
+                    PHAssetCreationRequest.forAsset().addResource(with: .photo, data: png, options: nil)
+                }
+                saved = true
+                Haptics.shared.play("success")
+            } catch {
+                saved = false
+                Haptics.shared.play("error")
+            }
         }
     }
 
@@ -215,13 +274,16 @@ struct SmartLifeView: View {
                 .font(.system(size: 24, weight: .bold))
                 .foregroundStyle(Theme.text)
             Text(model.linkedDevices == 0
-                 ? "Link lamps and air conditioners to your devices in the Mac's editor — they start working here as soon as the plan syncs."
+                 ? "Now link the lamps and air conditioners of your plan to your devices: Settings → Devices, or in the editor."
                  : "\(model.linkedDevices) device\(model.linkedDevices == 1 ? "" : "s") in your floor plan \(model.linkedDevices == 1 ? "is" : "are") now the real thing.")
                 .font(.system(size: 15))
                 .foregroundStyle(Theme.muted)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)
-            Button("Done") { model.showSettings = false }
+            Button("Done") {
+                model.showSettings = false
+                model.editorSheet = nil
+            }
                 .buttonStyle(PrimaryButtonStyle())
                 .padding(.top, 14)
         }

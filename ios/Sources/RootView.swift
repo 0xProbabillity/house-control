@@ -18,6 +18,19 @@ struct RootView: View {
         }
         .sheet(isPresented: $model.showSettings) { SettingsView() }
         .sheet(isPresented: $model.showWelcome) { WelcomeView() }
+        .sheet(isPresented: $model.showNewHome) { NewHomeView() }
+        .fullScreenCover(isPresented: $model.showEditor, onDismiss: { model.editorClosed() }) { EditorScreen() }
+        .alert("Which home do you keep?", isPresented: Binding(get: { model.planChoice != nil && !model.showEditor },
+                                                               set: { if !$0, model.planChoice != nil { model.planChoice = nil } }),
+               presenting: model.planChoice) { choice in
+            Button("Keep this iPhone’s") { model.resolvePlanChoice(keepPhone: true) }
+            Button("Keep \(choice.macName)’s") { model.resolvePlanChoice(keepPhone: false) }
+            Button("Decide later", role: .cancel) {}
+        } message: { choice in
+            Text(choice.macPlanName == choice.phonePlanName
+                 ? "“\(choice.phonePlanName)” was changed both here and on \(choice.macName) since they last synced. The one you keep replaces the other on both."
+                 : "This iPhone has “\(choice.phonePlanName)”, \(choice.macName) has “\(choice.macPlanName)”. The one you keep replaces the other on both.")
+        }
         .onOpenURL { model.open($0) }
         .preferredColorScheme(.dark)
         .tint(Theme.accent)

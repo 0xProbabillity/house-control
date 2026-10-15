@@ -34,6 +34,12 @@ public final class SyncServer {
     public var onShowQR: ((String?, String) -> Void)?
     /// A phone sends the devices of its Apple Home (which only it can reach), for the editor.
     public var onCatalog: (([[String: Any]], String) -> Void)?
+    /// A phone sends the floor plan it edited (the file byte for byte, already checked to be
+    /// a plan) and its name. The Mac stores it and calls `broadcast()`.
+    public var onPlan: ((Data, String) -> Void)?
+    /// A phone sends its Home Assistant and Hue connections (see `DeviceHub.adoptConnections`)
+    /// and the Smart Life User Code it signed in with, if any.
+    public var onConnections: (([String: Any], String, String) -> Void)?
 
     /// `store` keeps the pairing (by default `sync.json` next to the plan, readable by its user only).
     public init(store: SecretStore) {
@@ -170,6 +176,16 @@ public final class SyncServer {
         case "catalog":
             guard !peer.name.isEmpty, let devices = message["devices"] as? [[String: Any]] else { return }
             onCatalog?(devices, peer.name)
+        case "plan":
+            guard !peer.name.isEmpty, let text = message["plan"] as? String else { return }
+            let data = Data(text.utf8)
+            guard (try? PlanStore.validate(data)) != nil else { return }
+            // The phone holds this revision now: the broadcast that follows need not echo it.
+            peer.revision = PlanStore.revision(of: data)
+            onPlan?(data, peer.name)
+        case "connections":
+            guard !peer.name.isEmpty, let shared = message["connections"] as? [String: Any] else { return }
+            onConnections?(shared, message["userCode"] as? String ?? "", peer.name)
         default:
             break
         }

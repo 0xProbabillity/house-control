@@ -168,6 +168,81 @@ final class SyncTests: XCTestCase {
         XCTAssertNil(SyncState(message: ["type": "state", "mac": "Old Mac"])?.connections)
     }
 
+    func testPhoneSendsItsPlanAndConnectionsToTheMac() async throws {
+        let (server, client) = makePair()
+        defer { client.stop(); server.stop() }
+        var macPlan: Data?
+        server.snapshot = {
+            SyncState(macName: "Test Mac", revision: macPlan.map(PlanStore.revision(of:)) ?? "", plan: macPlan,
+                      userCode: "", smartLifeConnected: false)
+        }
+        let phonePlan = Data("{\"name\":\"Phone home\",\"rooms\":[{\"id\":\"a\",\"rect\":[0,0,3,3]}]}".utf8)
+        client.planRevision = { PlanStore.revision(of: phonePlan) }
+        let connected = expectation(description: "connected")
+        client.onState = { _ in connected.fulfill() }
+        client.fixedEndpoint = try await waitForPort(server)
+        client.start()
+        await fulfillment(of: [connected], timeout: 10)
+
+        // The plan arrives byte for byte; the Mac's broadcast does not send it back.
+        let arrived = expectation(description: "plan on the Mac")
+        server.onPlan = { data, phone in
+            XCTAssertEqual(phone, "Test iPhone")
+            macPlan = data
+            arrived.fulfill()
+            server.broadcast()
+        }
+        let echoed = expectation(description: "state after the push")
+        var after: SyncState?
+        client.onState = { after = $0; echoed.fulfill() }
+        XCTAssertTrue(client.sendPlan(phonePlan))
+        await fulfillment(of: [arrived, echoed], timeout: 10)
+        XCTAssertEqual(macPlan, phonePlan)
+        XCTAssertEqual(after?.revision, PlanStore.revision(of: phonePlan))
+        XCTAssertNil(after?.plan)
+
+        // Something that is not a plan is dropped.
+        server.onPlan = { _, _ in XCTFail("not a plan") }
+        let shared = expectation(description: "connections on the Mac")
+        server.onConnections = { connections, userCode, _ in
+            XCTAssertEqual((connections["hue"] as? [String: Any])?["key"] as? String, "k")
+            XCTAssertEqual(userCode, "u9")
+            shared.fulfill()
+        }
+        client.sendPlan(Data("{\"name\":\"x\"}".utf8))
+        client.sendConnections(["hue": ["host": "10.0.0.2", "key": "k", "updated": 5]], userCode: "u9")
+        await fulfillment(of: [shared], timeout: 10)
+    }
+
+    func testConnectionsMergeByWhoChangedLast() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("hc-merge-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let hub = DeviceHub(directory: folder)
+        defer { hub.disconnect(service: "hue"); hub.disconnect(service: "homeassistant") }
+
+        // Nothing set here yet: a peer's connection is taken, stamps and all.
+        XCTAssertTrue(hub.adoptConnections(["hue": ["host": "10.0.0.2", "key": "k1", "updated": 100.0]]))
+        XCTAssertEqual(hub.hue.info["host"] as? String, "10.0.0.2")
+        XCTAssertEqual((hub.shareableConnections["hue"] as? [String: Any])?["updated"] as? Double, 100)
+        // An older one is ignored, a newer one replaces it.
+        XCTAssertFalse(hub.adoptConnections(["hue": ["host": "10.0.0.3", "key": "k0", "updated": 50.0]]))
+        XCTAssertTrue(hub.adoptConnections(["hue": ["host": "10.0.0.4", "key": "k2", "updated": 200.0]]))
+        XCTAssertEqual(hub.hue.info["host"] as? String, "10.0.0.4")
+        // A platform the peer does not mention is left alone.
+        XCTAssertFalse(hub.adoptConnections([:]))
+        XCTAssertTrue(hub.hue.isConnected)
+        // A newer disconnect travels as "removed".
+        XCTAssertTrue(hub.adoptConnections(["hue": ["removed": true, "updated": 300.0]]))
+        XCTAssertFalse(hub.hue.isConnected)
+        // Disconnecting here is newer than anything the peer had, and is shared.
+        XCTAssertTrue(hub.adoptConnections(["homeassistant": ["url": "http://ha.local:8123", "token": "t", "updated": 10.0]]))
+        hub.disconnect(service: "homeassistant")
+        XCTAssertEqual((hub.shareableConnections["homeassistant"] as? [String: Any])?["removed"] as? Bool, true)
+        XCTAssertFalse(hub.adoptConnections(["homeassistant": ["url": "http://ha.local:8123", "token": "t", "updated": 10.0]]))
+        XCTAssertFalse(hub.homeAssistant.isConnected)
+    }
+
     func testAWrongKeyIsRefused() async throws {
         let (server, client) = makePair(clientKey: Data(repeating: 7, count: 32))
         defer { client.stop(); server.stop() }

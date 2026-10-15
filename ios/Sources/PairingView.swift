@@ -150,8 +150,8 @@ struct PairingView: View {
     private var statusLine: String {
         switch model.syncStatus {
         case .connected:
-            return model.hasCustomPlan ? "Your floor plan is here and will follow the Mac from now on."
-                : "Connected. Draw your home in the Mac's editor and it appears here."
+            return model.hasCustomPlan ? "Connected. Your floor plan now stays the same on both, whichever one you edit."
+                : "Connected. Draw your home here or on the Mac; it appears on both."
         case .failed(let reason): return reason
         default: return "Looking for the Mac on this Wi-Fi…"
         }
