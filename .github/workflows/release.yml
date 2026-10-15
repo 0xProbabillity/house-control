@@ -25,7 +25,7 @@ concurrency:
 jobs:
   mac:
     name: Mac app
-    runs-on: macos-15
+    runs-on: macos-26  # Xcode 26: the widgets and controls need the macOS 26 SDK
     timeout-minutes: 30
     permissions:
       contents: write      # create the draft release
@@ -53,6 +53,9 @@ jobs:
             echo "::error::Tag $GITHUB_REF_NAME does not match MARKETING_VERSION $version in ios/Config/Base.xcconfig"
             exit 1
           fi
+
+      - name: Install XcodeGen (generates the widgets' Xcode project)
+        run: brew install xcodegen
 
       - name: Install the web UI's packages
         run: npm ci --prefix web --no-audit --no-fund
