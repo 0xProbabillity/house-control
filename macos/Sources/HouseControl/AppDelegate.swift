@@ -67,6 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         host.load()
         startSync()
         if islandEnabled { showIsland() }
+        LoginItem.followMove()
 
         // HOUSE_SNAPSHOT_DIR=<folder> writes panel.png and island.png there a few seconds
         // after launch: a look at the UI without a screen (see HOUSE_RENDER_HIDDEN).
@@ -182,6 +183,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let islandItem = menu.addItem(withTitle: "Show Island", action: #selector(toggleIsland), keyEquivalent: "")
             islandItem.target = self
             islandItem.state = island?.isShown == true ? .on : .off
+            let login = LoginItem.state
+            let loginItem = menu.addItem(withTitle: login == .needsApproval ? "Open at Login — Allow in Settings…" : "Open at Login",
+                                         action: #selector(toggleOpenAtLogin), keyEquivalent: "")
+            loginItem.target = self
+            loginItem.state = login == .on ? .on : login == .needsApproval ? .mixed : .off
             menu.addItem(withTitle: "Pair iPhone…", action: #selector(pairPhone), keyEquivalent: "").target = self
             let aiItem = menu.addItem(withTitle: agent.isLive ? "AI Access — Live" : "AI Access…", action: #selector(openAgent), keyEquivalent: "")
             aiItem.target = self
@@ -208,6 +214,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func togglePanel() {
         guard let button = statusItem.button else { return }
         panel.toggle(below: button)
+        // It can be switched off in System Settings too: the panel's menu shows what is true now.
+        if panel.isVisible { panel.host.call("openAtLogin", LoginItem.state.rawValue) }
     }
 
     // MARK: - Plans
@@ -228,6 +236,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         default: break
         }
         boot["agentLive"] = agent.isLive
+        boot["openAtLogin"] = LoginItem.state.rawValue
         // HOUSE_OPEN_DEVICE=<id> starts the panel on that light's or AC's detail sheet.
         if let device = ProcessInfo.processInfo.environment["HOUSE_OPEN_DEVICE"] { boot["openDevice"] = device }
         return boot
@@ -367,6 +376,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "revealPlan": revealPlan()
         case "openEditor": openEditor()
         case "quit": NSApp.terminate(nil)
+        case "setOpenAtLogin": setOpenAtLogin(message["on"] as? Bool ?? false)
 
         // Editor
         case "savePlan":
@@ -547,6 +557,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let show = island?.isShown != true
         UserDefaults.standard.set(show, forKey: "island")
         if show { showIsland() } else { island?.hide() }
+    }
+
+    // MARK: - Open at Login
+
+    /// Waiting for approval counts as off: choosing it again takes the user to System Settings.
+    @objc private func toggleOpenAtLogin() { setOpenAtLogin(LoginItem.state != .on) }
+
+    private func setOpenAtLogin(_ on: Bool) {
+        if on, LoginItem.isTemporaryCopy {
+            alert("Move House Control to Applications first",
+                  "It is running from the disk image or from a temporary copy of the download, which is gone after a restart. "
+                  + "Drag House Control into the Applications folder, open it from there, then turn on Open at Login.")
+            return
+        }
+        do {
+            try LoginItem.set(on)
+        } catch {
+            alert(on ? "Could not add House Control to Login Items" : "Could not remove House Control from Login Items",
+                  "\(error.localizedDescription)\n\nYou can change it in System Settings → General → Login Items.")
+        }
+        panel.host.call("openAtLogin", LoginItem.state.rawValue)
+        // The very first registration can take a moment to show in the status.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+            self?.panel.host.call("openAtLogin", LoginItem.state.rawValue)
+        }
     }
 
     // MARK: - iPhone sync

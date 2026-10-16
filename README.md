@@ -117,8 +117,9 @@ The app is signed ad hoc. If you rebuild often and use iPhone sync, sign it with
 macOS does not ask for the Local Network permission after every build:
 `CODESIGN_IDENTITY="Apple Development: you@example.com (ABCDE12345)" ./scripts/build-app.sh`.
 
-To keep it, drag `build/HouseControl.app` into `/Applications`. To start it with your Mac, add it under
-**System Settings → General → Login Items**.
+To keep it, drag `build/HouseControl.app` into `/Applications`. To start it with your Mac, turn on **Open at
+Login** in the menu bar icon's right-click menu (or in the panel's gear menu); it shows up under
+**System Settings → General → Login Items**, where it can be switched off too.
 
 There is no Dock icon and no main window: look for the house in the menu bar.
 
@@ -127,7 +128,7 @@ There is no Dock icon and no main window: look for the house in the menu bar.
 | Do this | To get this |
 | --- | --- |
 | Click the menu bar icon | Open or close the panel |
-| Right-click the menu bar icon | Edit Home, Load Floor Plan, Reveal Plan File, Reveal Device Log, Show Island, Pair iPhone, AI Access, Reload, Quit |
+| Right-click the menu bar icon | Edit Home, Load Floor Plan, Reveal Plan File, Reveal Device Log, Show Island, Open at Login, Pair iPhone, AI Access, Reload, Quit |
 | Click a lamp in the 3D view, or its tile | Toggle it |
 | Drag sideways across a light tile | Dim it |
 | Click the sliders icon on a light tile | Brightness, white temperature, colour |

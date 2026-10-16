@@ -3,6 +3,14 @@
 What changed in each release of House Control. The Mac app is on
 [Releases](https://github.com/0xProbabillity/house-control/releases); the iPhone app is on TestFlight.
 
+## Unreleased
+
+### Mac
+
+- **Open at Login**, in the menu bar icon's right-click menu and in the panel's gear menu: House Control starts with
+  your Mac. It is the app's entry under System Settings → General → Login Items, so it can be switched off there too.
+  Run from the disk image, the app asks to be moved to Applications first; moved there later, the login item follows it.
+
 ## 1.0.0 — 2026-10-15
 
 ### Widgets, controls and quick actions

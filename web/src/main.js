@@ -143,6 +143,9 @@ async function boot() {
   };
   incoming.agentLive = (live) => panel.setAgentLive(Boolean(live));
   panel.setAgentLive(Boolean(window.__HOUSE_BOOT__?.agentLive));
+  // 'on', 'off' or 'needsApproval' (switched on, waiting to be allowed in System Settings).
+  let openAtLogin = window.__HOUSE_BOOT__?.openAtLogin || 'off';
+  incoming.openAtLogin = (state) => { openAtLogin = state; };
 
   store.onDeviceError = (id, message) => {
     const name = store.lightCfg.get(id)?.name || store.acCfg.get(id)?.name || id;
@@ -180,6 +183,11 @@ async function boot() {
         { label: 'Load floor plan…', action: () => post('loadPlan') },
         { label: 'Reveal plan file', action: () => post('revealPlan') },
         '-',
+        {
+          label: openAtLogin === 'needsApproval' ? 'Open at login — allow in Settings…' : 'Open at login',
+          icon: openAtLogin === 'on' ? icon('check', 16, 2.4) : null,
+          action: () => post('setOpenAtLogin', { on: openAtLogin !== 'on' }),
+        },
         { label: 'Quit House Control', action: () => post('quit') });
     }
     openMenu(panel.anchorMenu, anchor, items);
