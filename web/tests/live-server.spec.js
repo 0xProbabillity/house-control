@@ -80,7 +80,8 @@ test('real login, HA connection, linking, shared save, SSE state and rollback', 
   const phone = await second.newPage(); await phone.goto(origin + '/?platform=android');
   await phone.getByLabel('Server access token').fill(token); await phone.getByRole('button', { name: 'Sign in', exact: true }).click();
   await phone.waitForFunction(() => window.__house); expect(await phone.evaluate(() => window.__house.config.name)).toBe('Real shared fixture');
-  await evidence(phone, 'server-home-android');
   await phone.getByRole('button', { name: 'Server connection settings' }).click(); await expect(phone.getByRole('link', { name: 'Change server' })).toBeVisible();
+  await phone.getByRole('button', { name: 'Close', exact: true }).click();
+  await evidence(phone, 'server-home-android');
   await second.close();
 });
