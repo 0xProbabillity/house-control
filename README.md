@@ -26,6 +26,8 @@
   Lamps light the scene the way they light the room; an AC that is running blows visible air.
 - **Lights.** Tap to toggle, drag across a tile to dim, open a light for brightness, white temperature and colour.
 - **Air conditioners.** Power, target temperature, mode and fan speed, with the room temperature from a real sensor if you have one.
+- **Robot vacuums.** Start, pause, send it to its dock, suction level and battery; in 3D it drives from room to room
+  through the doors while it cleans, and back onto its dock. Home Assistant's `vacuum` entities.
 - **Scenes.** One tap sets every light and AC — "Cozy", "Movie", "Night", or your own.
 - **A visual editor.** Draw the rooms, drop in furniture, place lamps and ACs, and link each one to a real device.
 - **Your devices, wherever they live.** Smart Life / Tuya, Home Assistant (and the thousands of brands it runs),
@@ -308,8 +310,8 @@ Right-click the icon → **Edit Home… → Connections**, and connect what you 
 | **Philips Hue** | Found on your network by itself; press the button on the bridge | [docs/connections.md](docs/connections.md#philips-hue) |
 | **Apple Home** | Allow access on your iPhone; its devices are listed on the Mac for linking | [docs/connections.md](docs/connections.md#apple-home) |
 
-Then select a lamp or an AC on the plan, choose its device under **Real device** (lamps take over what the
-device can do), and press **Save & apply**. From then on the panel controls the real device. Changes made
+Then select a lamp, an AC or a robot vacuum on the plan, choose its device under **Real device** (lamps take over
+what the device can do), and press **Save & apply**. From then on the panel controls the real device. Changes made
 elsewhere show up at once from Home Assistant and Hue, and within 12 seconds from Smart Life.
 
 Your iPhone receives the Home Assistant and Hue connections from the Mac with the floor plan, and switches
@@ -444,6 +446,9 @@ signed and notarized image locally instead; the script lists what it needs.
 - Smart Life devices are reached through Tuya's cloud, not over the local network, so they need an internet
   connection (Home Assistant and Hue work on your network alone).
 - Infrared air conditioners are one-way: the app shows what was last sent, not what the unit is doing.
+- A robot vacuum's route in 3D is a likely one, not where it really is: Home Assistant reports what it is doing, not
+  its position. Robot vacuums link through Home Assistant only, and the app starts a whole-home clean (no room or
+  zone cleaning yet).
 
 ## Support the project
 
