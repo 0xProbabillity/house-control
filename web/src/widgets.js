@@ -1,5 +1,5 @@
 // The home as the widgets and controls draw it (HomeSnapshot in core/…/HomeSnapshot.swift):
-// rooms, lamps, ACs and scenes with their current state. Posted to the native shell, which
+// rooms, lamps, ACs, robot vacuums and scenes with their current state. Posted to the native shell, which
 // keeps it where its widgets can read it; only the panel posts, the other views are copies.
 import { post } from './bridge.js';
 import { linkOf, LINK_FIELDS } from './config.js';
@@ -37,6 +37,15 @@ export function widgetSnapshot(config, store, plan) {
         id: a.id, name: a.name, room: a.room, wall: a.wall, x: a.pos[0], z: a.pos[1], min: a.min, max: a.max,
         on: s.on, target: s.target, mode: s.mode, fan: s.fan, roomTemp: round(s.roomTemp, 1),
         swing: s.swing, sleep: s.sleep, eco: s.eco, service: linkOf(a)?.service || null, links: links(a),
+      };
+    }),
+    // Optional in HomeSnapshot, so snapshots from before vacuums still decode. No widget shows them yet.
+    vacuums: config.vacuums.map((v) => {
+      const s = state.vacuums[v.id];
+      return {
+        id: v.id, name: v.name, room: v.room, x: v.pos[0], z: v.pos[1], status: s.status,
+        battery: Number.isFinite(s.battery) ? round(s.battery, 0) : null, fan: s.fan || null,
+        service: linkOf(v)?.service || null, links: links(v),
       };
     }),
     furniture: config.furniture.filter((f) => Array.isArray(f.pos)).map((f) => {

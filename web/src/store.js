@@ -1,10 +1,19 @@
 import { post, call, isNative } from './bridge.js';
+import { isLinked } from './config.js';
 
 const STORAGE_KEY = 'house-control:state:v1';
 
 export const AC_MODES = ['cool', 'heat', 'dry', 'fan', 'auto'];
 export const AC_FANS = ['auto', 'low', 'medium', 'high', 'turbo'];
 export const AC_SWINGS = ['swing', 'l1', 'l2', 'l3', 'l4', 'l5', 'off'];
+// "unavailable": its platform cannot reach it (off Wi-Fi, its cloud down); only ever reported.
+export const VACUUM_STATUSES = ['cleaning', 'docked', 'returning', 'paused', 'idle', 'error', 'unavailable'];
+// What the panel can ask a vacuum for; the vacuum itself moves on to docked, idle or error.
+const VACUUM_COMMANDS = ['cleaning', 'paused', 'returning'];
+// A simulated vacuum: its fan speeds, how long a run lasts, and the longest way home.
+const SIM_FANS = ['Quiet', 'Standard', 'Strong', 'Turbo'];
+const SIM_RUN = 180;
+const SIM_HOME = 120;
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
@@ -19,16 +28,26 @@ function defaultAC(cfg, outdoor) {
   };
 }
 
+const SIM_VACUUM = { status: 'docked', battery: 100, fan: 'Standard' };
+
+function defaultVacuum(cfg) {
+  return isLinked(cfg) ? { status: 'docked', battery: null, fan: null } : { ...SIM_VACUUM };
+}
+
 export function createStore(config) {
   const listeners = new Set();
   const lightCfg = new Map(config.lights.map((l) => [l.id, l]));
   const acCfg = new Map(config.acs.map((a) => [a.id, a]));
+  const vacuumCfg = new Map(config.vacuums.map((v) => [v.id, v]));
 
-  const state = { lights: {}, acs: {}, scene: null };
+  const state = { lights: {}, acs: {}, vacuums: {}, scene: null };
   for (const l of config.lights) state.lights[l.id] = defaultLight(l);
   for (const a of config.acs) state.acs[a.id] = defaultAC(a, config.outdoorTemp);
-  // What each real AC can do, as reported by the native side. A simulated AC can do everything.
+  for (const v of config.vacuums) state.vacuums[v.id] = defaultVacuum(v);
+  // What each real AC or vacuum can do, as reported by the native side. A simulated one can do everything.
   const features = {};
+  const sim = new Map(); // simulated vacuums: id → seconds in the current status
+  const bucket = (kind) => (kind === 'light' ? state.lights : kind === 'ac' ? state.acs : state.vacuums);
 
   let restored = false;
   try {
@@ -36,7 +55,18 @@ export function createStore(config) {
     if (saved && saved.home === config.name) {
       for (const [id, s] of Object.entries(saved.lights || {})) if (state.lights[id]) Object.assign(state.lights[id], s);
       for (const [id, s] of Object.entries(saved.acs || {})) if (state.acs[id]) Object.assign(state.acs[id], s);
-      for (const [id, f] of Object.entries(saved.features || {})) if (state.acs[id]) features[id] = f;
+      for (const [id, s] of Object.entries(saved.vacuums || {})) {
+        const v = state.vacuums[id];
+        if (!v) continue;
+        Object.assign(v, s);
+        // Saved while it was linked: what a real robot left behind is no start for a simulated one.
+        if (!isLinked(vacuumCfg.get(id))) {
+          if (!Number.isFinite(v.battery)) v.battery = SIM_VACUUM.battery;
+          if (typeof v.fan !== 'string') v.fan = SIM_VACUUM.fan;
+          if (v.status === 'unavailable') v.status = SIM_VACUUM.status;
+        }
+      }
+      for (const [id, f] of Object.entries(saved.features || {})) if (state.acs[id] || state.vacuums[id]) features[id] = f;
       state.scene = saved.scene || null;
       restored = true;
     }
@@ -59,19 +89,22 @@ export function createStore(config) {
       post('summary', summary());
       // The native shell passes this on to its other views of the same home (the panel
       // and the island each run their own store), which adopt it without re-sending.
-      if (!change.adopted) post('state', { lights: state.lights, acs: state.acs, scene: state.scene, source: change.source ?? store.source ?? null });
+      if (!change.adopted) post('state', { lights: state.lights, acs: state.acs, vacuums: state.vacuums, scene: state.scene, source: change.source ?? store.source ?? null });
     }
   }
 
   // One command per device is in flight at a time. Whatever changes meanwhile is merged
   // into a single follow-up, so dragging a slider costs a couple of requests (or infrared
   // key presses) instead of dozens. A change the device refuses is rolled back.
-  const COOL_DOWN = { light: 300, ac: 900 };
+  // A robot vacuum takes seconds to report a new status (its cloud, then Home Assistant), so
+  // its commands are spaced further apart, and while one holds the outbox a reading of the
+  // status it had before is not taken back (see writeVacuum).
+  const COOL_DOWN = { light: 300, ac: 900, vacuum: 10000 };
   const outbox = new Map();
 
   function transmit(kind, id, patch) {
     if (!isNative) return Promise.resolve();
-    const current = kind === 'light' ? state.lights[id] : state.acs[id];
+    const current = bucket(kind)[id];
     const sent = call('command', { kind, id, patch, state: { ...current } });
     // Never let a lost reply block the device for good.
     return Promise.race([sent, new Promise((resolve) => setTimeout(resolve, 20000))]);
@@ -91,6 +124,7 @@ export function createStore(config) {
 
   function run(kind, id, patch, before, entry) {
     const started = performance.now();
+    entry.sent = before; // what this command changes away from
     transmit(kind, id, patch)
       .catch((error) => rollback(kind, id, patch, before, entry, error))
       .then(() => setTimeout(() => {
@@ -102,7 +136,7 @@ export function createStore(config) {
   }
 
   function rollback(kind, id, patch, before, entry, error) {
-    const current = kind === 'light' ? state.lights[id] : state.acs[id];
+    const current = bucket(kind)[id];
     let any = false;
     for (const key of error.detail?.failed || Object.keys(patch)) {
       if (!(key in patch)) continue;
@@ -154,6 +188,29 @@ export function createStore(config) {
     return true;
   }
 
+  // `polled`: a reading from the robot itself (applyRemote), which can be older than the
+  // command just sent to it.
+  function writeVacuum(id, patch, { remote = false, polled = false } = {}) {
+    const cur = state.vacuums[id];
+    if (!cur) return false;
+    // A robot that cannot be reached takes no commands; its next reading says what it does.
+    if (!remote && cur.status === 'unavailable') return false;
+    const clean = {};
+    if (VACUUM_STATUSES.includes(patch.status) && (remote || VACUUM_COMMANDS.includes(patch.status))) clean.status = patch.status;
+    const slot = polled && outbox.get(id);
+    if (slot && 'status' in clean && [slot.sent?.status, slot.before?.status].includes(clean.status)) delete clean.status;
+    if ('battery' in patch) clean.battery = Number.isFinite(patch.battery) ? clamp(Math.round(patch.battery), 0, 100) : null;
+    if (typeof patch.fan === 'string' || (remote && patch.fan === null)) clean.fan = patch.fan;
+    const diff = Object.fromEntries(Object.entries(clean).filter(([k, v]) => cur[k] !== v));
+    if (!Object.keys(diff).length) return false;
+    const before = Object.fromEntries(Object.keys(diff).map((k) => [k, cur[k]]));
+    Object.assign(cur, clean);
+    if ('status' in diff) sim.delete(id); // a new status starts its own clock
+    const { battery, ...sendable } = diff;
+    if (!remote && Object.keys(sendable).length) dispatch('vacuum', id, sendable, before);
+    return true;
+  }
+
   function summary() {
     const lights = Object.values(state.lights);
     const acs = Object.entries(state.acs).filter(([, a]) => a.on);
@@ -172,6 +229,7 @@ export function createStore(config) {
     restored,
     lightCfg,
     acCfg,
+    vacuumCfg,
     summary,
     /** Set by the UI: called with (device id, message) when a real device refuses a change. */
     onDeviceError: null,
@@ -181,6 +239,14 @@ export function createStore(config) {
     /** What the panel may offer for this AC: modes, fan speeds, and the optional extras. */
     acFeatures(id) {
       return features[id] || { modes: AC_MODES, fans: AC_FANS, sleep: true, eco: true, swing: true };
+    },
+
+    /** What the panel may offer for this vacuum: `fans` (its own names), `canStart`, `canPause`, `canReturn`. */
+    vacuumFeatures(id) {
+      // A real one says what it has at its first reading; until then, no fan speeds to get wrong.
+      const all = { fans: isLinked(vacuumCfg.get(id)) ? [] : SIM_FANS, canStart: true, canPause: true, canReturn: true };
+      // Features saved before canStart existed lack it: such a robot could start.
+      return features[id] ? { ...all, ...features[id] } : all;
     },
 
     on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
@@ -198,6 +264,18 @@ export function createStore(config) {
 
     setAC(id, patch) {
       if (writeAC(id, patch)) emit({ type: 'ac', id });
+    },
+
+    /** `{ status: 'cleaning' | 'paused' | 'returning' }` starts, pauses or sends it home; `{ fan }` sets its suction. */
+    setVacuum(id, patch) {
+      if (writeVacuum(id, patch)) emit({ type: 'vacuum', id });
+    },
+
+    /** A simulated vacuum that was sent home has reached its dock (the 3D view says so). */
+    vacuumDocked(id) {
+      const cfg = vacuumCfg.get(id);
+      if (!cfg || isLinked(cfg) || state.vacuums[id].status !== 'returning') return;
+      if (writeVacuum(id, { status: 'docked' }, { remote: true })) emit({ type: 'vacuum', id });
     },
 
     applyScene(sceneId) {
@@ -218,7 +296,7 @@ export function createStore(config) {
     },
 
     /** Reports the state again, for a view that has only just started. */
-    share() { post('state', { lights: state.lights, acs: state.acs, scene: state.scene }); },
+    share() { post('state', { lights: state.lights, acs: state.acs, vacuums: state.vacuums, scene: state.scene }); },
 
     // The state of another view of this home (see emit). Nothing goes to the devices:
     // the view where the change was made has already sent it.
@@ -226,6 +304,7 @@ export function createStore(config) {
       let any = false;
       for (const [id, s] of Object.entries(other.lights || {})) any = writeLight(id, s, { remote: true }) || any;
       for (const [id, s] of Object.entries(other.acs || {})) any = writeAC(id, s, { remote: true }) || any;
+      for (const [id, s] of Object.entries(other.vacuums || {})) any = writeVacuum(id, s, { remote: true }) || any;
       const scene = other.scene ?? null;
       if (scene !== state.scene) { state.scene = scene; any = true; }
       if (any) emit({ type: 'bulk', remote: true, adopted: true, source: other.source || null });
@@ -236,8 +315,9 @@ export function createStore(config) {
       let any = false;
       for (const [id, patch] of Object.entries(update.lights || {})) any = writeLight(id, patch, { remote: true }) || any;
       for (const [id, patch] of Object.entries(update.acs || {})) any = writeAC(id, patch, { remote: true }) || any;
+      for (const [id, patch] of Object.entries(update.vacuums || {})) any = writeVacuum(id, patch, { remote: true, polled: true }) || any;
       for (const [id, f] of Object.entries(update.features || {})) {
-        if (!state.acs[id] || JSON.stringify(features[id]) === JSON.stringify(f)) continue;
+        if ((!state.acs[id] && !state.vacuums[id]) || JSON.stringify(features[id]) === JSON.stringify(f)) continue;
         features[id] = f;
         any = true;
       }
@@ -259,7 +339,29 @@ export function createStore(config) {
       if (next !== a.roomTemp) { a.roomTemp = Math.round(next * 10) / 10; any = true; }
     }
     if (any) { for (const fn of listeners) fn({ type: 'tick' }); persist(); }
+    simulateVacuums(3);
   }, 3000);
+
+  // A vacuum that is not linked runs a short pretend job: it cleans for a few minutes on a
+  // battery that runs down, goes home, and charges there. The 3D view says when it is back
+  // (vacuumDocked); SIM_HOME is the longest it waits for that.
+  function simulateVacuums(dt) {
+    let ticked = false;
+    for (const [id, v] of Object.entries(state.vacuums)) {
+      if (isLinked(vacuumCfg.get(id))) continue;
+      const t = (sim.get(id) || 0) + dt;
+      sim.set(id, t);
+      let next = null;
+      if (v.status === 'cleaning') {
+        v.battery = Math.max(0, v.battery - 0.5);
+        ticked = true;
+        if (t >= SIM_RUN || v.battery <= 15) next = 'returning';
+      } else if (v.status === 'returning' && t >= SIM_HOME) next = 'docked';
+      else if (v.status === 'docked' && v.battery < 100) { v.battery = Math.min(100, v.battery + 1); ticked = true; }
+      if (next && writeVacuum(id, { status: next }, { remote: true })) emit({ type: 'vacuum', id });
+    }
+    if (ticked) { for (const fn of listeners) fn({ type: 'tick' }); persist(); }
+  }
 
   return store;
 }

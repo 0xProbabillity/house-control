@@ -52,7 +52,7 @@ async function boot() {
   }
 
   const store = createStore(config);
-  const linked = [...config.lights, ...config.acs].some(isLinked);
+  const linked = [...config.lights, ...config.acs, ...config.vacuums].some(isLinked);
   // Never invent a starting state for real hardware: it reports its own.
   if (!store.restored && !linked) {
     // First launch: start with something worth looking at.
@@ -78,9 +78,10 @@ async function boot() {
       onPick(target) {
         if (!target) return;
         if (target.kind === 'light') { haptic('light'); store.toggleLight(target.id); }
-        else if (target.kind === 'ac') panel.openSheet(target);
+        else if (target.kind === 'ac' || target.kind === 'vacuum') panel.openSheet(target);
         else if (target.kind === 'room') panel.selectRoom(target.id);
       },
+      onVacuumDocked: (id) => store.vacuumDocked(id),
     });
   } catch (error) {
     fatal('3D view failed to start', error);
@@ -125,6 +126,7 @@ async function boot() {
   incoming.openDevice = (id) => {
     if (store.acCfg.has(id)) panel.openSheet({ kind: 'ac', id });
     else if (store.lightCfg.has(id)) panel.openSheet({ kind: 'light', id });
+    else if (store.vacuumCfg.has(id)) panel.openSheet({ kind: 'vacuum', id });
     else if (config.rooms.some((r) => r.id === id)) { panel.closeSheet(); panel.selectRoom(id); }
   };
   // AI Access: an AI assistant's requests are run here, where the state of every device lives.
@@ -148,7 +150,7 @@ async function boot() {
   incoming.openAtLogin = (state) => { openAtLogin = state; };
 
   store.onDeviceError = (id, message) => {
-    const name = store.lightCfg.get(id)?.name || store.acCfg.get(id)?.name || id;
+    const name = store.lightCfg.get(id)?.name || store.acCfg.get(id)?.name || store.vacuumCfg.get(id)?.name || id;
     panel.toast(`${name}: ${message}`);
     haptic('error');
   };
@@ -196,6 +198,7 @@ async function boot() {
   const opened = window.__HOUSE_BOOT__?.openDevice || new URLSearchParams(location.search).get('device');
   if (store.acCfg.has(opened)) panel.openSheet({ kind: 'ac', id: opened });
   else if (store.lightCfg.has(opened)) panel.openSheet({ kind: 'light', id: opened });
+  else if (store.vacuumCfg.has(opened)) panel.openSheet({ kind: 'vacuum', id: opened });
 
   if (!isNative) show();
   post('ready', { summary: store.summary() });
