@@ -1232,6 +1232,6 @@ export async function bootEditor(root) {
     });
     window.addEventListener('beforeunload', (event) => { if (dirty) { event.preventDefault(); event.returnValue = ''; } });
   }
-  window.__editor = { get doc() { return doc; }, select, tuya, links, phone };
+  window.__editor = { get doc() { return doc; }, get world() { return world; }, select, tuya, links, phone };
   post('ready');
 }

@@ -2,6 +2,12 @@
 
 The Linux service hosts the existing Three.js renderer and floor-plan editor. A desktop browser or Android client loads the service directly; the server stores the selected plan and Home Assistant connection. Existing standalone Mac/iPhone integrations remain available in their Apple apps.
 
+## Choose an always-on host
+
+The Docker service needs an always-on Linux computer, virtual machine, NAS with Docker support, or similar host reachable by your phones and Home Assistant. A [normal Linux Docker host](https://www.home-assistant.io/installation/linux/) can run House Control alongside Home Assistant Container with separate persistent volumes.
+
+Home Assistant OS is an appliance managed by Supervisor; installing this project's Docker Compose service alongside it is not a supported normal hosting path. Use a separate Docker host, or a VM beside the Home Assistant OS VM. A packaged [Home Assistant app (formerly add-on)](https://developers.home-assistant.io/docs/apps) would be another option, but this project does not implement one.
+
 ## Start the service
 
 Follow [server/README.md](../server/README.md) for Docker Compose, token configuration, the persistent data volume, secure remote access, and backup/restore. Open the service origin in a browser and sign in using `HOUSE_SERVER_TOKEN`. The browser receives an HttpOnly session cookie; it does not save the server token in local storage.
@@ -29,7 +35,7 @@ The settings screen also selects bundled demo plans or the saved custom home. Pl
 
 ## iPhone shared-plan sync
 
-In the iPhone app open **Settings → Shared server**, enter the HTTPS or private-network HTTP origin and the server access token, then choose **Connect and sync**. The token is stored in Keychain. Server mode pauses the existing Mac sync; **Use Mac / local mode** resumes it.
+Shared-server sync requires building/installing the iPhone app from this branch, or a future release containing these changes. An existing App Store/TestFlight installation does not gain this feature from deploying the server. In that new build, open **Settings → Shared server**, enter the HTTPS or private-network HTTP origin and the server access token, then choose **Connect and sync**. The token is stored in Keychain. Server mode pauses the existing Mac sync; **Use Mac / local mode** resumes it.
 
 The iPhone syncs on foreground and polls every 15 seconds while active. Local edits/imports sync automatically. Offline errors stay visible and retry on foreground. If both sides changed, choose **Keep iPhone** or **Keep server**; the displaced plan is archived under **Saved alternatives** and can be exported with the share sheet.
 

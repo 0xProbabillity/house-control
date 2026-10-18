@@ -41,6 +41,16 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           npm test
+      - name: Keep browser evidence and failure traces
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: server-browser-evidence
+          path: |
+            web/test-results/
+            build/evidence/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Build Docker image
         run: docker build --tag house-control:test .
       - name: Verify container auth, persisted plans, and restart

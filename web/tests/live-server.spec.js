@@ -13,6 +13,13 @@ let on = false, failControl = false;
 const commands = [];
 const entity = () => ({ entity_id: 'light.browser_fixture', state: on ? 'on' : 'off', attributes: { friendly_name: 'Fixture light', supported_color_modes: ['brightness'], brightness: 128 } });
 async function listen(server) { await new Promise(r => server.listen(0, '127.0.0.1', r)); return `http://127.0.0.1:${server.address().port}`; }
+// Pause only the app renderer for evidence capture. Keep browser RAF available to
+// Playwright's screenshot synchronisation; subsequent navigation recreates the renderer.
+async function evidence(page, name) {
+  await page.waitForFunction(() => window.__editor?.world || window.__house?.world);
+  await page.evaluate(() => { (window.__editor?.world || window.__house?.world)?.setRunning(false); });
+  await page.screenshot({ path: `../build/evidence/${name}.png`, animations: 'disabled' });
+}
 async function stop(server) { await new Promise(r => { server.close(r); server.closeAllConnections(); }); }
 test.beforeAll(async () => {
   dataDir = await mkdtemp(path.join(tmpdir(), 'house-browser-'));
@@ -59,7 +66,7 @@ test('real login, HA connection, linking, shared save, SSE state and rollback', 
   await page.getByLabel('Home name').fill('Real shared fixture'); await page.getByRole('button', { name: 'Save & apply' }).click();
   await expect(page.getByText('Saved — every connected device now shares this home')).toBeVisible();
   await page.reload(); await expect(page.getByLabel('Home name')).toHaveValue('Real shared fixture');
-  await page.screenshot({ path: '../build/evidence/server-editor-desktop.png' });
+  await evidence(page, 'server-editor-desktop');
   await page.getByRole('button', { name: 'Back to home', exact: true }).click(); await page.waitForFunction(() => window.__house);
   const id = await page.evaluate(() => window.__house.config.lights[0].id);
   await page.evaluate(id => window.__house.store.toggleLight(id), id);
@@ -73,7 +80,7 @@ test('real login, HA connection, linking, shared save, SSE state and rollback', 
   const phone = await second.newPage(); await phone.goto(origin + '/?platform=android');
   await phone.getByLabel('Server access token').fill(token); await phone.getByRole('button', { name: 'Sign in', exact: true }).click();
   await phone.waitForFunction(() => window.__house); expect(await phone.evaluate(() => window.__house.config.name)).toBe('Real shared fixture');
-  await phone.screenshot({ path: '../build/evidence/server-home-android.png' });
+  await evidence(phone, 'server-home-android');
   await phone.getByRole('button', { name: 'Server connection settings' }).click(); await expect(phone.getByRole('link', { name: 'Change server' })).toBeVisible();
   await second.close();
 });

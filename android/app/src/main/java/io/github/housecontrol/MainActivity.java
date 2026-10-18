@@ -119,7 +119,7 @@ public final class MainActivity extends Activity {
             if(uri!=null && bytes!=null){
                 try(java.io.OutputStream out=getContentResolver().openOutputStream(uri)){
                     if(out==null)throw new java.io.IOException();out.write(bytes);
-                    status.setText("Plan exported");status.setVisibility(View.VISIBLE);
+                    Toast.makeText(this,"Plan exported",Toast.LENGTH_SHORT).show();
                 }catch(Exception e){showError("Could not save the plan file. Try exporting again.");}
             }
         }
