@@ -8,6 +8,10 @@ export const WALLS = ['north', 'south', 'east', 'west'];
 const FURNITURE_KEYS = ['type', 'pos', 'rot', 'width', 'height', 'size', 'color', 'chairs', 'stools', 'upper'];
 const LIGHT_KEYS = ['id', 'name', 'room', 'type', 'pos', 'y', 'rot', 'length', 'capabilities', 'color'];
 const AC_KEYS = ['id', 'name', 'room', 'wall', 'pos', 'y', 'min', 'max'];
+const VACUUM_KEYS = ['id', 'name', 'room', 'pos', 'rot'];
+// The lists of devices, which may be linked to real hardware.
+const DEVICE_LISTS = ['lights', 'acs', 'vacuums'];
+const devicesOf = (plan) => DEVICE_LISTS.flatMap((key) => plan[key] || []);
 
 export class PlanEditError extends Error {}
 
@@ -20,7 +24,7 @@ const pick = (obj, keys) => Object.fromEntries(Object.entries(obj || {}).filter(
 /** The plan as an AI sees it: links to real hardware are replaced by `"linked": true`. */
 export function redactPlan(raw) {
   const plan = structuredClone(raw);
-  for (const list of [plan.lights || [], plan.acs || []]) {
+  for (const list of DEVICE_LISTS.map((key) => plan[key] || [])) {
     for (const d of list) {
       if (LINK_FIELDS.some((k) => d[k])) {
         for (const k of LINK_FIELDS) delete d[k];
@@ -33,7 +37,7 @@ export function redactPlan(raw) {
 
 /** Puts the hardware links of `old` back into a plan an AI wrote from a redacted copy. */
 export function restoreLinks(plan, old) {
-  for (const key of ['lights', 'acs']) {
+  for (const key of DEVICE_LISTS) {
     const links = new Map((old[key] || []).map((d) => [d.id, pick(d, LINK_FIELDS)]));
     for (const d of plan[key] || []) {
       delete d.linked;
@@ -93,6 +97,8 @@ export function applyOperations(raw, operations) {
   if (!Array.isArray(operations) || !operations.length) fail('"operations" must be a non-empty list');
   const plan = structuredClone(raw);
   for (const key of ['rooms', 'openings', 'furniture', 'lights', 'acs', 'scenes']) plan[key] = plan[key] || [];
+  const hadVacuums = Array.isArray(plan.vacuums);
+  plan.vacuums = plan.vacuums || [];
   const originalFurniture = plan.furniture.length;
   const originalOpenings = plan.openings.length;
   const dropFurniture = new Set();
@@ -138,7 +144,7 @@ export function applyOperations(raw, operations) {
           if (op.moveContents !== false && (dx || dz)) {
             const inside = (p) => roomAt({ rooms: [room] }, p);
             for (const f of plan.furniture) if (inside(f.pos)) f.pos = [round(f.pos[0] + dx), round(f.pos[1] + dz)];
-            for (const d of [...plan.lights, ...plan.acs]) if (d.room === room.id) d.pos = [round(d.pos[0] + dx), round(d.pos[1] + dz)];
+            for (const d of devicesOf(plan)) if (d.room === room.id) d.pos = [round(d.pos[0] + dx), round(d.pos[1] + dz)];
           }
           room.rect = rect;
         }
@@ -151,12 +157,13 @@ export function applyOperations(raw, operations) {
       }
       case 'remove_room': {
         const i = findById(plan.rooms, op.id, 'room');
-        const devices = [...plan.lights, ...plan.acs].filter((d) => d.room === op.id);
+        const devices = devicesOf(plan).filter((d) => d.room === op.id);
         if (devices.some(isLinked)) fail(`${where}: this room has devices linked to real hardware; unlink them in the editor first`);
         const room = plan.rooms[i];
         plan.furniture.forEach((f, k) => { if (k < originalFurniture && roomAt({ rooms: [room] }, f.pos)) dropFurniture.add(k); });
         plan.lights = plan.lights.filter((d) => d.room !== op.id);
         plan.acs = plan.acs.filter((d) => d.room !== op.id);
+        plan.vacuums = plan.vacuums.filter((d) => d.room !== op.id);
         plan.rooms.splice(i, 1);
         changes.push(`removed room ${room.name}`);
         break;
@@ -213,7 +220,7 @@ export function applyOperations(raw, operations) {
         const list = isLight ? plan.lights : plan.acs;
         const device = pick(op, isLight ? LIGHT_KEYS : AC_KEYS);
         if (typeof device.id !== 'string' || !device.id) fail(`${where}: "id" is required, e.g. "living.reading"`);
-        if ([...plan.lights, ...plan.acs].some((d) => d.id === device.id)) fail(`${where}: id "${device.id}" is taken`);
+        if (devicesOf(plan).some((d) => d.id === device.id)) fail(`${where}: id "${device.id}" is taken`);
         if (isLight && !LIGHT_KINDS.includes(device.type)) fail(`${where}: "type" must be one of ${LIGHT_KINDS.join(', ')}`);
         if (!isLight && !WALLS.includes(device.wall)) fail(`${where}: "wall" must be one of ${WALLS.join(', ')}`);
         list.push(device);
@@ -239,6 +246,28 @@ export function applyOperations(raw, operations) {
         if (isLinked(list[i])) fail(`${where}: "${list[i].name}" is a real device; unlink it in the editor before removing it`);
         const [gone] = list.splice(i, 1);
         for (const s of plan.scenes) delete s[isLight ? 'lights' : 'acs']?.[gone.id];
+        changes.push(`removed ${gone.name || gone.id}`);
+        break;
+      }
+      case 'add_vacuum': {
+        const device = pick(op, VACUUM_KEYS);
+        if (typeof device.id !== 'string' || !device.id) fail(`${where}: "id" is required, e.g. "living.vacuum"`);
+        if (devicesOf(plan).some((d) => d.id === device.id)) fail(`${where}: id "${device.id}" is taken`);
+        plan.vacuums.push(device);
+        changes.push(`added robot vacuum ${device.name || device.id}`);
+        break;
+      }
+      case 'update_vacuum': {
+        const i = findById(plan.vacuums, op.id, 'robot vacuum');
+        if (LINK_FIELDS.some((k) => op.set?.[k]) || op.set?.linked != null) fail(`${where}: links to real devices are made in the editor, not here`);
+        Object.assign(plan.vacuums[i], pick(op.set, VACUUM_KEYS.filter((k) => k !== 'id')));
+        changes.push(`changed ${plan.vacuums[i].name || plan.vacuums[i].id}`);
+        break;
+      }
+      case 'remove_vacuum': {
+        const i = findById(plan.vacuums, op.id, 'robot vacuum');
+        if (isLinked(plan.vacuums[i])) fail(`${where}: "${plan.vacuums[i].name}" is a real device; unlink it in the editor before removing it`);
+        const [gone] = plan.vacuums.splice(i, 1);
         changes.push(`removed ${gone.name || gone.id}`);
         break;
       }
@@ -270,12 +299,14 @@ export function applyOperations(raw, operations) {
       default:
         fail(`${where}: unknown operation. Use one of: set_home, add_room, update_room, remove_room, furnish_room, `
           + 'add_furniture, update_furniture, remove_furniture, add_opening, remove_opening, add_light, update_light, '
-          + 'remove_light, add_ac, update_ac, remove_ac, add_scene, update_scene, remove_scene');
+          + 'remove_light, add_ac, update_ac, remove_ac, add_vacuum, update_vacuum, remove_vacuum, add_scene, update_scene, remove_scene');
     }
   });
 
   plan.furniture = plan.furniture.filter((_, k) => !dropFurniture.has(k)).concat(addFurniture);
   plan.openings = plan.openings.filter((_, k) => !dropOpenings.has(k));
+  // A plan that never had robot vacuums does not get an empty list from an edit.
+  if (!hadVacuums && !plan.vacuums.length) delete plan.vacuums;
   return { plan, changes, warnings: check(plan) };
 }
 
@@ -291,7 +322,7 @@ export function check(plan) {
     if (!FURNITURE_TYPES.includes(f.type)) fail(`Furniture #${i} has unknown type "${f.type}"`);
     if (!roomAt(plan, f.pos)) warnings.push(`furniture #${i} (${f.type}) stands outside every room`);
   });
-  for (const d of [...plan.lights, ...plan.acs]) {
+  for (const d of devicesOf(plan)) {
     const room = plan.rooms.find((r) => r.id === d.room);
     if (room && roomAt({ rooms: [room] }, d.pos)?.id !== room.id) warnings.push(`${d.name || d.id} is outside its room "${room.name}"`);
   }
@@ -304,8 +335,7 @@ export function replacePlan(old, next) {
   const plan = restoreLinks(structuredClone(next), old);
   plan.furniture = (plan.furniture || []).map((f, i) => cleanFurniture(f, `Furniture #${i}`));
   if (old.version != null && plan.version == null) plan.version = old.version;
-  const lost = [...(old.lights || []), ...(old.acs || [])].filter((d) => isLinked(d)
-    && ![...(plan.lights || []), ...(plan.acs || [])].some((n) => n.id === d.id));
+  const lost = devicesOf(old).filter((d) => isLinked(d) && !devicesOf(plan).some((n) => n.id === d.id));
   if (lost.length) {
     fail(`The new plan drops devices linked to real hardware: ${lost.map((d) => `${d.name} (${d.id})`).join(', ')}. Keep them, with the same ids.`);
   }
