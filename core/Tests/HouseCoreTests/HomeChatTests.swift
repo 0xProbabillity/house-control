@@ -5,6 +5,8 @@ import XCTest
 private final class FakeGateway: URLProtocol {
     nonisolated(unsafe) static var replies: [(status: Int, body: [String: Any])] = []
     nonisolated(unsafe) static var requests: [(url: String, headers: [String: String], body: [String: Any]?)] = []
+    /// Seconds each answer takes to arrive.
+    nonisolated(unsafe) static var delay: TimeInterval = 0
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -27,9 +29,12 @@ private final class FakeGateway: URLProtocol {
         Self.requests.append((request.url?.absoluteString ?? "", request.allHTTPHeaderFields ?? [:], body))
         let reply = Self.replies.isEmpty ? (status: 500, body: ["error": ["message": "no scripted reply"]]) : Self.replies.removeFirst()
         let response = HTTPURLResponse(url: request.url!, statusCode: reply.status, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: try! JSONSerialization.data(withJSONObject: reply.body))
-        client?.urlProtocolDidFinishLoading(self)
+        let data = try! JSONSerialization.data(withJSONObject: reply.body)
+        DispatchQueue.global().asyncAfter(deadline: .now() + Self.delay) { [self] in
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        }
     }
 
     override func stopLoading() {}
@@ -81,6 +86,7 @@ final class HomeChatTests: XCTestCase {
     override func setUp() async throws {
         FakeGateway.replies = []
         FakeGateway.requests = []
+        FakeGateway.delay = 0
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [FakeGateway.self]
         home = FakeHome()
@@ -211,6 +217,69 @@ final class HomeChatTests: XCTestCase {
         await chat.send("again")
         let messages = sentBodies.last?["messages"] as? [[String: Any]] ?? []
         XCTAssertEqual(messages.count, 2)
+    }
+
+    func testClearWhileATurnIsRunningDropsThatTurn() async {
+        FakeGateway.delay = 0.3
+        // The model answers the first turn with a tool call — after the user has moved on.
+        FakeGateway.replies = [
+            (200, completion(text: nil, calls: [("c1", "set_lights", #"{"lights": ["living.lamp"], "on": true}"#)])),
+            (200, completion(text: "Hello.")),
+        ]
+        let turn = Task { await self.chat.send("turn the lamp on") }
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertTrue(chat.busy)
+        chat.clear()
+        XCTAssertTrue(chat.transcript.isEmpty)
+        XCTAssertFalse(chat.busy)
+
+        // A new conversation starts at once, while the old turn is still waiting on the model.
+        let next = Task { await self.chat.send("hello") }
+        await turn.value
+        await next.value
+        XCTAssertEqual(chat.transcript.map(\.text), ["hello", "Hello."])
+        XCTAssertFalse(chat.busy)
+        XCTAssertEqual(chat.modelHistory.count, 2)
+        // The abandoned turn neither ran its tool nor asked the model again.
+        XCTAssertTrue(home.calls.isEmpty)
+        XCTAssertEqual(FakeGateway.requests.count, 2)
+    }
+
+    func testOldTurnsFallOffTheModelsContextAtAUserMessage() async {
+        for i in 0..<40 {
+            FakeGateway.replies = [(200, completion(text: "Reply \(i)."))]
+            await chat.send("Message \(i)")
+        }
+        let history = chat.modelHistory
+        XCTAssertLessThanOrEqual(history.count, HomeChat.maxHistory)
+        XCTAssertEqual(history.first?["role"] as? String, "user")
+        XCTAssertEqual(history.first?["content"] as? String, "Message 10")
+        XCTAssertEqual(chat.transcript.count, 80)
+    }
+
+    func testOneLongTurnIsNeverCutInTheMiddle() async {
+        // More tool rounds in one turn than the limit has messages: none of them droppable.
+        let rounds = HomeChat.maxHistory / 2 + 1
+        var replies: [(status: Int, body: [String: Any])] = []
+        for i in 0..<rounds { replies.append((200, completion(text: nil, calls: [("c\(i)", "get_home", "{}")]))) }
+        replies.append((200, completion(text: "Looked \(rounds) times.")))
+        FakeGateway.replies = replies
+        await chat.send("look again and again")
+        let history = chat.modelHistory
+        XCTAssertEqual(history.count, 2 + 2 * rounds)
+        XCTAssertEqual(history.first?["role"] as? String, "user")
+        for (i, message) in history.enumerated() where message["role"] as? String == "tool" {
+            XCTAssertNotNil(history[i - 1]["tool_calls"], "tool answer at \(i) has no call before it")
+        }
+        XCTAssertEqual(chat.transcript.last?.text, "Looked \(rounds) times.")
+    }
+
+    func testAModelThatNeverStopsCallingToolsIsCutOff() async {
+        FakeGateway.replies = (0..<(HomeChat.maxRounds * 3 + 2)).map { i in (200, completion(text: nil, calls: [("c\(i)", "get_home", "{}")])) }
+        await chat.send("loop")
+        XCTAssertEqual(chat.transcript.last?.error, "The model kept calling tools without finishing. Try again, or another model.")
+        XCTAssertEqual(FakeGateway.requests.count, HomeChat.maxRounds * 3 + 1)
+        XCTAssertTrue(chat.modelHistory.isEmpty)
     }
 
     func testModelsListKeepsOnlyThoseThatCanCallTools() async throws {

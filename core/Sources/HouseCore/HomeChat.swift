@@ -41,7 +41,8 @@ public final class HomeChat {
 
     /// How the feed names it. The model's own name is in the step titles.
     public static let clientName = "LLM Gateway"
-    /// Tool rounds for one message before the model is asked to wrap up.
+    /// Tool rounds for one message before the model is asked to wrap up (it gets no tools
+    /// from then on); three times that, and a model that keeps calling anyway is cut off.
     public static let maxRounds = 12
     /// How much of a tool's answer the model gets; the home's overview fits several times over.
     static let maxToolText = 24_000
@@ -60,14 +61,20 @@ public final class HomeChat {
     public private(set) var busy = false
     /// The conversation as the model sees it (OpenAI messages, without the system prompt).
     private var history: [[String: Any]] = []
+    /// Bumped by `clear()`: a turn still running then belongs to a conversation that is gone,
+    /// and writes nothing more.
+    private var generation = 0
 
     public init() {}
 
     public var isConfigured: Bool { !(client?.apiKey.isEmpty ?? true) }
 
+    /// Starts over. A turn in flight keeps running the tool it is on, but its answer is dropped.
     public func clear() {
+        generation += 1
         transcript = []
         history = []
+        busy = false
         onChange?()
     }
 
@@ -82,14 +89,21 @@ public final class HomeChat {
             return
         }
         busy = true
+        let turn = generation
         transcript.append(Entry(role: .user, text: text, photos: photos.count))
         var reply = Entry(role: .assistant, text: "")
         transcript.append(reply)
+        let at = transcript.count - 1
         onChange?()
-        defer {
-            busy = false
-            transcript[transcript.count - 1] = reply
+        /// Shows the reply as it stands — unless the conversation was cleared meanwhile.
+        func show() {
+            guard turn == generation, at < transcript.count else { return }
+            transcript[at] = reply
             onChange?()
+        }
+        defer {
+            if turn == generation { busy = false }
+            show()
         }
 
         var content: Any = text
@@ -112,10 +126,12 @@ public final class HomeChat {
                     body["tool_choice"] = "auto"
                 }
                 let completion = try await client.complete(body)
+                guard turn == generation else { return }
                 guard let message = ((completion["choices"] as? [[String: Any]])?.first)?["message"] as? [String: Any] else {
                     throw LLMGatewayError(status: 0, message: "The model sent back an empty answer.")
                 }
                 history.append(Self.assistantMessage(message))
+                trimHistory()
                 let calls = message["tool_calls"] as? [[String: Any]] ?? []
                 if calls.isEmpty {
                     reply.text = Self.text(of: message["content"])
@@ -123,20 +139,23 @@ public final class HomeChat {
                     break
                 }
                 rounds += 1
+                if rounds > Self.maxRounds * 3 {
+                    throw LLMGatewayError(status: 0, message: "The model kept calling tools without finishing. Try again, or another model.")
+                }
                 for call in calls {
                     let id = call["id"] as? String ?? UUID().uuidString
                     let function = call["function"] as? [String: Any] ?? [:]
                     let name = function["name"] as? String ?? ""
                     let arguments = Self.arguments(function["arguments"])
                     let (result, step) = await run(name, arguments)
+                    guard turn == generation else { return }
                     reply.steps.append(step)
-                    transcript[transcript.count - 1] = reply
-                    onChange?()
+                    show()
                     history.append(["role": "tool", "tool_call_id": id, "content": result])
                 }
-                trimHistory()
             }
         } catch {
+            guard turn == generation else { return }
             reply.error = error.localizedDescription
             // A failed turn must not poison the next one: the model never saw it.
             history = before
@@ -227,13 +246,19 @@ public final class HomeChat {
         return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
     }
 
-    private func trimHistory() {
+    /// Drops the oldest turns once the conversation is long. A cut lands on a user message
+    /// only, so a tool answer never loses the call it belongs to; if the last turns alone are
+    /// over the limit, nothing goes.
+    func trimHistory() {
         guard history.count > Self.maxHistory else { return }
-        // Cut at a user message, so no tool answer is left without the call it belongs to.
         var cut = history.count - Self.maxHistory
         while cut < history.count, (history[cut]["role"] as? String) != "user" { cut += 1 }
-        history.removeFirst(min(cut, history.count - 2))
+        guard cut > 0, cut < history.count else { return }
+        history.removeFirst(cut)
     }
+
+    /// For tests: what the model would be sent next.
+    var modelHistory: [[String: Any]] { history }
 
     private static func today() -> String {
         let f = DateFormatter()

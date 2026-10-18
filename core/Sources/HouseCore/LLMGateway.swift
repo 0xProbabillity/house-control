@@ -69,12 +69,6 @@ public final class LLMGatewayClient {
         self.session = session
     }
 
-    /// A key looks like `llmgtwy_…`; anything else is a paste gone wrong.
-    nonisolated public static func looksLikeKey(_ value: String) -> Bool {
-        let key = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return key.count >= 20 && key.count <= 200 && !key.contains(" ")
-    }
-
     /// Every model that can call tools, so it can run the home. The list is public: it works
     /// without a key too.
     public func models() async throws -> [LLMGatewayModel] {
