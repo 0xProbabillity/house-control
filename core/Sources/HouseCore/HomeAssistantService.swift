@@ -2,8 +2,9 @@ import Foundation
 
 /// A Home Assistant server on the local network (or anywhere it is reachable), through its
 /// REST API with a long-lived access token. Lights and switches become lamps, `climate`
-/// entities become air conditioners and temperature sensors can stand in for an AC's room
-/// reading. A WebSocket subscription tells the hub the moment something changes.
+/// entities become air conditioners, `vacuum` entities robot vacuums, and temperature
+/// sensors can stand in for an AC's room reading. A WebSocket subscription tells the hub
+/// the moment something changes.
 @MainActor
 public final class HomeAssistantService: DeviceService {
     public let id = "homeassistant"
@@ -25,7 +26,15 @@ public final class HomeAssistantService: DeviceService {
     /// Each climate entity's own names for the panel's fan speeds and modes, from the last read.
     private var fanNames: [String: [String: String]] = [:]
     private var modeNames: [String: [String: String]] = [:]
-    /// The entities linked in the plan: only their changes are worth a read.
+    /// Each vacuum's `supported_features`, from the last read: pausing falls back to stop.
+    private var vacuumFeatures: [String: Int] = [:]
+    /// Each linked vacuum's battery sensor, "" when it has none. Home Assistant 2025.8 moved a
+    /// vacuum's battery off the vacuum entity onto a `sensor` of the same device; this is
+    /// looked up once (one template request) and again when the linked entities change.
+    private var batterySensors: [String: String] = [:]
+    /// The entities linked in the plan.
+    private var linked: Set<String> = []
+    /// What a change is worth a read for: the linked entities, and their vacuums' batteries.
     private var watched: Set<String> = []
     private var changePending = false
 
@@ -80,7 +89,13 @@ public final class HomeAssistantService: DeviceService {
         listen()
     }
 
-    public func watch(_ ids: Set<String>) { watched = ids }
+    public func watch(_ ids: Set<String>) {
+        if ids != linked {
+            linked = ids
+            batterySensors = [:]
+        }
+        watched = ids.union(batterySensors.values.filter { !$0.isEmpty })
+    }
 
     public func disconnect() {
         config = nil
@@ -132,6 +147,16 @@ public final class HomeAssistantService: DeviceService {
     public func read(_ ids: Set<String>) async throws -> [String: DeviceReading] {
         guard !ids.isEmpty else { return [:] }
         let states = try await request("GET", "/api/states") as? [[String: Any]] ?? []
+        let unresolved = ids.filter { $0.hasPrefix("vacuum.") && batterySensors[$0] == nil }
+        if !unresolved.isEmpty { await findBatteries(unresolved.sorted()) }
+        // A vacuum's battery sensor is in the same answer: it costs no request of its own.
+        let wanted = Set(ids.compactMap { batterySensors[$0] }.filter { !$0.isEmpty })
+        var batteries: [String: Double] = [:]
+        for state in states {
+            if let id = state["entity_id"] as? String, wanted.contains(id), let level = Self.batteryLevel(state) {
+                batteries[id] = level
+            }
+        }
         var out: [String: DeviceReading] = [:]
         for state in states {
             guard let id = state["entity_id"] as? String, ids.contains(id) else { continue }
@@ -140,14 +165,27 @@ public final class HomeAssistantService: DeviceService {
                 fanNames[id] = FanNames.table(attributes["fan_modes"] as? [String] ?? [])
                 modeNames[id] = Self.modeTable(attributes["hvac_modes"] as? [String] ?? [])
             }
-            out[id] = Self.reading(from: state)
+            if id.hasPrefix("vacuum."), let bits = attributes.double("supported_features") {
+                vacuumFeatures[id] = Int(bits)
+            }
+            out[id] = Self.reading(from: state, battery: batterySensors[id].flatMap { batteries[$0] })
         }
         return out
     }
 
+    /// Looks up the battery sensor of each of `vacuums` and watches it, so a change of charge
+    /// is pushed like any other. A lookup that fails counts as "no sensor" until the linked
+    /// entities change: the vacuum's own `battery_level`, if any, is used meanwhile.
+    private func findBatteries(_ vacuums: [String]) async {
+        let text = try? await request("POST", "/api/template", body: ["template": Self.batteryTemplate(vacuums)], raw: true) as? String
+        let found = text.map(Self.batterySensors(from:)) ?? [:]
+        for id in vacuums { batterySensors[id] = found[id] ?? "" }
+        watched.formUnion(found.values)
+    }
+
     public func send(kind: DeviceKind, id: String, patch: [String: Any], state: [String: Any]) async throws {
-        for call in Self.calls(for: id, patch: patch, state: state,
-                               fans: fanNames[id] ?? [:], modes: modeNames[id] ?? [:]) {
+        for call in Self.calls(for: id, patch: patch, state: state, fans: fanNames[id] ?? [:],
+                               modes: modeNames[id] ?? [:], features: vacuumFeatures[id]) {
             _ = try await request("POST", "/api/services/\(call.domain)/\(call.service)", body: call.data)
         }
     }
@@ -175,6 +213,10 @@ public final class HomeAssistantService: DeviceService {
                 device.range = (max(lo, 10), min(hi, 32))
             }
             device.detail = "climate · " + (attributes["hvac_modes"] as? [String] ?? []).joined(separator: ", ")
+        case "vacuum":
+            device = ServiceDevice(id: id, name: name, kind: .vacuum)
+            let fans = attributes["fan_speed_list"] as? [String] ?? []
+            device.detail = "vacuum" + (fans.isEmpty ? "" : " · " + fans.joined(separator: ", "))
         case "sensor":
             guard isTemperature(attributes) else { return nil }
             device = ServiceDevice(id: id, name: name, kind: .sensor)
@@ -209,7 +251,34 @@ public final class HomeAssistantService: DeviceService {
         return out
     }
 
-    static func reading(from state: [String: Any]) -> DeviceReading {
+    /// One line per vacuum, "vacuum.x<TAB>sensor.y": the first `sensor` of its device whose
+    /// `device_class` is battery, or nothing after the tab.
+    static func batteryTemplate(_ vacuums: [String]) -> String {
+        let list = vacuums.map { "'\($0)'" }.joined(separator: ",")
+        return "{% for v in [\(list)] %}{% set d = device_id(v) %}{% set ns = namespace(b='') %}"
+            + "{% if d %}{% for e in device_entities(d) %}"
+            + "{% if not ns.b and e.startswith('sensor.') and state_attr(e, 'device_class') == 'battery' %}{% set ns.b = e %}{% endif %}"
+            + "{% endfor %}{% endif %}{{ v }}\t{{ ns.b }}\n{% endfor %}"
+    }
+
+    static func batterySensors(from text: String) -> [String: String] {
+        var out: [String: String] = [:]
+        for line in text.split(separator: "\n") {
+            let parts = line.split(separator: "\t", omittingEmptySubsequences: false)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+            if parts.count == 2, parts[0].hasPrefix("vacuum."), parts[1].hasPrefix("sensor.") { out[parts[0]] = parts[1] }
+        }
+        return out
+    }
+
+    /// A battery sensor's charge, 0…100, when it has one to report.
+    static func batteryLevel(_ state: [String: Any]) -> Double? {
+        guard let level = Double(state["state"] as? String ?? ""), level.isFinite else { return nil }
+        return max(0, min(100, level.rounded()))
+    }
+
+    /// `battery` is a vacuum's charge from its battery sensor, when it has one.
+    static func reading(from state: [String: Any], battery: Double? = nil) -> DeviceReading {
         let id = state["entity_id"] as? String ?? ""
         let value = state["state"] as? String ?? ""
         let attributes = state["attributes"] as? [String: Any] ?? [:]
@@ -255,10 +324,36 @@ public final class HomeAssistantService: DeviceService {
                 "swing": swings.contains("off") && swings.count > 1,
                 "sleep": presets.contains("sleep"), "eco": presets.contains("eco"),
             ]
+        } else if id.hasPrefix("vacuum.") {
+            (reading.vacuum, reading.features) = vacuum(value, attributes, battery: battery)
         } else if id.hasPrefix("sensor."), let t = Double(value) {
             reading.temperature = (attributes["unit_of_measurement"] as? String) == "°F" ? (t - 32) * 5 / 9 : t
         }
         return reading
+    }
+
+    /// Home Assistant's `VacuumEntityFeature` bits that matter here.
+    enum VacuumFeature {
+        static let pause = 4, stop = 8, returnHome = 16, fanSpeed = 32, start = 8192
+    }
+
+    /// A vacuum entity's state and what it can do, in the panel's terms. A vacuum that does
+    /// not say what it supports is assumed to do the usual things. `battery` comes from the
+    /// vacuum's battery sensor; without one, the `battery_level` Home Assistant deprecated in
+    /// 2025.8 is used while integrations still report it.
+    static func vacuum(_ value: String, _ attributes: [String: Any], battery: Double? = nil) -> (state: [String: Any], features: [String: Any]) {
+        var state: [String: Any] = [
+            "status": ["cleaning", "docked", "returning", "paused", "idle", "error"].contains(value) ? value : "idle",
+        ]
+        if let level = battery ?? attributes.double("battery_level") { state["battery"] = max(0, min(100, level.rounded())) }
+        let fans = attributes["fan_speed_list"] as? [String] ?? []
+        let bits = attributes.double("supported_features").map(Int.init)
+        let has = { (bit: Int) in bits.map { $0 & bit != 0 } ?? true }
+        let speeds = has(VacuumFeature.fanSpeed) ? fans : []
+        if let fan = attributes["fan_speed"] as? String, speeds.contains(fan) { state["fan"] = fan }
+        return (state, ["fans": speeds, "canStart": has(VacuumFeature.start),
+                        "canPause": has(VacuumFeature.pause) || has(VacuumFeature.stop),
+                        "canReturn": has(VacuumFeature.returnHome)])
     }
 
     struct Call {
@@ -267,8 +362,9 @@ public final class HomeAssistantService: DeviceService {
         var data: [String: Any]
     }
 
+    /// `features` is a vacuum's `supported_features`, when known.
     static func calls(for id: String, patch: [String: Any], state: [String: Any],
-                      fans: [String: String], modes: [String: String]) -> [Call] {
+                      fans: [String: String], modes: [String: String], features: Int? = nil) -> [Call] {
         let domain = id.split(separator: ".").first.map(String.init) ?? ""
         let target: [String: Any] = ["entity_id": id]
         func call(_ service: String, _ data: [String: Any] = [:], domain d: String = domain) -> Call {
@@ -289,6 +385,20 @@ public final class HomeAssistantService: DeviceService {
             }
             guard !data.isEmpty || patch["on"] as? Bool == true else { return [] }
             return [call("turn_on", data)]
+        }
+        if domain == "vacuum" {
+            var out: [Call] = []
+            // The panel sends the status it wants; the vacuum works out how to get there.
+            switch patch["status"] as? String {
+            case "cleaning": out.append(call("start"))
+            case "paused":
+                let canPause = features.map { $0 & VacuumFeature.pause != 0 || $0 & VacuumFeature.stop == 0 } ?? true
+                out.append(call(canPause ? "pause" : "stop"))
+            case "returning": out.append(call("return_to_base"))
+            default: break
+            }
+            if let fan = patch["fan"] as? String, !fan.isEmpty { out.append(call("set_fan_speed", ["fan_speed": fan])) }
+            return out
         }
         guard domain == "climate" else { return [] }
 

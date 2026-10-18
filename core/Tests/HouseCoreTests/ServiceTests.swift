@@ -119,6 +119,84 @@ final class ServiceTests: XCTestCase {
             .first?.data["hvac_mode"] as? String, "off")
     }
 
+    func testHomeAssistantReadsVacuums() {
+        let listed = HomeAssistantService.device(from: [
+            "entity_id": "vacuum.robo", "state": "docked",
+            "attributes": ["friendly_name": "Robo", "fan_speed_list": ["Quiet", "Turbo"]],
+        ])
+        XCTAssertEqual(listed?.kind, .vacuum)
+        XCTAssertEqual(listed?.detail, "vacuum · Quiet, Turbo")
+
+        // PAUSE | RETURN_HOME | FAN_SPEED | BATTERY | STATE | START
+        let reading = HomeAssistantService.reading(from: [
+            "entity_id": "vacuum.robo", "state": "cleaning",
+            "attributes": ["battery_level": 61, "fan_speed": "Turbo", "fan_speed_list": ["Quiet", "Turbo"],
+                           "supported_features": 4 | 16 | 32 | 64 | 4096 | 8192],
+        ])
+        XCTAssertEqual(reading.vacuum?["status"] as? String, "cleaning")
+        XCTAssertEqual(reading.vacuum?["battery"] as? Double, 61)
+        XCTAssertEqual(reading.vacuum?["fan"] as? String, "Turbo")
+        XCTAssertEqual(reading.features?["fans"] as? [String], ["Quiet", "Turbo"])
+        XCTAssertEqual(reading.features?["canStart"] as? Bool, true)
+        XCTAssertEqual(reading.features?["canPause"] as? Bool, true)
+        XCTAssertEqual(reading.features?["canReturn"] as? Bool, true)
+        XCTAssertNil(reading.ac)
+
+        // No fan speeds, no way home and no start: the panel offers none of them.
+        let basic = HomeAssistantService.reading(from: [
+            "entity_id": "vacuum.basic", "state": "returning",
+            "attributes": ["fan_speed_list": ["Max"], "supported_features": 8],
+        ])
+        XCTAssertEqual(basic.vacuum?["status"] as? String, "returning")
+        XCTAssertNil(basic.vacuum?["battery"])
+        XCTAssertEqual(basic.features?["fans"] as? [String], [])
+        XCTAssertEqual(basic.features?["canStart"] as? Bool, false)
+        XCTAssertEqual(basic.features?["canPause"] as? Bool, true) // through stop
+        XCTAssertEqual(basic.features?["canReturn"] as? Bool, false)
+        XCTAssertEqual(HomeAssistantService.reading(from: ["entity_id": "vacuum.x", "state": "unavailable", "attributes": [:]]).online, false)
+        XCTAssertEqual(HomeAssistantService.reading(from: ["entity_id": "vacuum.x", "state": "mopping", "attributes": [:]])
+            .vacuum?["status"] as? String, "idle")
+    }
+
+    func testHomeAssistantReadsAVacuumsBatterySensor() {
+        // Home Assistant 2025.8 and later: no battery_level, a battery sensor on the same device.
+        let text = "vacuum.robo\tsensor.robo_battery\nvacuum.old\t\nvacuum.gone\tNone\nvacuum.last\tsensor.last_battery"
+        XCTAssertEqual(HomeAssistantService.batterySensors(from: text),
+                       ["vacuum.robo": "sensor.robo_battery", "vacuum.last": "sensor.last_battery"])
+        let template = HomeAssistantService.batteryTemplate(["vacuum.a", "vacuum.b"])
+        XCTAssertTrue(template.hasPrefix("{% for v in ['vacuum.a','vacuum.b'] %}"))
+        XCTAssertTrue(template.contains("state_attr(e, 'device_class') == 'battery'"))
+
+        XCTAssertEqual(HomeAssistantService.batteryLevel(["entity_id": "sensor.robo_battery", "state": "66"]), 66)
+        XCTAssertEqual(HomeAssistantService.batteryLevel(["entity_id": "sensor.robo_battery", "state": "100.4"]), 100)
+        XCTAssertNil(HomeAssistantService.batteryLevel(["entity_id": "sensor.robo_battery", "state": "unavailable"]))
+
+        let state: [String: Any] = ["entity_id": "vacuum.robo", "state": "docked", "attributes": ["supported_features": 16 | 8192]]
+        XCTAssertEqual(HomeAssistantService.reading(from: state, battery: 66).vacuum?["battery"] as? Double, 66)
+        XCTAssertNil(HomeAssistantService.reading(from: state).vacuum?["battery"])
+        // The sensor wins over a deprecated battery_level that is still there.
+        let both: [String: Any] = ["entity_id": "vacuum.robo", "state": "docked", "attributes": ["battery_level": 20]]
+        XCTAssertEqual(HomeAssistantService.reading(from: both, battery: 66).vacuum?["battery"] as? Double, 66)
+        XCTAssertEqual(HomeAssistantService.reading(from: both).vacuum?["battery"] as? Double, 20)
+    }
+
+    func testHomeAssistantBuildsVacuumCalls() {
+        func services(_ patch: [String: Any], features: Int? = nil) -> [String] {
+            HomeAssistantService.calls(for: "vacuum.robo", patch: patch, state: [:], fans: [:], modes: [:], features: features)
+                .map { "\($0.domain).\($0.service)" }
+        }
+        XCTAssertEqual(services(["status": "cleaning"]), ["vacuum.start"])
+        XCTAssertEqual(services(["status": "paused"]), ["vacuum.pause"])
+        XCTAssertEqual(services(["status": "paused"], features: 8 | 8192), ["vacuum.stop"]) // no PAUSE, but STOP
+        XCTAssertEqual(services(["status": "returning"]), ["vacuum.return_to_base"])
+        // A status the panel cannot ask for is never sent.
+        XCTAssertEqual(services(["status": "docked"]), [])
+        let fan = HomeAssistantService.calls(for: "vacuum.robo", patch: ["fan": "Turbo"], state: [:], fans: [:], modes: [:])
+        XCTAssertEqual(fan.first?.service, "set_fan_speed")
+        XCTAssertEqual(fan.first?.data["fan_speed"] as? String, "Turbo")
+        XCTAssertEqual(fan.first?.data["entity_id"] as? String, "vacuum.robo")
+    }
+
     func testHomeAssistantAddressIsNormalized() throws {
         XCTAssertEqual(try HomeAssistantService.normalize("homeassistant.local"), "http://homeassistant.local:8123")
         XCTAssertEqual(try HomeAssistantService.normalize(" http://10.0.0.5:8123/ "), "http://10.0.0.5:8123")
@@ -248,6 +326,52 @@ final class ServiceTests: XCTestCase {
         XCTAssertTrue(fake.sent.count == 1)
     }
 
+    func testHubRoutesVacuums() async {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let fake = FakeService()
+        let hub = DeviceHub(directory: dir, secret: { _ in MemorySecretStore() }, homeKit: fake)
+        hub.setLinks(from: [
+            // A vacuum has no thermometer: a "sensor" on it is ignored.
+            "vacuums": [["id": "robo", "link": ["service": "homekit", "id": "V1"], "sensor": ["service": "homekit", "id": "S1"]],
+                        ["id": "sim", "tuya": ["deviceId": "t1"]]],
+        ])
+        XCTAssertEqual(hub.linkedDeviceCount, 1)
+        XCTAssertEqual(fake.watched, ["V1"])
+
+        let sent = expectation(description: "sent")
+        hub.command(["id": "robo", "kind": "vacuum", "patch": ["status": "cleaning"], "state": ["status": "cleaning"]]) { reply in
+            XCTAssertEqual(reply["ok"] as? Bool, true)
+            sent.fulfill()
+        }
+        await fulfillment(of: [sent], timeout: 2)
+        XCTAssertEqual(fake.sent.first?.kind, .vacuum)
+        XCTAssertEqual(fake.sent.first?.id, "V1")
+
+        let update = await hub.poll()
+        let vacuums = update?["vacuums"] as? [String: [String: Any]]
+        XCTAssertEqual(vacuums?["robo"]?["status"] as? String, "docked")
+        XCTAssertEqual(vacuums?["robo"]?["battery"] as? Double, 80)
+        XCTAssertNil(vacuums?["sim"])
+        XCTAssertEqual((update?["features"] as? [String: [String: Any]])?["robo"]?["canReturn"] as? Bool, true)
+    }
+
+    func testHubReportsAnUnavailableVacuum() async {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let fake = FakeService()
+        let hub = DeviceHub(directory: dir, secret: { _ in MemorySecretStore() }, homeKit: fake)
+        hub.setLinks(from: ["vacuums": [["id": "robo", "link": ["service": "homekit", "id": "V0"]]]])
+        let update = await hub.poll()
+        let vacuums = update?["vacuums"] as? [String: [String: Any]]
+        // Not left out (the panel would go on showing its last status): reported as such.
+        XCTAssertEqual(vacuums?["robo"]?["status"] as? String, "unavailable")
+        XCTAssertNil(vacuums?["robo"]?["battery"])
+        XCTAssertNil((update?["features"] as? [String: Any])?["robo"])
+    }
+
     // MARK: - A real Home Assistant (opt-in)
 
     func testLiveHomeAssistant() async throws {
@@ -360,6 +484,8 @@ private final class FakeService: DeviceService {
             "L1": DeviceReading(light: ["on": true, "brightness": 0.5]),
             "A1": DeviceReading(ac: ["on": true, "target": 23.0, "roomTemp": 26.0], features: ["modes": ["cool"]]),
             "S1": DeviceReading(temperature: 19.5),
+            "V1": DeviceReading(vacuum: ["status": "docked", "battery": 80.0], features: ["fans": ["Quiet"], "canPause": true, "canReturn": true]),
+            "V0": DeviceReading(online: false),
         ].filter { ids.contains($0.key) }
     }
     func send(kind: DeviceKind, id: String, patch: [String: Any], state: [String: Any]) async throws {
