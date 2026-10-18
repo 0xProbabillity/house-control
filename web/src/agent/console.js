@@ -5,11 +5,13 @@
 import { h } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { isNative, post, incoming } from '../bridge.js';
+import { createChat } from './chat.js';
 import './console.css';
+import './chat.css';
 
 const CLIENT_COLORS = {
   ChatGPT: '#19c37d', Claude: '#e08a5f', 'Claude Code': '#e08a5f', Cursor: '#e6e9f2', Gemini: '#6ea8ff',
-  Perplexity: '#3fc1c9', Copilot: '#8ab4ff', 'House Control': '#8a94ab',
+  Perplexity: '#3fc1c9', Copilot: '#8ab4ff', 'House Control': '#8a94ab', 'LLM Gateway': '#5eead4',
 };
 const clientColor = (name) => CLIENT_COLORS[name] || '#b9a6ff';
 
@@ -22,7 +24,7 @@ const TABS = [
 
 export function bootConsole(root) {
   document.documentElement.classList.add('mode-agent');
-  let status = window.__HOUSE_BOOT__?.agent || { state: 'off', reach: 'internet', autoStop: '8h', control: true, edit: true, activity: [], tunnel: { installed: true } };
+  let status = window.__HOUSE_BOOT__?.agent || { state: 'off', reach: 'internet', autoStop: '8h', control: true, edit: true, activity: [], tunnel: { installed: true }, chat: { configured: false, model: 'auto', models: [], messages: [] } };
   let tab = 'chat';
   const send = isNative ? post : fakeNative((s) => { status = s; render(); });
 
@@ -62,10 +64,12 @@ export function bootConsole(root) {
   const editToggle = toggle((v) => send('agent.settings', { edit: v }));
   const stopSeg = segmented([['1h', null, '1 hour'], ['8h', null, '8 hours'], ['never', null, 'Never']], (v) => send('agent.settings', { autoStop: v }));
   const permsCard = h('section.card',
-    h('div.card-head', h('span.card-title', icon('shield', 15), 'What it may do')),
+    h('div.card-head', h('span.card-title', icon('shield', 15), 'What it may do'), h('span.card-note', 'The link and the chat alike')),
     row('sun', 'Lights, climate and scenes', 'Switch and dim lights, set air conditioners, run scenes', controlToggle.el),
     row('box', 'Your 3D home', 'Rebuild rooms from photos, move furniture, add devices — always undoable', editToggle.el),
     h('div.row.column', h('div.row-text', h('div.row-title', icon('clock', 15), 'Stop the link automatically')), stopSeg.el));
+
+  const chatCard = createChat({ send, open: (url) => send('agent.open', { url }) });
 
   const feed = h('ul.feed');
   const undo = h('button.ghost', { onclick: () => send('agent.undo') }, icon('undo', 13), 'Undo home edit');
@@ -79,7 +83,7 @@ export function bootConsole(root) {
       h('li', 'Stop ends it at once — the address itself stops existing. Each start makes a new one.'),
       h('li', 'Device IDs and sign-ins never leave the Mac. Cloudflare only relays the encrypted connection.')));
 
-  const page = h('div.agent', hero, linkCard, connectCard, permsCard, activityCard, footer);
+  const page = h('div.agent', hero, chatCard.el, linkCard, connectCard, permsCard, activityCard, footer);
   root.replaceChildren(page);
 
   /* ---------- pieces ---------- */
@@ -276,6 +280,7 @@ export function bootConsole(root) {
     editToggle.set(status.edit !== false);
     stopSeg.set(status.autoStop || '8h');
     undo.disabled = !status.canUndo;
+    chatCard.render(status.chat);
     renderTab();
     renderFeed();
   }
@@ -289,7 +294,8 @@ export function bootConsole(root) {
 
 // In a browser there is no native side: play its part, so the page can be designed and filmed.
 function fakeNative(update) {
-  let s = { state: 'off', reach: 'internet', autoStop: '8h', control: true, edit: true, activity: [], canUndo: false, tunnel: { installed: true } };
+  let s = { state: 'off', reach: 'internet', autoStop: '8h', control: true, edit: true, activity: [], canUndo: false, tunnel: { installed: true },
+    chat: { configured: false, model: 'auto', models: [], messages: [], busy: false } };
   const set = (patch) => { s = { ...s, ...patch }; update(s); };
   const log = (client, title, quiet = false) => set({ activity: [...s.activity, { time: Date.now(), client, title, ok: true, quiet }] });
   return (type, payload = {}) => {
@@ -311,6 +317,41 @@ function fakeNative(update) {
       set({ canUndo: false });
     } else if (type === 'agent.open') {
       window.open(payload.url, '_blank');
+    } else if (type.startsWith('chat.')) {
+      fakeChat(type, payload);
     }
   };
+
+  // A pretend LLM Gateway: the key is accepted, a few models are listed, and every message
+  // switches on the "living room" and is answered a moment later.
+  function fakeChat(type, payload) {
+    const chat = (patch) => set({ chat: { ...s.chat, ...patch } });
+    if (type === 'chat.key') {
+      chat({ configured: Boolean(payload.key), loadingModels: Boolean(payload.key), models: [] });
+      if (payload.key) setTimeout(() => chat({ loadingModels: false, models: [
+        { id: 'auto', name: 'Auto', family: 'llmgateway', tools: true, vision: true, free: false },
+        { id: 'gpt-5-mini', name: 'GPT-5 Mini', family: 'openai', tools: true, vision: true, free: false },
+        { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5', family: 'anthropic', tools: true, vision: true, free: false },
+        { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', family: 'google', tools: true, vision: true, free: false },
+        { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', family: 'meta', tools: true, vision: false, free: true },
+      ] }), 700);
+    } else if (type === 'chat.model') {
+      chat({ model: payload.model });
+    } else if (type === 'chat.clear') {
+      chat({ messages: [] });
+    } else if (type === 'chat.send') {
+      const user = { role: 'user', text: payload.text, photos: payload.photos?.length || 0, steps: [], time: Date.now() };
+      const reply = { role: 'assistant', text: '', steps: [], time: Date.now() };
+      chat({ busy: true, messages: [...s.chat.messages, user, reply] });
+      setTimeout(() => {
+        reply.steps = [{ title: 'Looked at the home', ok: true }, { title: 'On: Living room lamp 30%', ok: true }];
+        chat({ messages: [...s.chat.messages.slice(0, -1), { ...reply }] });
+        log('LLM Gateway', 'On: Living room lamp 30%');
+      }, 900);
+      setTimeout(() => {
+        reply.text = 'Done — the living room lamp is on at 30%.';
+        chat({ busy: false, messages: [...s.chat.messages.slice(0, -1), { ...reply }] });
+      }, 1800);
+    }
+  }
 }

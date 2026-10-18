@@ -35,6 +35,9 @@
 - **AI Access.** Give ChatGPT, Claude or any AI assistant a private link — or connect it over MCP — and it runs your
   lights and air conditioners, and rebuilds rooms in the 3D model from your photos. Served by your Mac; Stop ends it.
   See [AI Access](#ai-access).
+- **Talk to your home.** Or skip the link: with one [LLM Gateway](https://llmgateway.io) key, a chat in the same
+  window runs the home with any model — GPT, Claude, Gemini, Llama, DeepSeek, Mistral and the rest — tool calls and
+  photos included. See [Talk to your home](#talk-to-your-home-with-llm-gateway).
 - **Widgets and controls.** The home in 3D on the iPhone's Home Screen and the Mac's desktop, scenes, lamps and
   air conditioners a tap away, Lock Screen and Control Center controls, and quick actions on the app icon.
   See [Widgets](#widgets).
@@ -181,6 +184,22 @@ assistant may do, every request shows up live in the window, plan edits can be u
 auto-stop timer — makes the address disappear. Device IDs and sign-ins never leave the Mac.
 
 Details, every tool, and the privacy model: [docs/ai-access.md](docs/ai-access.md).
+
+### Talk to your home, with LLM Gateway
+
+<p align="center">
+  <img src="docs/llm-gateway-chat.png" width="380" alt="The chat in the AI Access window: a model dims the lights, renders the home and answers">
+</p>
+
+The same window has a chat. Paste an API key from [LLM Gateway](https://llmgateway.io) — one key, one
+OpenAI-compatible endpoint in front of every model — pick a model, and talk: *"turn off everything except the
+bedroom"*, *"cool the living room to 22°"*, or attach photos of a room and say *"rebuild this in 3D"*. The model gets
+the same tools an MCP client does and the same **What it may do** switches apply; each thing it runs lands in the
+Activity feed and lights up in the panel. No link, no tunnel: requests go from your Mac to `api.llmgateway.io` and
+to the model you chose, and the key stays on the Mac in a file only you can read.
+
+Any model LLM Gateway lists that can call tools is offered (about 200 of them); `Auto` lets LLM Gateway pick.
+Models that cannot see photos say so in the list.
 
 ## iPhone app
 

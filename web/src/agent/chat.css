@@ -1,0 +1,137 @@
+/* "Talk to your home" — the LLM Gateway chat card in the AI Access window. */
+
+.chat-card {
+  --teal: #5eead4;
+  background: linear-gradient(160deg, rgba(94, 234, 212, 0.09), rgba(61, 139, 255, 0.06) 55%, rgba(255, 255, 255, 0.03));
+  border-color: rgba(94, 234, 212, 0.22);
+}
+.chat-card .card-title .icon { color: var(--teal); }
+.card-note { font-size: 11px; color: var(--faint); }
+.via {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 24px; padding: 0 9px; border-radius: 999px;
+  font-size: 11px; color: var(--muted);
+  background: rgba(94, 234, 212, 0.08); border: 1px solid rgba(94, 234, 212, 0.2);
+  transition: background 200ms, color 200ms;
+}
+.via b { color: var(--teal); font-weight: 650; }
+.via:hover { background: rgba(94, 234, 212, 0.16); color: var(--text); }
+.chat-card .hidden { display: none; }
+
+/* ---------- key ---------- */
+
+.chat-setup p { margin: 0 0 12px; font-size: 12.5px; line-height: 1.55; color: #cfd5e6; }
+.chat-setup p.muted { margin: 12px 0 0; font-size: 11.5px; color: var(--faint); }
+.chat-setup a { color: var(--teal); text-decoration: none; border-bottom: 1px solid rgba(94, 234, 212, 0.35); }
+.chat-setup .err { color: #ff8a80; font-size: 12px; margin: 8px 0 0; }
+.key-row { display: flex; gap: 8px; }
+.key-input {
+  flex: 1; min-width: 0; height: 34px; padding: 0 12px; border-radius: 10px;
+  font: 500 12.5px ui-monospace, 'SF Mono', Menlo, monospace; color: var(--text);
+  background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.1);
+  outline: none; transition: border-color 200ms, box-shadow 200ms;
+}
+.key-input:focus { border-color: rgba(94, 234, 212, 0.5); box-shadow: 0 0 0 3px rgba(94, 234, 212, 0.12); }
+.key-input::placeholder { color: var(--faint); }
+.key-actions { display: flex; gap: 8px; margin-top: 10px; }
+.key-actions [hidden] { display: none; }
+
+/* ---------- model ---------- */
+
+.model-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.model-row label { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.model-row label .icon { color: var(--teal); }
+.model-select {
+  flex: 1; min-width: 160px; height: 28px; padding: 0 26px 0 10px; border-radius: 8px;
+  font: 600 12px -apple-system, system-ui, sans-serif; color: var(--text);
+  background: rgba(255, 255, 255, 0.07) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23b4bbd0' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center;
+  border: 1px solid var(--card-line); appearance: none; -webkit-appearance: none; outline: none;
+}
+.model-select:disabled { opacity: 0.5; }
+.ghost.icon-only { width: 26px; padding: 0; justify-content: center; }
+.ghost.spin .icon { animation: orb-spin 0.9s linear infinite; }
+.model-note { flex-basis: 100%; font-size: 11px; color: var(--faint); }
+.model-note.err { color: #ff8a80; }
+.model-note:empty { display: none; }
+
+/* ---------- transcript ---------- */
+
+.chat {
+  list-style: none; margin: 0; padding: 4px 2px;
+  display: flex; flex-direction: column; gap: 10px;
+  max-height: 380px; overflow-y: auto; scroll-behavior: smooth;
+}
+.chat li.empty { display: flex; gap: 10px; color: var(--muted); padding: 10px 6px 14px; font-size: 12.5px; line-height: 1.55; }
+.chat li.empty .icon { color: var(--teal); flex: none; margin-top: 2px; }
+.chat li.empty em { color: var(--text); font-style: normal; }
+.msg { display: flex; flex-direction: column; gap: 6px; max-width: 92%; }
+.msg.fresh { animation: feed-in 500ms var(--ease) both; }
+.msg.user { align-self: flex-end; align-items: flex-end; }
+.msg.assistant { align-self: flex-start; align-items: flex-start; }
+.said {
+  padding: 8px 12px; border-radius: 15px;
+  font-size: 13px; line-height: 1.5; color: var(--text);
+  background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+.msg.user .said { background: linear-gradient(115deg, rgba(94, 234, 212, 0.26), rgba(61, 139, 255, 0.3)); border-color: rgba(94, 234, 212, 0.2); border-bottom-right-radius: 5px; }
+.msg.assistant .said { border-bottom-left-radius: 5px; }
+.said p { margin: 0; }
+.said p + p { margin-top: 6px; }
+.said.err { display: flex; gap: 7px; align-items: flex-start; color: #ffb3ab; background: rgba(255, 90, 79, 0.1); border-color: rgba(255, 90, 79, 0.25); font-size: 12.5px; }
+.said.err .icon { flex: none; margin-top: 2px; }
+.said.thinking { display: flex; gap: 4px; align-items: center; height: 34px; padding: 0 14px; }
+.said.thinking i { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); opacity: 0.35; animation: think 1.2s ease-in-out infinite; }
+.said.thinking i:nth-child(2) { animation-delay: 0.2s; }
+.said.thinking i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes think { 40% { opacity: 1; transform: translateY(-2px); } }
+.photos { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--faint); }
+.steps-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.step {
+  display: inline-flex; align-items: center; gap: 5px; max-width: 100%;
+  height: 22px; padding: 0 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; color: #c6fff3;
+  background: rgba(94, 234, 212, 0.1); border: 1px solid rgba(94, 234, 212, 0.18);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.step .icon { flex: none; color: var(--teal); }
+.step.bad { color: #ffb3ab; background: rgba(255, 90, 79, 0.1); border-color: rgba(255, 90, 79, 0.25); }
+.step.bad .icon { color: #ff8a80; }
+.render { max-width: 100%; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); }
+
+/* ---------- composer ---------- */
+
+.composer {
+  margin-top: 10px; padding: 6px; border-radius: 16px;
+  background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: border-color 200ms, box-shadow 200ms;
+}
+.composer:focus-within { border-color: rgba(94, 234, 212, 0.45); box-shadow: 0 0 0 3px rgba(94, 234, 212, 0.1); }
+.composer-row { display: flex; align-items: flex-end; gap: 4px; }
+.chat-input {
+  flex: 1; min-width: 0; min-height: 32px; max-height: 140px; padding: 7px 6px;
+  font: 13px/1.45 -apple-system, system-ui, sans-serif; color: var(--text);
+  background: transparent; border: 0; outline: none; resize: none;
+}
+.chat-input::placeholder { color: var(--faint); }
+.chat-input:disabled { opacity: 0.6; }
+.chat-btn {
+  flex: none; width: 32px; height: 32px; border-radius: 10px;
+  display: grid; place-items: center; color: var(--muted);
+  transition: background 200ms, color 200ms, transform 200ms var(--spring);
+}
+.chat-btn:hover { background: rgba(255, 255, 255, 0.08); color: var(--text); }
+.chat-btn:active { transform: scale(0.94); }
+.chat-btn:disabled { opacity: 0.35; pointer-events: none; }
+.chat-btn.send { color: #07090f; background: linear-gradient(115deg, var(--teal), #3d8bff); }
+.chat-btn.send:hover { filter: brightness(1.08); color: #07090f; }
+.thumbs { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 4px 6px; }
+.thumbs[hidden] { display: none; }
+.thumb { position: relative; width: 56px; height: 56px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.12); }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb button {
+  position: absolute; top: 3px; right: 3px; width: 18px; height: 18px; border-radius: 50%;
+  display: grid; place-items: center; color: #fff; background: rgba(0, 0, 0, 0.6);
+}
+.chat-foot { display: flex; justify-content: space-between; margin-top: 10px; }

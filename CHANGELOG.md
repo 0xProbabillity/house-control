@@ -7,6 +7,12 @@ What changed in each release of House Control. The Mac app is on
 
 ### Mac
 
+- **Talk to your home** in the AI Access window, through [LLM Gateway](https://llmgateway.io): paste one API key,
+  pick any of its ~200 tool-capable models — GPT, Claude, Gemini, Llama, DeepSeek, Mistral… — and chat with the home.
+  The model runs the same tools an MCP client gets, under the same **What it may do** switches; photos of a room can
+  be attached for 3D rebuilds, `render_home` pictures show inline, and every action lands in the Activity feed.
+  See [docs/ai-access.md](https://github.com/0xProbabillity/house-control/blob/main/docs/ai-access.md#talk-to-your-home-from-the-window-llm-gateway).
+
 - **Open at Login**, in the menu bar icon's right-click menu and in the panel's gear menu: House Control starts with
   your Mac. It is the app's entry under System Settings → General → Login Items, so it can be switched off there too.
   Run from the disk image, the app asks to be moved to Applications first; moved there later, the login item follows it.

@@ -9,12 +9,21 @@ import HouseCore
 ///
 /// Off until the user starts it. Every start makes a new secret link; Stop (or the auto-stop
 /// timer) closes the gateway and the tunnel, and the old address stops existing.
+///
+/// The same window also talks to the home directly, through LLM Gateway (HomeChat): the user's
+/// own key, any model, the same tools and permissions — without a link.
 @MainActor
 final class AgentController: NSObject, AgentBackend {
     enum Reach: String { case internet, local }
     enum Phase: Equatable { case off, starting, live, failed(String) }
 
     let gateway = AgentGateway()
+    let chat = HomeChat()
+    /// The LLM Gateway API key, in a file only this user can read, next to the plan.
+    private let keyStore: FileSecretStore
+    private var models: [LLMGatewayModel] = []
+    private var modelsError = ""
+    private var loadingModels = false
     private lazy var server = LoopbackHTTPServer { [unowned self] request in await self.gateway.handle(request) }
     private let tunnel: CloudflareTunnel
     private let plans: PlanStore
@@ -52,7 +61,12 @@ final class AgentController: NSObject, AgentBackend {
             defaults.set(newValue.control, forKey: "agent.control")
             defaults.set(newValue.edit, forKey: "agent.edit")
             gateway.permissions = newValue
+            chat.permissions = newValue
         }
+    }
+    private var chatModel: String {
+        get { defaults.string(forKey: "chat.model") ?? LLMGatewayClient.defaultModel }
+        set { defaults.set(newValue, forKey: "chat.model") }
     }
 
     init(plans: PlanStore, panel: @escaping () -> WebHost, reloadAll: @escaping () -> Void) {
@@ -60,11 +74,75 @@ final class AgentController: NSObject, AgentBackend {
         self.panel = panel
         self.reloadAll = reloadAll
         tunnel = CloudflareTunnel(directory: plans.directory)
+        keyStore = FileSecretStore(url: plans.directory.appendingPathComponent("llmgateway.json"))
         super.init()
         gateway.backend = self
         gateway.permissions = permissions
         gateway.onActivity = { [weak self] entry in self?.log(entry) }
         tunnel.onChange = { [weak self] state in self?.tunnelChanged(state) }
+        chat.backend = self
+        chat.permissions = permissions
+        chat.model = chatModel
+        chat.onActivity = { [weak self] entry in self?.log(entry) }
+        chat.onChange = { [weak self] in self?.push() }
+        if let key = storedKey { chat.client = LLMGatewayClient(apiKey: key) }
+    }
+
+    // MARK: - LLM Gateway
+
+    private var storedKey: String? {
+        guard let data = keyStore.read(),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let key = json["apiKey"] as? String, !key.isEmpty else { return nil }
+        return key
+    }
+
+    private func setKey(_ raw: String) {
+        let key = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if key.isEmpty {
+            keyStore.write(nil)
+            chat.client = nil
+            models = []
+        } else {
+            keyStore.write(try? JSONSerialization.data(withJSONObject: ["apiKey": key]))
+            chat.client = LLMGatewayClient(apiKey: key)
+            loadModels()
+        }
+        modelsError = ""
+        push()
+    }
+
+    /// Every model on LLM Gateway that can call tools. Fetched once per key; "Refresh" asks again.
+    private func loadModels(force: Bool = false) {
+        guard let client = chat.client, !loadingModels, force || models.isEmpty else { return }
+        loadingModels = true
+        modelsError = ""
+        push()
+        Task { @MainActor in
+            do {
+                models = try await client.models()
+                if !models.contains(where: { $0.id == chat.model }), !models.isEmpty {
+                    chat.model = models.contains(where: { $0.id == LLMGatewayClient.defaultModel }) ? LLMGatewayClient.defaultModel : models[0].id
+                    chatModel = chat.model
+                }
+            } catch {
+                modelsError = error.localizedDescription
+            }
+            loadingModels = false
+            push()
+        }
+    }
+
+    private func chatStatus() -> [String: Any] {
+        [
+            "configured": chat.isConfigured,
+            "model": chat.model,
+            "models": models.map(\.json),
+            "loadingModels": loadingModels,
+            "modelsError": modelsError,
+            "busy": chat.busy,
+            "messages": chat.transcript.suffix(60).map(\.json),
+        ]
     }
 
     var isLive: Bool { phase == .live }
@@ -307,7 +385,24 @@ final class AgentController: NSObject, AgentBackend {
                 }
             }
             DispatchQueue.main.async { [weak self] in self?.push() }
+        case "chat.key":
+            setKey(message["key"] as? String ?? "")
+        case "chat.model":
+            if let id = message["model"] as? String, !id.isEmpty {
+                chat.model = id
+                chatModel = id
+                push()
+            }
+        case "chat.models":
+            loadModels(force: true)
+        case "chat.send":
+            let text = message["text"] as? String ?? ""
+            let photos = (message["photos"] as? [String] ?? []).filter { $0.hasPrefix("data:image/") }
+            Task { @MainActor in await chat.send(text, photos: photos) }
+        case "chat.clear":
+            chat.clear()
         case "ready":
+            loadModels()
             push()
         default:
             break
@@ -324,6 +419,7 @@ final class AgentController: NSObject, AgentBackend {
             "activity": activity.suffix(80).map(\.json),
             "home": plans.activePlan == "custom" ? (plans.customPlanName ?? "My home") : "Demo home",
             "tunnel": ["installed": tunnel.binary != nil, "downloading": tunnel.isDownloading, "error": tunnelError],
+            "chat": chatStatus(),
         ]
         switch phase {
         case .off: out["state"] = "off"
