@@ -40,6 +40,34 @@ assistant ──HTTPS──▶ Cloudflare quick tunnel ──▶ cloudflared on 
 - **This Mac only** skips the tunnel: the link is `http://127.0.0.1:7419/<key>`, for apps running on the Mac
   (Claude Code, Cursor, VS Code, LM Studio, scripts).
 
+## Talk to your home from the window (LLM Gateway)
+
+No link needed for this one. The **Talk to your home** card in the same window is a chat with your home, with any
+model behind it, through [LLM Gateway](https://llmgateway.io): one API key and one OpenAI-compatible endpoint
+(`https://api.llmgateway.io/v1`) in front of GPT, Claude, Gemini, Llama, DeepSeek, Mistral, Qwen, Grok and the rest.
+
+1. Get a key at [llmgateway.io](https://llmgateway.io/dashboard/api-keys) and paste it into the card. It is saved on
+   this Mac in `~/Library/Application Support/HouseControl/llmgateway.json`, readable by your user only.
+2. Pick a model. The list is every model LLM Gateway offers that can call tools (`Auto` lets LLM Gateway choose);
+   models that cannot look at photos are marked. **Refresh** fetches the list again.
+3. Type what you want — *"dim the living room to 30%"*, *"what is on right now?"* — or attach photos of a room with
+   the paper clip and say *"rebuild this in 3D"*. Enter sends, Shift-Enter makes a new line.
+
+```
+you ─▶ House Control ─▶ api.llmgateway.io ─▶ the model ─▶ tool calls ─▶ House Control ─▶ your devices
+```
+
+House Control runs the conversation itself: it sends the model the [same tools](#what-an-assistant-can-do) an MCP
+client gets, runs each call the model makes against the home, and sends the result back until the model answers.
+Each tool it ran shows under its answer as a chip, a picture from `render_home` is shown inline, and every action
+appears in the **Activity** feed as *LLM Gateway*, with sparkles in the panel like any other assistant.
+The **What it may do** switches apply to the chat exactly as to the link; **Undo home edit** reverts its plan changes.
+
+The conversation lives in memory until **New conversation** or the window closes. Nothing about it is stored.
+Photos are scaled down to 1280 px before they are sent. What the model sees is what the guide shows an assistant:
+room and device names, their state, the floor plan, and your photos — never your sign-ins or real device IDs.
+Pricing is LLM Gateway's, per model; the key's usage is on your LLM Gateway dashboard.
+
 ## Connect an assistant
 
 ### Any chat (paste the link)
@@ -142,6 +170,9 @@ The **What it may do** switches take effect immediately, even while the link is 
 | "Cloudflare is limiting new quick tunnels" | Quick tunnels are rate-limited per IP. Wait a minute and start again |
 | The assistant says it cannot open the link | Some chat modes only open pages they found by searching. Paste the link on its own line, ask it to open it, or use a connector |
 | The assistant opened the guide but not the action links | Ask it to open the link for that action — or connect it as an MCP connector |
+| "LLM Gateway did not accept the API key" | The key is wrong or was revoked: make a new one at llmgateway.io and **Change key** |
+| "The LLM Gateway account has no credits left" | Top up at llmgateway.io; the chat works again at once |
+| The model answers but nothing happens in the home | The model you picked did not call the tools. Try `Auto` or a larger model, and check **What it may do** |
 | A connector stopped working | The link changed: every start makes a new one. Paste the new MCP address into the connector |
 | "The user is looking at a demo plan" | Your own home is saved but a demo is shown; pick **My home** in the panel's gear menu |
 
