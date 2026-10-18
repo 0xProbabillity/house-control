@@ -19,6 +19,7 @@ const WALL_ROT = { north: 0, south: Math.PI, west: Math.PI / 2, east: -Math.PI /
 
 const STREAKS = 72;
 const REACH = 2.5;
+const FLOOR_CLEARANCE = 0.02; // streaks skim just above the floor, never under it
 
 export class ACUnit {
   constructor(cfg) {
@@ -68,6 +69,9 @@ export class ACUnit {
     this.flow.frustumCulled = false;
     this.flow.position.z = 0.1 + 0.15;
     this.flow.position.y = -0.17;
+    // The floor in the flow's own frame: a unit mounted low (a heater at knee height) would
+    // otherwise blow its air straight through it.
+    this.floorY = FLOOR_CLEARANCE - (cfg.y + this.flow.position.y);
     this.flow.visible = false;
     this.group.add(this.flow);
 
@@ -146,9 +150,12 @@ export class ACUnit {
       const d = REACH * t;
       const spread = 0.36 + 0.5 * t;
       const sway = Math.sin(this.clock * 1.6 + seed.wobble + t * 5) * 0.035 * t;
-      out[o] = seed.u * spread + sway;
-      out[o + 1] = -sin * d - 0.35 * t * t;
-      out[o + 2] = cos * d;
+      const y = -sin * d - 0.35 * t * t;
+      // Air that reaches the floor spreads out along it instead of going on down.
+      const under = Math.max(0, this.floorY - y);
+      out[o] = seed.u * (spread + under * 0.5) + sway;
+      out[o + 1] = y + under;
+      out[o + 2] = cos * d + under * 0.6;
     };
 
     for (let i = 0; i < STREAKS; i++) {
