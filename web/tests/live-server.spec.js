@@ -45,7 +45,17 @@ test.beforeAll(async () => {
     });
   });
   haOrigin = await listen(mock);
-  app = await createHouseServer({ token, dataDir }); origin = await listen(app.server);
+  app = await createHouseServer({ token, dataDir });
+  // Keep the real renderer and editor, with a bounded home rather than the decorative
+  // five-room demo. Linux CI uses software WebGL; fixture size is not the behavior under test.
+  await app.store.save({
+    name: 'Browser fixture home',
+    rooms: [{ id: 'living', name: 'Living', rect: [0, 0, 4, 4] }],
+    lights: [{ id: 'lamp', name: 'Desk lamp', room: 'living', type: 'table', pos: [1, 1], capabilities: ['brightness'] }],
+    acs: [{ id: 'ac', name: 'Living AC', room: 'living', wall: 'north', pos: [2, 0] }],
+    scenes: [], furniture: [], openings: [],
+  }, app.store.state.revision);
+  origin = await listen(app.server);
 });
 test.afterAll(async () => { app.ha.stop(); for (const ws of sockets.clients) ws.terminate(); await stop(app.server); await new Promise(r => sockets.close(r)); await stop(mock); await rm(dataDir, { recursive: true, force: true }); });
 test('real login, HA connection, linking, shared save, SSE state and rollback', async ({ page, browser }) => {
@@ -75,6 +85,8 @@ test('real login, HA connection, linking, shared save, SSE state and rollback', 
   await page.waitForTimeout(350); await page.evaluate(id => window.__house.store.toggleLight(id), id);
   await expect.poll(() => commands.length).toBe(2);
   await expect.poll(() => page.evaluate(id => window.__house.store.state.lights[id].on, id)).toBe(true);
+  // This desktop view is finished; avoid rendering two homes concurrently on software GPUs.
+  await page.evaluate(() => window.__house.world.setRunning(false));
   // A separate browser client observes the persisted shared plan, not local storage.
   const second = await browser.newContext({ viewport: { width: 393, height: 851 }, isMobile: true, hasTouch: true });
   const phone = await second.newPage(); await phone.goto(origin + '/?platform=android');
