@@ -4,13 +4,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "test": "playwright test"
   },
   "dependencies": {
     "lucide": "^0.544.0",
     "three": "^0.186.1"
   },
   "devDependencies": {
-    "vite": "^8.3.4"
+    "@playwright/test": "^1.64.1",
+    "vite": "^8.3.4",
+    "ws": "^8.22.0"
   }
 }

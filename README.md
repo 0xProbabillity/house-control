@@ -43,9 +43,17 @@
   See [iPhone app](#iphone-app).
 - **Works without any hardware.** Until you sign in, every device is simulated, so you can try everything first.
 
-Both apps are a small native Swift shell (AppKit on the Mac, SwiftUI on the iPhone) around one
+Both Apple apps are a small native Swift shell (AppKit on the Mac, SwiftUI on the iPhone) around one
 [Three.js](https://threejs.org) web UI, and share their device clients and sync as a Swift package.
-No frameworks, no Electron, no server, no account of its own.
+The Apple apps remain standalone. An optional Linux/Docker server now serves the same 3D home and editor to browsers and Android, with Home Assistant as its device backend.
+
+## Linux server and Android
+
+Run House Control as a persistent Docker service and open its address in a desktop browser or the Android app. Sign in with your server token, open **Server connection settings → Home Assistant**, connect your Home Assistant instance, then use **Edit home** to link the plan's lamps and ACs to real devices. Saving applies one shared plan to every client on that server.
+
+The server supports Home Assistant lights, switches, climate devices and temperature sensors. Connect other brands through Home Assistant. The Apple standalone apps retain their existing direct integrations. Server mode does not offer the Mac menu bar, notch island, Apple widgets or AI Access.
+
+See [Linux and Android setup](docs/linux-android.md), [server deployment](server/README.md), and [Android build instructions](android/README.md). This branch contains source and CI build workflows; it does not publish a production server or released Android app.
 
 ## Download
 
@@ -350,6 +358,8 @@ Home Assistant and Hue connections the Mac shared in the Keychain.
 web/      the UI: Three.js scene, panel, island, editor, AI Access window and the AI tools (Vite, plain ES modules)
 core/     what both apps share: plan store, device platforms, Mac ⇄ iPhone sync, the AI gateway, and the Smart Life
           and Tuya clients as a separate module (SwiftPM, with tests)
+server/   authenticated Linux HTTP server, shared plan persistence and Home Assistant adapter
+android/  thin Android WebView client for a configured House Control server
 macos/    the Mac shell: menu bar item, panel, island and editor windows (SwiftPM)
 ios/      the iPhone shell: SwiftUI, generated into an Xcode project by XcodeGen
 scripts/  build-app.sh, build-ios.sh and ios-sim.sh build the apps, release-mac.sh makes the .dmg,
@@ -364,7 +374,7 @@ The shared package has unit tests, including the sync over a real TLS connection
 cd core && swift test
 ```
 
-Work on the UI in a browser with hot reload — the native bridge is a no-op there and all devices are simulated:
+Work on the UI in a browser with hot reload — Vite development remains a simulated preview. The server-served build uses authenticated API calls and never falls back to the preview after a network or authentication failure:
 
 ```bash
 cd web

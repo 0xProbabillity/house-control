@@ -1,3 +1,4 @@
+import { startServerEvents, showServerSettings } from './server.js';
 import { loadRawConfig, normalize, isLinked } from './config.js';
 import { createStore } from './store.js';
 import { createWorld } from './three/world.js';
@@ -5,7 +6,7 @@ import { createPanel } from './ui/panel.js';
 import { createAgent } from './agent/tools.js';
 import { h, openMenu } from './ui/dom.js';
 import { icon } from './ui/icons.js';
-import { isNative, isPhone, post, incoming, haptic } from './bridge.js';
+import { isNative, isServer, isPhone, post, incoming, haptic } from './bridge.js';
 import { publishWidgets, runWidgetAction } from './widgets.js';
 
 const DEMO_PLANS = [
@@ -52,9 +53,10 @@ async function boot() {
   }
 
   const store = createStore(config);
+  if (isServer && window.__HOUSE_BOOT__.deviceState) store.applyRemote(window.__HOUSE_BOOT__.deviceState);
   const linked = [...config.lights, ...config.acs].some(isLinked);
   // Never invent a starting state for real hardware: it reports its own.
-  if (!store.restored && !linked) {
+  if (!isServer && !store.restored && !linked) {
     // First launch: start with something worth looking at.
     const first = config.scenes.find((s) => s.id === 'cozy') || config.scenes[1] || config.scenes[0];
     if (first) store.applyScene(first.id);
@@ -65,6 +67,7 @@ async function boot() {
   const panel = createPanel(app, config, store, {
     onFocus: (target) => world?.focus(target),
     onMenu: (anchor, reason) => {
+      if (isServer) { showServerSettings(); return; }
       if (reason === 'escape') post('close');
       else if (reason === 'agent') post('openAgent');
       else if (isPhone) post('openSettings'); // plans, sync and sign-in are native screens there
@@ -158,6 +161,7 @@ async function boot() {
   for (const type of ['focus', 'pageshow', 'pointermove', 'pointerdown']) window.addEventListener(type, resume, { passive: true });
 
   function planMenu(anchor) {
+    if (isServer) { showServerSettings(); return; }
     const current = window.__HOUSE_BOOT__?.plan ?? (new URLSearchParams(location.search).get('plan') || 'home');
     const items = DEMO_PLANS.map((p) => ({
       label: p.name,
@@ -200,6 +204,10 @@ async function boot() {
   if (!isNative) show();
   post('ready', { summary: store.summary() });
   if (isNative) publishWidgets(config, store);
+  if (isServer) {
+    window.addEventListener('house:planChanged', () => location.reload());
+    startServerEvents(incoming);
+  }
   window.__house = { store, world, panel, config }; // handy in the dev console
 }
 
@@ -222,13 +230,13 @@ async function renderShot(config, store, room) {
   }
 }
 
-const mode = window.__HOUSE_BOOT__?.mode || new URLSearchParams(location.search).get('mode') || 'panel';
+const mode = (isServer && new URLSearchParams(location.search).get('mode')) || window.__HOUSE_BOOT__?.mode || new URLSearchParams(location.search).get('mode') || 'panel';
 if (mode === 'editor') {
   document.documentElement.classList.add('mode-editor');
-  import('./editor/editor.js').then((m) => m.bootEditor(app)).catch((e) => fatal('Editor failed to start', e));
-} else if (mode === 'agent') {
+  import('./editor/editor.js').then(async (m) => { await m.bootEditor(app); startServerEvents(incoming); }).catch((e) => fatal('Editor failed to start', e));
+} else if (mode === 'agent' && !isServer) {
   import('./agent/console.js').then((m) => m.bootConsole(app)).catch((e) => fatal('AI Access failed to start', e));
-} else if (mode === 'island') {
+} else if (mode === 'island' && !isServer) {
   document.documentElement.classList.add('mode-island');
   import('./island/island.js').then((m) => m.bootIsland(app)).catch((e) => console.error(e));
 } else {

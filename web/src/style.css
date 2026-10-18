@@ -798,3 +798,21 @@ html.ios .fatal { margin: calc(env(safe-area-inset-top, 0px) + 20px) 16px 0; wid
     animation-duration: 1ms !important; transition-duration: 1ms !important;
   }
 }
+
+/* Authenticated server screens share the same shell on desktop and Android. */
+.server-login, .server-settings, .plan-conflict {
+  color: var(--text); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 24px; padding: 24px; width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px); overflow: auto; line-height: 1.5;
+}
+.server-login { user-select: text; }
+.server-login h1, .server-settings h2, .plan-conflict h2 { font-size: 21px; margin-top: 0; }
+.server-login p, .server-settings p, .plan-conflict p { color: var(--muted); overflow-wrap: anywhere; }
+.server-login label { display: grid; gap: 8px; }
+.server-login input { width: 100%; font: inherit; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--glass); color: var(--text); }
+.server-login button, .server-settings button, .server-settings a, .server-login a, .plan-conflict button { display: block; width: 100%; padding: 12px; margin-top: 10px; min-height: 44px; background: var(--glass); border-radius: 10px; color: var(--text); font: inherit; text-align: center; }
+.server-login button[type=submit] { background: var(--accent); }
+.server-status { position: fixed; z-index: 40; bottom: max(6px, env(safe-area-inset-bottom)); right: 10px; border-radius: 10px; padding: 6px 10px; background: #121a2deb; color: var(--muted); font-size: 11px; max-width: calc(100vw - 20px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.server-settings::backdrop, .plan-conflict::backdrop { background: #0009; }
+html.ios .server-status { bottom: auto; top: max(2px, env(safe-area-inset-top)); font-size: 10px; padding: 2px 8px; }
+@media (max-width: 700px) { .server-login { margin: auto; } .editor.phone .p-tools { padding-bottom: max(12px, env(safe-area-inset-bottom)); } }

@@ -32,6 +32,11 @@ struct RootView: View {
                  : "This iPhone has “\(choice.phonePlanName)”, \(choice.macName) has “\(choice.macPlanName)”. The one you keep replaces the other on both.")
         }
         .onOpenURL { model.open($0) }
+        .onChange(of: model.serverSync.status) { _, status in
+            if model.serverSync.enabled, status.hasPrefix("Not synced:") || model.serverSync.conflict {
+                model.show(Banner(symbol: "exclamationmark.triangle.fill", text: status, tint: Theme.red))
+            }
+        }
         .preferredColorScheme(.dark)
         .tint(Theme.accent)
     }

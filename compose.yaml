@@ -1,0 +1,20 @@
+services:
+  house-control:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${HOUSE_BIND_ADDRESS:-127.0.0.1}:8080:8080"
+    environment:
+      HOUSE_SERVER_TOKEN: ${HOUSE_SERVER_TOKEN:?Set a random server token of at least 24 characters}
+      HOUSE_SECURE_COOKIE: ${HOUSE_SECURE_COOKIE:-false}
+    volumes:
+      - house-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  house-data:
