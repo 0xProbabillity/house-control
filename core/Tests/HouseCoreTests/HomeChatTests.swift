@@ -45,10 +45,13 @@ private final class FakeGateway: URLProtocol {
 private final class FakeHome: AgentBackend {
     var calls: [(tool: String, arguments: [String: Any], client: String)] = []
     var lampOn = false
+    /// Seconds the tool list takes to come back.
+    var toolsDelay: TimeInterval = 0
 
     func agentRequest(_ request: [String: Any]) async throws -> [String: Any] {
         switch request["op"] as? String {
         case "tools":
+            if toolsDelay > 0 { try await Task.sleep(nanoseconds: UInt64(toolsDelay * 1e9)) }
             let permissions = request["permissions"] as? [String: Any] ?? [:]
             var tools: [[String: Any]] = [["name": "get_home", "title": "Look at the home", "description": "Every room and device.", "inputSchema": ["type": "object", "properties": [:]]]]
             if permissions["control"] as? Bool != false {
@@ -243,6 +246,25 @@ final class HomeChatTests: XCTestCase {
         // The abandoned turn neither ran its tool nor asked the model again.
         XCTAssertTrue(home.calls.isEmpty)
         XCTAssertEqual(FakeGateway.requests.count, 2)
+    }
+
+    func testClearBeforeTheFirstRequestSendsNothingToTheGateway() async {
+        home.toolsDelay = 0.3
+        FakeGateway.replies = [(200, completion(text: "Hello."))]
+        let turn = Task { await self.chat.send("turn the lamp on") }
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertTrue(chat.busy)
+        chat.clear()
+        XCTAssertFalse(chat.busy)
+        let next = Task { await self.chat.send("hello") }
+        await turn.value
+        await next.value
+        // Exactly one request: the new conversation's. The cleared turn never posted its (now foreign) history.
+        XCTAssertEqual(FakeGateway.requests.count, 1)
+        let messages = sentBodies[0]["messages"] as? [[String: Any]] ?? []
+        XCTAssertEqual(messages.map { $0["content"] as? String }.dropFirst(), ["hello"])
+        XCTAssertEqual(chat.transcript.map(\.text), ["hello", "Hello."])
+        XCTAssertTrue(FakeGateway.replies.isEmpty)
     }
 
     func testOldTurnsFallOffTheModelsContextAtAUserMessage() async {

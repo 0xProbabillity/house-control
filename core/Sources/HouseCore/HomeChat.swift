@@ -120,6 +120,9 @@ public final class HomeChat {
             let system = try await systemPrompt()
             var rounds = 0
             while true {
+                // Nothing goes to LLM Gateway for a conversation that was cleared while the
+                // home was being asked for its tools, or while a tool ran.
+                guard turn == generation else { return }
                 var body: [String: Any] = ["model": model, "messages": [["role": "system", "content": system]] + history]
                 if !tools.isEmpty, rounds < Self.maxRounds {
                     body["tools"] = tools
