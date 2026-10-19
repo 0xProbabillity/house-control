@@ -1,4 +1,4 @@
-import { post, call, isNative } from './bridge.js';
+import { post, call, isNative, isServer } from './bridge.js';
 
 const STORAGE_KEY = 'house-control:state:v1';
 
@@ -24,7 +24,7 @@ export function createStore(config) {
   const lightCfg = new Map(config.lights.map((l) => [l.id, l]));
   const acCfg = new Map(config.acs.map((a) => [a.id, a]));
 
-  const state = { lights: {}, acs: {}, scene: null };
+  const state = { lights: {}, acs: {}, scene: null, online: {} };
   for (const l of config.lights) state.lights[l.id] = defaultLight(l);
   for (const a of config.acs) state.acs[a.id] = defaultAC(a, config.outdoorTemp);
   // What each real AC can do, as reported by the native side. A simulated AC can do everything.
@@ -32,7 +32,7 @@ export function createStore(config) {
 
   let restored = false;
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    const saved = !isServer && JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
     if (saved && saved.home === config.name) {
       for (const [id, s] of Object.entries(saved.lights || {})) if (state.lights[id]) Object.assign(state.lights[id], s);
       for (const [id, s] of Object.entries(saved.acs || {})) if (state.acs[id]) Object.assign(state.acs[id], s);
@@ -44,6 +44,7 @@ export function createStore(config) {
 
   let saveTimer = 0;
   function persist() {
+    if (isServer) return;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       try {
@@ -70,11 +71,13 @@ export function createStore(config) {
   const outbox = new Map();
 
   function transmit(kind, id, patch) {
-    if (!isNative) return Promise.resolve();
+    if (!isNative && !isServer) return Promise.resolve();
+    const cfg = kind === 'light' ? lightCfg.get(id) : acCfg.get(id);
+    if (isServer && !cfg.link && !cfg.tuya) return Promise.resolve();
     const current = kind === 'light' ? state.lights[id] : state.acs[id];
     const sent = call('command', { kind, id, patch, state: { ...current } });
     // Never let a lost reply block the device for good.
-    return Promise.race([sent, new Promise((resolve) => setTimeout(resolve, 20000))]);
+    return Promise.race([sent, new Promise((_, reject) => setTimeout(() => reject(new Error('Device command timed out')), 20000))]);
   }
 
   function dispatch(kind, id, patch, before) {
@@ -128,6 +131,7 @@ export function createStore(config) {
 
   function writeLight(id, patch, { remote = false } = {}) {
     const cur = state.lights[id];
+    if (!remote && isServer && state.online[id] === false) { store.onDeviceError?.(id, 'Device is offline; waiting for a fresh reading'); return false; }
     if (!cur) return false;
     const clean = sanitizeLight(id, patch);
     // Only what actually changed is worth sending to the device.
@@ -141,6 +145,7 @@ export function createStore(config) {
 
   function writeAC(id, patch, { remote = false } = {}) {
     const cur = state.acs[id];
+    if (!remote && isServer && state.online[id] === false) { store.onDeviceError?.(id, 'Device is offline; waiting for a fresh reading'); return false; }
     const cfg = acCfg.get(id);
     if (!cur) return false;
     const clean = { ...patch };
@@ -234,6 +239,7 @@ export function createStore(config) {
     // State reported by real devices (native provider). Never echoed back as a command.
     applyRemote(update) {
       let any = false;
+      for (const [id, online] of Object.entries(update.online || {})) { if (state.online[id] !== online) { state.online[id] = online; any = true; } }
       for (const [id, patch] of Object.entries(update.lights || {})) any = writeLight(id, patch, { remote: true }) || any;
       for (const [id, patch] of Object.entries(update.acs || {})) any = writeAC(id, patch, { remote: true }) || any;
       for (const [id, f] of Object.entries(update.features || {})) {
@@ -247,7 +253,7 @@ export function createStore(config) {
 
   // Without real sensors the room temperature is simulated: it drifts towards the
   // set-point while an AC runs and back towards the outdoor-ish ambient when it is off.
-  setInterval(() => {
+  const simulationTimer = setInterval(() => {
     let any = false;
     for (const [id, a] of Object.entries(state.acs)) {
       const cfg = acCfg.get(id);
@@ -261,5 +267,6 @@ export function createStore(config) {
     if (any) { for (const fn of listeners) fn({ type: 'tick' }); persist(); }
   }, 3000);
 
+  store.dispose = () => clearInterval(simulationTimer);
   return store;
 }

@@ -19,6 +19,7 @@ struct SettingsView: View {
                 VStack(spacing: 30) {
                     homeSection
                     shortcutsSection
+                    serverSection
                     macSection
                     #if SMART_LIFE
                     smartLifeSection
@@ -51,6 +52,7 @@ struct SettingsView: View {
                 case .homeAssistant: HomeAssistantView()
                 case .hue: HueView()
                 case .devices: DevicesView()
+                case .sharedServer: ServerSyncView()
                 }
             }
         }
@@ -179,11 +181,26 @@ struct SettingsView: View {
         return names.isEmpty ? "None" : names.joined(separator: " · ")
     }
 
+    private var serverSection: some View {
+        VStack(spacing: 10) {
+            SectionTitle("Shared server")
+            Card {
+                NavigationLink(value: SettingsRoute.sharedServer) {
+                    linkRow(symbol: "server.rack", tint: Theme.accent, title: "Shared server",
+                            detail: model.serverSync.enabled ? model.serverSync.status : "Sync your home with Linux and Android")
+                }.buttonStyle(RowButtonStyle())
+            }
+        }
+    }
+
     // MARK: - Mac
 
     private var macSection: some View {
         VStack(spacing: 10) {
             SectionTitle("Mac")
+            if model.serverSync.enabled {
+                footnote("Mac sync is paused while Shared server mode is active. Switch modes in Shared server settings to resume.")
+            }
             if let name = model.macName {
                 Card {
                     HStack(spacing: 14) {

@@ -1,0 +1,65 @@
+name: Server
+
+on:
+  push:
+    branches: [main, feat/linux-server-android]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            web/package-lock.json
+      - name: Test server against mock Home Assistant
+        run: |
+          npm ci --prefix server
+          npm test --prefix server
+      - name: Build web UI
+        run: |
+          npm ci --prefix web
+          npm run build --prefix web
+      - name: Test browser flows against mocked APIs and real server
+        working-directory: web
+        run: |
+          npx playwright install --with-deps chromium
+          npm test
+      - name: Keep browser evidence and failure traces
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: server-browser-evidence
+          path: |
+            web/test-results/
+            build/evidence/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Build Docker image
+        run: docker build --tag house-control:test .
+      - name: Verify container auth, persisted plans, and restart
+        env:
+          HOUSE_SERVER_TOKEN: ci-only-server-token-at-least-24-characters
+        run: |
+          docker volume create house-control-test
+          docker run -d --name house-control-test -p 127.0.0.1:8080:8080 -e HOUSE_SERVER_TOKEN -v house-control-test:/data --read-only --tmpfs /tmp --cap-drop ALL house-control:test
+          trap 'docker logs house-control-test; docker rm -f house-control-test; docker volume rm house-control-test' EXIT
+          node server/scripts/container-smoke.js
+          docker restart house-control-test
+          node server/scripts/container-smoke.js --verify

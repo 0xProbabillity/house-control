@@ -1,16 +1,26 @@
+import { isServer, initializeServer, serverCall, navigateMode, showServerSettings } from './server.js';
+export { isServer };
+await initializeServer();
 // Thin bridge to the native shell (the macOS menu bar app or the iPhone app). In a plain
 // browser every call is a no-op, so the same bundle runs under `vite dev` too.
 
 const handler = window.webkit?.messageHandlers?.house;
 
 export const isNative = Boolean(handler);
+export const isConnected = isNative || isServer;
 
 // 'ios' inside the iPhone app (or with ?platform=ios in a browser, to work on that layout).
-export const platform = window.__HOUSE_BOOT__?.platform
-  || new URLSearchParams(location.search).get('platform') || (handler ? 'macos' : 'web');
-export const isPhone = platform === 'ios';
+export const platform = new URLSearchParams(location.search).get('platform') || window.__HOUSE_BOOT__?.platform || (handler ? 'macos' : 'web');
+export const isPhone = platform === 'ios' || platform === 'android' || (isServer && matchMedia('(max-width: 700px)').matches);
 
 export function post(type, payload = {}) {
+  if (isServer) {
+    if (type === 'openEditor') navigateMode('editor');
+    else if (type === 'openSettings') showServerSettings();
+    else if (type === 'close') navigateMode('panel');
+    else if (type === 'openConnection') navigateMode('editor', `service:${payload.service}`);
+    return;
+  }
   handler?.postMessage({ type, ...payload });
 }
 
@@ -28,6 +38,7 @@ let nextId = 1;
 const pending = new Map();
 
 export function call(type, payload = {}) {
+  if (isServer) return serverCall(type, payload);
   if (!handler) return Promise.reject(new Error('Only available inside the app'));
   return new Promise((resolve, reject) => {
     const id = nextId++;

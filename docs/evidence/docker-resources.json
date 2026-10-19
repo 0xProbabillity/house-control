@@ -1,0 +1,98 @@
+{
+  "container": "house-control-local-house-control-1",
+  "dockerContext": "colima",
+  "metadata": {
+    "image": "house-control-local-house-control",
+    "platform": "linux",
+    "startedAt": "2026-10-19T09:14:20.887199087Z",
+    "memoryLimitBytes": 0,
+    "status": "running",
+    "imageArchitecture": "linux/arm64",
+    "nodeVersion": "v24.22.0"
+  },
+  "samples": [
+    {
+      "timestampUTC": "2026-10-19T10:57:25.196423+00:00",
+      "CPUPerc": "0.00%",
+      "MemUsage": "29.49MiB / 1.914GiB",
+      "MemPerc": "1.50%",
+      "PIDs": "11"
+    },
+    {
+      "timestampUTC": "2026-10-19T10:57:27.725582+00:00",
+      "CPUPerc": "0.06%",
+      "MemUsage": "29.5MiB / 1.914GiB",
+      "MemPerc": "1.51%",
+      "PIDs": "11"
+    },
+    {
+      "timestampUTC": "2026-10-19T10:57:30.259547+00:00",
+      "CPUPerc": "0.06%",
+      "MemUsage": "29.5MiB / 1.914GiB",
+      "MemPerc": "1.51%",
+      "PIDs": "11"
+    },
+    {
+      "timestampUTC": "2026-10-19T10:57:32.788473+00:00",
+      "CPUPerc": "0.00%",
+      "MemUsage": "29.5MiB / 1.914GiB",
+      "MemPerc": "1.51%",
+      "PIDs": "11"
+    },
+    {
+      "timestampUTC": "2026-10-19T10:57:35.319834+00:00",
+      "CPUPerc": "0.00%",
+      "MemUsage": "29.5MiB / 1.914GiB",
+      "MemPerc": "1.51%",
+      "PIDs": "11"
+    },
+    {
+      "timestampUTC": "2026-10-19T10:57:37.863587+00:00",
+      "CPUPerc": "0.04%",
+      "MemUsage": "29.5MiB / 1.914GiB",
+      "MemPerc": "1.51%",
+      "PIDs": "11"
+    },
+    {
+      "timestampUTC": "2026-10-19T10:57:40.396975+00:00",
+      "CPUPerc": "0.00%",
+      "MemUsage": "29.51MiB / 1.914GiB",
+      "MemPerc": "1.51%",
+      "PIDs": "11"
+    },
+    {
+      "timestampUTC": "2026-10-19T10:57:42.943866+00:00",
+      "CPUPerc": "0.06%",
+      "MemUsage": "29.51MiB / 1.914GiB",
+      "MemPerc": "1.51%",
+      "PIDs": "11"
+    },
+    {
+      "timestampUTC": "2026-10-19T10:57:45.489230+00:00",
+      "CPUPerc": "0.00%",
+      "MemUsage": "29.51MiB / 1.914GiB",
+      "MemPerc": "1.51%",
+      "PIDs": "11"
+    },
+    {
+      "timestampUTC": "2026-10-19T10:57:48.036401+00:00",
+      "CPUPerc": "0.00%",
+      "MemUsage": "29.51MiB / 1.914GiB",
+      "MemPerc": "1.51%",
+      "PIDs": "11"
+    }
+  ],
+  "conditions": "Existing running local server connected to Home Assistant, with browser/emulator clients; no synthetic load applied by this collection. Docker container stats only.",
+  "summary": {
+    "memoryMiB": {
+      "min": 29.49,
+      "median": 29.5,
+      "max": 29.51
+    },
+    "cpuPercent": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 0.06
+    }
+  }
+}

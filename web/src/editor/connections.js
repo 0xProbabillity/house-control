@@ -3,7 +3,7 @@
 // connect each one, and the pickers that link a lamp or an AC to one of their devices.
 import { h } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
-import { isNative, call } from '../bridge.js';
+import { isNative, isServer, isConnected, call } from '../bridge.js';
 import { SERVICES, linkOf } from '../config.js';
 
 const ORDER = ['smartlife', 'homeassistant', 'hue', 'homekit'];
@@ -29,18 +29,18 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
 
   // The platforms this app offers: the native side lists them (the iPhone's App Store
   // edition has no Smart Life). A plain browser shows them all.
-  const offered = () => (isNative && boot.services ? ORDER.filter((id) => id in state.info) : ORDER);
+  const offered = () => (isConnected && boot.services ? ORDER.filter((id) => id in state.info) : ORDER);
   const connected = (id) => Boolean(state.info[id]?.connected);
   const anyConnected = () => offered().some(connected);
   const devicesOf = (id) => (state.devices || []).filter((d) => d.service === id);
 
   async function refreshInfo() {
-    if (!isNative) return;
+    if (!isConnected) return;
     try { state.info = await call('services.info'); } catch { /* keep what we had */ }
   }
 
   async function load({ quiet = false } = {}) {
-    if (!isNative || !anyConnected()) { state.devices = null; rerender(); return; }
+    if (!isConnected || !anyConnected()) { state.devices = null; rerender(); return; }
     state.loading = true;
     if (!quiet) rerender();
     try {
@@ -92,8 +92,8 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
         h('div.svc-text', h('b', SERVICES[id].name), h('span', LOOK[id].blurb)),
         h(`span.svc-status${connected(id) ? '.on' : ''}`, connected(id) ? icon('ok', 13, 2.4) : null, statusText(id)),
         icon('next', 16)))),
-      h('p.note', 'Lamps and ACs stay simulated until you link them: pick one on the plan, then choose its device under “Real device”. One home can mix them all.'),
-      isNative ? null : h('p.note.bad', 'Connecting works inside the House Control app (this is the browser preview).'),
+      h('p.note', isServer ? 'Link lamps and ACs through Home Assistant: pick an item, choose its real device, then save the plan. Unlinked items are simulated.' : 'Lamps and ACs stay simulated until you link them: pick one on the plan, then choose its device under “Real device”. One home can mix them all.'),
+      isConnected ? null : h('p.note.bad', 'Connecting works inside the House Control app (this is the browser preview).'),
     ];
   }
 
@@ -136,7 +136,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
   }
 
   async function scan(id) {
-    if (!isNative || state.scanning[id]) return;
+    if (!isConnected || state.scanning[id]) return;
     state.scanning[id] = true;
     rerender();
     try {
@@ -160,7 +160,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
     if (!state.found.homeassistant && !state.scanning.homeassistant) setTimeout(() => scan('homeassistant'), 0);
     const url = h('input', { type: 'url', spellcheck: 'false', placeholder: 'http://homeassistant.local:8123', value: ha.url });
     const token = h('input', { type: 'password', autocomplete: 'off', placeholder: 'Long-lived access token', value: ha.token });
-    const ready = () => isNative && !ha.busy && ha.url.trim() && ha.token.trim();
+    const ready = () => isConnected && !ha.busy && ha.url.trim() && ha.token.trim();
     url.addEventListener('input', () => { ha.url = url.value; button.disabled = !ready(); });
     token.addEventListener('input', () => { ha.token = token.value; button.disabled = !ready(); });
     const connect = async () => {
@@ -192,7 +192,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
           h('li', 'Under “Long-lived access tokens” press Create token, name it “House Control”, copy it here.')),
         button,
         ha.error ? h('p.note.bad', ha.error) : null,
-        h('p.note', 'The token stays on this Mac (and goes to the iPhones you paired, over their encrypted link). Lights, switches, climate devices and temperature sensors appear here.')),
+        h('p.note', isServer ? 'The token stays on your House Control server. Lights, switches, climate devices and temperature sensors appear here. Connect other brands through Home Assistant.' : 'The token stays on this Mac (and goes to the iPhones you paired, over their encrypted link). Lights, switches, climate devices and temperature sensors appear here.')),
     ];
   }
 
@@ -294,6 +294,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
   /* ---------- detail screen ---------- */
 
   function detail(id, smartLifePanel) {
+    if (isServer && id !== 'homeassistant') return [h('p.note.bad', 'Connect this platform through Home Assistant on your server.')];
     if (id === 'smartlife') return smartLifePanel();
     if (id === 'homeassistant') return homeAssistant();
     if (id === 'hue') return hue();
@@ -335,7 +336,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
     const current = link ? `${link.service}|${link.id}` : '';
     if (!anyConnected()) {
       return section('Real device',
-        h('p.note', 'Simulated. Connect Smart Life, Home Assistant, Philips Hue or Apple Home to control the real one.'),
+        h('p.note', isServer ? (current ? 'This link is unavailable. Connect Home Assistant, or choose a supported device. Commands will fail while unavailable.' : 'Simulated. Connect Home Assistant to control a real device.') : 'Simulated. Connect Smart Life, Home Assistant, Philips Hue or Apple Home to control the real one.'),
         h('button.btn.wide', { onclick: () => onOpen(null) }, icon('link', 14), 'Open Connections'));
     }
     if (!state.devices && !state.loading) setTimeout(() => load({ quiet: true }), 0);

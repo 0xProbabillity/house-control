@@ -1,3 +1,4 @@
+import { request, navigateMode, showServerSettings } from '../server.js';
 // Home editor (a window on the Mac, full screen on the iPhone): a top-down plan you can drag
 // things around on, an inspector for the selected item, a live 3D preview and the links to
 // real devices. On a phone the same pieces are laid out for a finger: the plan fills the
@@ -8,7 +9,7 @@ import { createWorld } from '../three/world.js';
 import { FURNITURE_TYPES, footprint } from '../three/furniture.js';
 import { h, clamp } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
-import { isNative, isPhone, call, post, haptic, incoming } from '../bridge.js';
+import { isNative, isServer, isPhone, call, post, haptic, incoming } from '../bridge.js';
 import { createConnections } from './connections.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -43,6 +44,9 @@ export async function bootEditor(root) {
     : startAt.startsWith('service:') ? { kind: 'service', service: startAt.slice(8) }
       : startAt === 'tuya' ? { kind: 'service', service: 'smartlife' } : { kind: 'home' };
   let dirty = false;
+  let revision = window.__HOUSE_BOOT__?.server?.revision;
+  let conflicted = false;
+  let saving = false;
   let world = null;
   let phone = null; // the iPhone's layout and gestures, set up by buildPhoneLayout()
   let previewLights = true;
@@ -62,7 +66,7 @@ export async function bootEditor(root) {
     toast,
     usedBy: () => links.usedMap(doc),
     // On the iPhone the connection screens are native ones, shown over the editor.
-    onOpen: (service) => (isPhone && service ? post('openConnection', { service })
+    onOpen: (service) => (isPhone && !isServer && service ? post('openConnection', { service })
       : select(service ? { kind: 'service', service } : { kind: 'connections' })),
   });
   // Smart Life signed in or out on its own screen: the overview and the pickers follow.
@@ -89,6 +93,8 @@ export async function bootEditor(root) {
     h('header.bar',
       h('div.bar-title', icon('home', 17), nameInput),
       h('div.bar-actions',
+        isServer ? h('button.btn', { onclick: showServerSettings }, 'Server settings') : null,
+        isServer ? h('button.btn', { onclick: () => { if (!dirty || confirm('Discard unsaved changes?')) navigateMode('panel'); } }, 'Back to home') : null,
         h('button.btn', { title: 'Undo (⌘Z)', onclick: () => stepHistory(undo, redo) }, 'Undo'),
         h('button.btn', { title: 'Redo (⇧⌘Z)', onclick: () => stepHistory(redo, undo) }, 'Redo'),
         h('button.btn', { onclick: importPlan }, 'Import…'),
@@ -552,6 +558,7 @@ export async function bootEditor(root) {
 
     if (kind === 'home') {
       head('Home', 'Global settings of this plan');
+      if (isServer) nodes.push(section('Shared home', h('button.btn', { onclick: importPlan }, 'Import plan…'), h('button.btn', { onclick: exportPlan }, 'Export plan…')));
       doc.camera ||= { azimuth: 34, elevation: 47 };
       if (isPhone) nodes.push(section('Real devices', links.sidebarRow(false, () => select({ kind: 'connections' }))));
       nodes.push(section('Building',
@@ -563,7 +570,7 @@ export async function bootEditor(root) {
           bind('Elevation, °', number(1), { ...prop(doc.camera, 'elevation', 47), parse: parseNum })),
         h('p.note', 'Walls facing the camera are cut away, so the azimuth decides which side of the home is open.')),
       section('How it works',
-        h('p.note', isPhone
+        h('p.note', isServer ? 'Save applies this home to the server and all its connected clients. Unlinked items are simulated; linked items use real Home Assistant state. Coordinates are metres.' : isPhone
           ? 'Tap anything on the plan, or find it under Items, to edit it. “Save” keeps the plan on this iPhone and sends it to your paired Mac. Coordinates are metres: x grows to the right (east), z grows downwards (south).'
           : 'Pick anything on the plan or in the list to edit it. “Save & apply” writes the plan to disk and reloads the menu bar panel. Coordinates are metres: x grows to the right (east), z grows downwards (south).')));
     } else if (kind === 'connections') {
@@ -809,20 +816,42 @@ export async function bootEditor(root) {
 
   async function save() {
     if (!valid) return;
-    if (!isNative) {
+    if (!isNative && !isServer) {
       download();
       toast('Browser preview: the plan was downloaded instead of applied');
       return;
     }
     try {
-      await call('savePlan', { config: doc });
+      if (conflicted) { showConflict(); return; }
+      saving = true; saveBtn.disabled = true;
+      const result = await call('savePlan', { config: doc, ...(isServer ? { expectedRevision: revision } : {}) });
+      if (isServer) { revision = result.revision; Object.assign(window.__HOUSE_BOOT__, { config: structuredClone(doc), plan: 'custom', hasCustomPlan: true }); window.__HOUSE_BOOT__.server.revision = revision; }
       dirty = false;
       validate();
       haptic('success');
-      toast(isPhone ? 'Saved' : 'Saved — the menu bar panel now shows this home');
+      toast(isServer ? 'Saved — every connected device now shares this home' : isPhone ? 'Saved' : 'Saved — the menu bar panel now shows this home');
     } catch (e) {
-      toast(e.message, true);
-    }
+      if (e.status === 409) { conflicted = true; showConflict(); }
+      else toast(e.message, true);
+    } finally { saving = false; validate(); }
+  }
+
+  function showConflict() {
+    if (document.querySelector('.plan-conflict')) return;
+    const dialog = h('dialog.plan-conflict',
+      h('h2', 'A newer home was saved'),
+      h('p', 'Your edits are still here. Export your draft before loading the latest home, then reapply your changes.'),
+      h('button.btn', { onclick: download }, 'Export my draft'),
+      h('button.btn.primary', { onclick: async () => {
+        try {
+          const latest = await request('/api/bootstrap');
+          revision = latest.server.revision; window.__HOUSE_BOOT__ = latest; conflicted = false; dirty = false;
+          incoming.planArrived(latest.config, 'server');
+          dialog.close(); dialog.remove();
+        } catch (e) { toast(e.message, true); }
+      } }, 'Load latest home'),
+      h('button.btn', { onclick: () => { dialog.close(); dialog.remove(); } }, 'Keep editing'));
+    document.body.append(dialog); dialog.showModal();
   }
 
   function download() {
@@ -832,7 +861,7 @@ export async function bootEditor(root) {
   }
 
   async function exportPlan() {
-    if (!isNative) { download(); return; }
+    if (!isNative || isServer) { download(); return; }
     try {
       const r = await call('exportPlan', { config: doc });
       if (r.ok) toast('Plan exported');
@@ -855,7 +884,7 @@ export async function bootEditor(root) {
       touch();
       toast('Plan imported — review it and press “Save & apply”');
     };
-    if (isNative) {
+    if (isNative && !isServer) {
       try {
         const r = await call('importPlan');
         if (r.config) load(r.config);
@@ -917,6 +946,7 @@ export async function bootEditor(root) {
     const tool = (name, label, onclick) => h('button.p-tool', { onclick }, icon(name, 22, 1.9), h('span', label));
     const view3d = tool('box', '3D', () => setShow3D(!ui.show3D));
     const tools = h('nav.p-tools',
+      isServer ? tool('link', 'Server', showServerSettings) : null,
       tool('plus', 'Add', () => openModal(addSheet)),
       tool('list', 'Items', () => openModal(listSheet)),
       view3d,
@@ -935,12 +965,13 @@ export async function bootEditor(root) {
         onclick: () => { closeModals(); add(kind); haptic('light'); ui.reveal(); },
       }, icon(name, 24, 1.8), h('span', label)))));
     confirmSheet.append(h('div.p-modal-head', h('b', 'Unsaved changes')),
-      h('p.note', 'Save them before closing? Saved plans reach your paired Mac too.'),
+      h('p.note', isServer ? 'Save them before closing? Saved plans reach every connected device.' : 'Save them before closing? Saved plans reach your paired Mac too.'),
       h('div.p-confirm-actions',
         h('button.btn.primary.wide', { onclick: async () => { closeModals(); await save(); if (!dirty) close(); } }, 'Save and close'),
         h('button.btn.wide.danger', { onclick: () => { closeModals(); dirty = false; close(); } }, 'Discard changes'),
         h('button.btn.wide', { onclick: closeModals }, 'Keep editing')));
 
+    if (isServer) confirmSheet.append(h('button.btn', { onclick: exportPlan }, 'Export draft'));
     sheet.append(grip, inspector);
     canvas.append(plan, h('div.p-preview', previewHost, previewToggle), issue, fitBtn, hint);
     const shell = h('div.editor.phone',
@@ -1178,7 +1209,7 @@ export async function bootEditor(root) {
   // A plan saved on the other device (the Mac, or the paired iPhone) while this editor is open.
   incoming.planArrived = (config, from) => {
     if (dirty) {
-      toast(`${from || 'Your other device'} saved a newer plan. Saving here replaces it.`, true);
+      toast(isServer ? `${from || 'Your other device'} saved a newer plan. Your edits have been kept.` : `${from || 'Your other device'} saved a newer plan. Saving here replaces it.`, true);
       return;
     }
     doc = structuredClone(config);
@@ -1191,6 +1222,16 @@ export async function bootEditor(root) {
     toast(`Updated from ${from || 'your other device'}`);
   };
 
-  window.__editor = { get doc() { return doc; }, select, tuya, links, phone };
+  if (isServer) {
+    window.__houseHasUnsavedChanges = () => dirty;
+    window.addEventListener('house:planChanged', async ({ detail }) => {
+      if (saving || detail.revision === revision) return;
+      if (dirty) { conflicted = true; showConflict(); return; }
+      try { const latest = await request('/api/bootstrap'); revision = latest.server.revision; window.__HOUSE_BOOT__ = latest; incoming.planArrived(latest.config, 'server'); }
+      catch (e) { toast(e.message, true); }
+    });
+    window.addEventListener('beforeunload', (event) => { if (dirty) { event.preventDefault(); event.returnValue = ''; } });
+  }
+  window.__editor = { get doc() { return doc; }, get world() { return world; }, select, tuya, links, phone };
   post('ready');
 }

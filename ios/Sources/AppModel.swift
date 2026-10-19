@@ -28,6 +28,7 @@ enum SettingsRoute: Hashable, Identifiable {
     case homeAssistant
     case hue
     case devices
+    case sharedServer
 
     var id: Self { self }
 
@@ -60,6 +61,7 @@ final class AppModel {
     @ObservationIgnored let plans = PlanStore()
     @ObservationIgnored let hub: DeviceHub
     @ObservationIgnored let sync: SyncClient
+    let serverSync: ServerSync
     @ObservationIgnored let web: HomeWeb
     /// The Home Screen and Lock Screen widgets, and the Control Center controls.
     @ObservationIgnored let widgets = WidgetBridge()
@@ -140,6 +142,7 @@ final class AppModel {
         hub = DeviceHub(directory: directory, secret: secret, homeKit: homeKitService)
         #endif
         sync = SyncClient(store: secret("sync"))
+        serverSync = ServerSync(secret: secret("shared-server"))
         web = HomeWeb(persistent: !sandboxed)
 
         activePlan = plans.activePlan
@@ -165,6 +168,26 @@ final class AppModel {
         // A phone paired before plans travelled both ways holds the Mac's plan as it was sent.
         if sync.isPaired, syncedRevision == nil { syncedRevision = plans.customPlanRevision }
 
+        serverSync.local = { [weak self] in self?.plans.customPlan() }
+        serverSync.adopt = { [weak self] config in
+            guard let self else { return }
+            let data = try PlanStore.encode(config)
+            _ = try PlanStore.validate(data)
+            try self.plans.saveCustom(data: data, select: true)
+            self.reloadHome()
+            self.editorWeb?.call("planArrived", config, "Shared server")
+        }
+        serverSync.backup = { [weak self] config in
+            guard let self else { return }
+            let folder = self.plans.directory.appendingPathComponent("server-conflicts", isDirectory: true)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try PlanStore.encode(config).write(to: folder.appendingPathComponent("home-\(UUID().uuidString).json"), options: .atomic)
+        }
+        serverSync.modeChanged = { [weak self] in
+            guard let self else { return }
+            if self.serverSync.enabled { self.sync.stop(); self.planChoice = nil }
+            else if self.active { self.sync.start() }
+        }
         sync.deviceName = UIDevice.current.name
         sync.planRevision = { [plans] in plans.customPlanRevision }
         sync.onStatus = { [weak self] in
@@ -207,8 +230,9 @@ final class AppModel {
     func setActive(_ on: Bool) {
         guard on != active else { return }
         active = on
+        serverSync.setActive(on)
         if on {
-            sync.start()
+            if !serverSync.enabled { sync.start() }
             startPolling()
             widgets.takeActions()
         } else {
@@ -307,6 +331,7 @@ final class AppModel {
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         try plans.importPlan(from: url)
         reloadHome()
+        serverSync.localChanged()
         show(Banner(symbol: "checkmark.circle.fill", text: "Floor plan imported", tint: Theme.green))
     }
 
@@ -330,7 +355,8 @@ final class AppModel {
         _ = try PlanStore.validate(data)
         try plans.saveCustom(data: data)
         reloadHome()
-        sync.sendPlan(data) // when the Mac is away, the next sync sends it
+        if serverSync.enabled { serverSync.localChanged() }
+        else { sync.sendPlan(data) } // when the Mac is away, the next sync sends it
     }
 
     /// Starts a new home on this phone: an empty one with one room, or a copy of a demo
@@ -358,6 +384,7 @@ final class AppModel {
     // MARK: - Editor
 
     func openEditor() {
+        serverSync.beginEditing()
         if editorWeb == nil {
             let web = HomeWeb(persistent: (ProcessInfo.processInfo.environment["HOUSE_DATA_DIR"] ?? "").isEmpty, mode: "editor")
             web.onMessage = { [weak self, weak web] message in
@@ -373,6 +400,7 @@ final class AppModel {
 
     /// Called once the editor's screen is gone.
     func editorClosed() {
+        serverSync.endEditing()
         editorWeb?.detach()
         editorWeb = nil
         editorSheet = nil
@@ -597,7 +625,7 @@ final class AppModel {
         macName = pairing.name
         UserDefaults.standard.set(true, forKey: "welcomed")
         Haptics.shared.play("success")
-        if active { sync.start() }
+        if active && !serverSync.enabled { sync.start() }
     }
 
     func unpair() {
@@ -610,7 +638,7 @@ final class AppModel {
         UserDefaults.standard.removeObject(forKey: "lastSync")
     }
 
-    func syncNow() { sync.refresh() }
+    func syncNow() { if serverSync.enabled { Task { await serverSync.synchronize() } } else { sync.refresh() } }
 
     /// The plan revision this phone and the Mac last agreed on: tells which side changed it.
     private var syncedRevision: String? {
@@ -619,6 +647,7 @@ final class AppModel {
     }
 
     private func received(_ state: SyncState) {
+        guard !serverSync.enabled else { return }
         macName = state.macName
         lastSync = Date()
         UserDefaults.standard.set(lastSync, forKey: "lastSync")
@@ -629,7 +658,7 @@ final class AppModel {
             startPolling()
         }
         // Whatever this phone connected (or disconnected) since goes the other way.
-        sync.sendConnections(hub.shareableConnections, userCode: smartLifeUserCode)
+        if !serverSync.enabled { sync.sendConnections(hub.shareableConnections, userCode: smartLifeUserCode) }
         sendCatalog()
         reconcilePlan(with: state)
     }
@@ -684,6 +713,7 @@ final class AppModel {
 
     /// The answer to a `PlanChoice`.
     func resolvePlanChoice(keepPhone: Bool) {
+        guard !serverSync.enabled else { planChoice = nil; return }
         guard let choice = planChoice else { return }
         planChoice = nil
         if keepPhone {
@@ -726,7 +756,7 @@ final class AppModel {
         smartLifeConnected = smartLife.isSmartLifeConnected
         smartLifeAccount = smartLife.account
         sync.showQR(nil)
-        sync.sendConnections(hub.shareableConnections, userCode: smartLifeUserCode)
+        if !serverSync.enabled { sync.sendConnections(hub.shareableConnections, userCode: smartLifeUserCode) }
         editorWeb?.call("servicesChanged", hub.servicesInfo)
         Haptics.shared.play("success")
         startPolling()
@@ -776,7 +806,7 @@ final class AppModel {
         reloadLinks()
         startPolling()
         poll()
-        sync.sendConnections(hub.shareableConnections, userCode: smartLifeUserCode)
+        if !serverSync.enabled { sync.sendConnections(hub.shareableConnections, userCode: smartLifeUserCode) }
         editorWeb?.call("servicesChanged", hub.servicesInfo)
     }
 
@@ -822,13 +852,13 @@ final class AppModel {
 
     func disconnectHomeKit() {
         homeKitService.disconnect()
-        sync.sendCatalog([])
+        if !serverSync.enabled { sync.sendCatalog([]) }
         refreshConnections()
     }
 
     /// The Mac cannot see Apple Home, so this phone tells it what is there, for the editor.
     private func sendCatalog() {
-        guard homeKitService.isConnected, sync.isPaired else { return }
+        guard homeKitService.isConnected, sync.isPaired, !serverSync.enabled else { return }
         Task { @MainActor in
             guard let devices = try? await homeKitService.devices() else { return }
             sync.sendCatalog(devices.map { $0.dictionary(service: "homekit") })
