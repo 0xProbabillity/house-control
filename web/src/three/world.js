@@ -53,6 +53,33 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
     lights.set(cfg.id, unit);
     scene.add(unit.group);
   }
+
+  // Every shadow-casting lamp costs the shader a texture sampler, and WebGL caps how many
+  // one program may use (16 on Apple GPUs — and the moonlight takes one of them too). Past
+  // the cap the program no longer links, three.js logs `useProgram: program not valid` on
+  // every draw and the whole stage renders black. The bundled demo plans have 11 lamps, so
+  // this only shows up on a real floor plan. Give the most important lamps the shadow slots
+  // and let the rest light the room without casting.
+  const SHADOW_PRIORITY = { ceiling: 0, pendant: 1, floor: 2, spots: 3, table: 4, strip: 9 };
+  const canShadow = (unit) => unit.lights.some((l) => l.userData.canShadow);
+  const shadowCap = Math.max(1, Math.min(8, renderer.capabilities.maxTextures - 6));
+  const ranked = [...lights.values()].sort((a, b) =>
+    (SHADOW_PRIORITY[a.cfg.type] ?? 9) - (SHADOW_PRIORITY[b.cfg.type] ?? 9));
+  // One lamp per room first, so every room keeps some depth, then fill up to the cap.
+  const shadowOrder = [];
+  const seenRooms = new Set();
+  for (const unit of ranked) {
+    if (canShadow(unit) && !seenRooms.has(unit.cfg.room)) { shadowOrder.push(unit); seenRooms.add(unit.cfg.room); }
+  }
+  for (const unit of ranked) {
+    if (shadowOrder.length >= shadowCap) break;
+    if (canShadow(unit) && !shadowOrder.includes(unit)) shadowOrder.push(unit);
+  }
+  for (const unit of lights.values()) {
+    const keep = shadowOrder.includes(unit);
+    for (const l of unit.lights) if (l.userData.canShadow) l.castShadow = keep;
+  }
+
   const acs = new Map();
   for (const cfg of config.acs) {
     const unit = new ACUnit(cfg);
