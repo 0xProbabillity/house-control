@@ -53,7 +53,9 @@ Run House Control as a persistent Docker service and open its address in a deskt
 
 The server supports Home Assistant lights, switches, climate devices and temperature sensors. Connect other brands through Home Assistant. The Apple standalone apps retain their existing direct integrations. Server mode does not offer the Mac menu bar, notch island, Apple widgets or AI Access.
 
-See [Linux and Android setup](docs/linux-android.md), [server deployment](server/README.md), and [Android build instructions](android/README.md). This branch contains source and CI build workflows; it does not publish a production server or released Android app.
+Start with the [Docker and Android walkthrough](docs/linux-android.md): choose a host, create a server token, run the included [Compose configuration](compose.yaml), connect Home Assistant, then install and sign in on your phone. It includes a copyable Compose example, the difference between the two access tokens, and help for connection and APK-installation problems.
+
+See [server deployment details](server/README.md) and [Android download/build/install instructions](android/README.md) for more. This branch contains source and CI build workflows; it does not publish a production server or released Android app.
 
 ## Download
 

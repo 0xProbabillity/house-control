@@ -1,0 +1,28 @@
+{
+  "capture_type": "Earlier Android emulator QA captures; original pixels retained",
+  "device": "API 35 Google APIs ARM64 Pixel 6 emulator",
+  "capture_context": "Demo floor plan on the development server, before the final export-status toast adjustment; not physical-phone screenshots or evidence of real-device control",
+  "images": [
+    {
+      "file": "android-home.png",
+      "width": 1080,
+      "height": 2400,
+      "sha256": "11455b0d98e532d4e9aee8fcd83e9d67963e6b12f7cd5a8bf6c619cbfc39daa8",
+      "bytes": 859321
+    },
+    {
+      "file": "android-plan-import.png",
+      "width": 1080,
+      "height": 2400,
+      "sha256": "99ce51391085ea461d7a6062e721f0c669da818185be4aff22d4a2f1f24709b3",
+      "bytes": 271173
+    },
+    {
+      "file": "android-export.png",
+      "width": 1080,
+      "height": 2400,
+      "sha256": "38333333a942b07eb5134c77d58f0ab24546a401089a6c0fea766346edca822e",
+      "bytes": 62690
+    }
+  ]
+}
