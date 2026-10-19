@@ -92,10 +92,11 @@ export async function bootIsland(root) {
     rows.push(() => {
       const s = state.acs[cfg.id];
       el.classList.toggle('on', s.on);
+      el.classList.toggle('idle', s.on && s.idle);
       el.style.setProperty('--c', MODE_COLORS[s.mode]);
       if (shownMode !== s.mode) { bubble.replaceChildren(icon(s.mode, 15)); shownMode = s.mode; }
       value.textContent = `${s.target}°`;
-      sub.textContent = `${s.on ? MODE_LABEL[s.mode] : 'Off'} · ${s.roomTemp.toFixed(0)}° inside`;
+      sub.textContent = `${!s.on ? 'Off' : s.idle ? 'Idle' : MODE_LABEL[s.mode]} · ${s.roomTemp.toFixed(0)}° inside`;
     });
   }
 

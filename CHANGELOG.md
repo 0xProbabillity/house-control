@@ -11,6 +11,12 @@ What changed in each release of House Control. The Mac app is on
   your Mac. It is the app's entry under System Settings → General → Login Items, so it can be switched off there too.
   Run from the disk image, the app asks to be moved to Applications first; moved there later, the login item follows it.
 
+### Home Assistant
+
+- **A thermostat that is on but not running shows as idle.** When the room is already warm (or cool) enough, Home
+  Assistant reports `hvac_action: idle`; the 3D unit then stops blowing air and its tile and island chip are outlined
+  with "Idle" instead of lit as if it were heating.
+
 ## 1.0.0 — 2026-10-15
 
 ### Widgets, controls and quick actions

@@ -451,6 +451,9 @@ html.native .card { width: auto; height: auto; box-shadow:
 @media (hover: hover) { .mini-power:hover { background: rgba(255, 255, 255, 0.16); color: var(--text); } }
 .mini-power:active { transform: scale(0.88); }
 .tile.ac.on .mini-power { background: var(--c); color: #06162c; box-shadow: 0 0 18px -4px var(--c); }
+/* On but not running: outlined in the mode's colour instead of lit with it. */
+.tile.ac.on.idle { background: var(--glass); border-color: var(--line); box-shadow: none; }
+.tile.ac.on.idle .bubble, .tile.ac.on.idle .mini-power { background: transparent; color: var(--c); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 70%, transparent); }
 
 .tile:focus-visible { outline: none; border-color: rgba(120, 175, 255, 0.8); }
 

@@ -16,6 +16,8 @@ function defaultAC(cfg, outdoor) {
   return {
     on: false, target: 24, mode: 'cool', fan: 'auto', swing: 'swing',
     sleep: false, eco: false, roomTemp: Math.min(outdoor - 2, 27),
+    // On but not running right now (a real thermostat says so); never sent to a device.
+    idle: false,
   };
 }
 
@@ -149,7 +151,7 @@ export function createStore(config) {
     if (!Object.keys(diff).length) return false;
     const before = Object.fromEntries(Object.keys(diff).map((k) => [k, cur[k]]));
     Object.assign(cur, clean);
-    const { roomTemp, ...sendable } = diff;
+    const { roomTemp, idle, ...sendable } = diff;
     if (!remote && Object.keys(sendable).length) dispatch('ac', id, sendable, before);
     return true;
   }
