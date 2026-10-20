@@ -19,7 +19,7 @@ On the iPhone they are in **Settings**: Smart Life, Home Assistant and Philips H
 **Settings → Devices** links the plan's lamps and ACs (or adds your devices to a room, already linked). No Mac is
 needed. When a Mac is paired, the Home Assistant and Hue connections travel between the two over their encrypted
 link, in whichever direction they were set up, so there is nothing to set up twice. Smart Life signs in on each
-device separately: its session cannot be shared, Tuya renews it as it is used.
+device separately: its session cannot be shared; Tuya renews it as it is used.
 
 ## Home Assistant
 
