@@ -115,4 +115,4 @@ same devices but has seen far less real-world use than the QR route.
 | `TuyaService.swift` | The Tuya Cloud project client, and `TuyaMapper`, which translates between the app's state and Tuya data points |
 | `InfraredRemote.swift` | Key sequencing for infrared ACs |
 | `AppDelegate.swift` | Queues commands per device, polls state, reports results to the panel |
-| `web/src/store.js` | Coalesces changes into few commands and rolls back the ones a device refuses |
+| `web/src/store.js` | Coalesces changes into a few commands and rolls back the ones a device refuses |
