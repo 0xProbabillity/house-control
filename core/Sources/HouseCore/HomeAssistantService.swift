@@ -233,6 +233,9 @@ public final class HomeAssistantService: DeviceService {
         } else if id.hasPrefix("climate.") {
             let modes = modeTable(attributes["hvac_modes"] as? [String] ?? [])
             var ac: [String: Any] = ["on": value != "off"]
+            // On, but not running right now: a thermostat whose room is already warm (or cool) enough.
+            let action = attributes["hvac_action"] as? String
+            ac["idle"] = value != "off" && (action == "idle" || action == "off")
             if let mode = modes.first(where: { $0.value == value })?.key { ac["mode"] = mode }
             if let t = attributes.double("temperature") {
                 ac["target"] = t

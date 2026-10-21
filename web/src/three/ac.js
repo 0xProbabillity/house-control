@@ -105,7 +105,7 @@ export class ACUnit {
   }
 
   apply(state, { instant = false } = {}) {
-    this.goal = state.on ? 1 : 0;
+    this.goal = state.on && !state.idle ? 1 : 0;
     this.goalColor.set(MODE_COLORS[state.mode] || MODE_COLORS.cool);
     this.speed = FAN_SPEED[state.fan] ?? FAN_SPEED.auto;
     if (state.sleep) this.speed *= 0.6;
