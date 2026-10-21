@@ -5,6 +5,13 @@ What changed in each release of House Control. The Mac app is on
 
 ## Unreleased
 
+### iPhone
+
+- **House Control in Control Center:** a button that opens the app, for Control Center, the Lock Screen and the
+  Action button (iOS 18). It opens on the home in 3D and, made wide, says how the home is ("6 on · AC 23°"); tap it
+  while editing Control Center to have it open the floor plan editor or settings instead. **Open House Control** is
+  in Shortcuts too.
+
 ### Mac
 
 - **Open at Login**, in the menu bar icon's right-click menu and in the panel's gear menu: House Control starts with

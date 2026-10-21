@@ -196,3 +196,64 @@ struct SceneControl: ControlWidget {
         .promptsForUserConfiguration()
     }
 }
+
+#if os(iOS)
+@available(iOS 18.0, *)
+struct OpenControlConfiguration: ControlConfigurationIntent {
+    static let title: LocalizedStringResource = "House Control"
+    @Parameter(title: "Open", default: .home) var screen: AppScreen
+}
+
+/// A button that opens the app: on the home in 3D (and says how it is), the editor or settings.
+@available(iOS 18.0, *)
+struct OpenAppControl: ControlWidget {
+    static let kind = "io.github.0xprobabillity.HouseControl.open-control"
+
+    struct Value {
+        var screen: AppScreen
+        var status: String
+        var lit: Bool
+    }
+
+    struct Provider: AppIntentControlValueProvider {
+        func previewValue(configuration: OpenControlConfiguration) -> Value {
+            value(configuration.screen, home: HomeData.orSample)
+        }
+
+        func currentValue(configuration: OpenControlConfiguration) async throws -> Value {
+            value(configuration.screen, home: HomeData.current)
+        }
+
+        private func value(_ screen: AppScreen, home: HomeSnapshot?) -> Value {
+            switch screen {
+            case .home:
+                guard let home else { return Value(screen: screen, status: "Open", lit: false) }
+                // Short enough for the wide tile: "6 on · AC 23°", "2 lights on", "Lights off".
+                let ac = home.acsOn.first
+                let lights = home.lightsOn == 0 ? "Lights off"
+                    : ac == nil ? "\(home.lightsOn) \(home.lightsOn == 1 ? "light" : "lights") on" : "\(home.lightsOn) on"
+                let status = ac.map { "\(lights) · AC \($0.targetText)" } ?? lights
+                return Value(screen: screen, status: status, lit: home.lightsOn > 0 || ac != nil)
+            case .editor: return Value(screen: screen, status: "Floor Plan", lit: false)
+            case .settings: return Value(screen: screen, status: "Settings", lit: false)
+            }
+        }
+    }
+
+    var body: some ControlWidgetConfiguration {
+        AppIntentControlConfiguration(kind: Self.kind, provider: Provider()) { value in
+            ControlWidgetButton(action: OpenHouseControlIntent(screen: value.screen)) {
+                Label {
+                    Text("House Control")
+                    Text(value.status)
+                } icon: {
+                    Image(systemName: value.screen == .home && !value.lit ? "house" : value.screen.symbol)
+                }
+            }
+            .tint(Palette.warm)
+        }
+        .displayName("House Control")
+        .description("Opens the app: the home in 3D, the floor plan or settings.")
+    }
+}
+#endif

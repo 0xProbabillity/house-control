@@ -21,6 +21,8 @@ targets:
     sources:
       - path: Sources
       - path: Resources
+      # The intent the "House Control" control runs to open the app: both sides have to know it.
+      - path: ../widgets/Sources/OpenApp.swift
       # The web UI, built by `npm run build` in ../web; lands in the app as the folder "dist".
       - path: ../web/dist
         type: folder

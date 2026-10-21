@@ -17,7 +17,9 @@ without opening the app.
 
 Controls (iOS 18 and macOS 26): **All Lights** (toggle), **Light** (toggle, pick the lamp), **Scene** (button, pick the
 scene) and **Air Conditioner** (toggle, pick the AC). On the iPhone they go into Control Center, onto the Lock
-Screen and onto the Action button; on the Mac into Control Center and the menu bar.
+Screen and onto the Action button; on the Mac into Control Center and the menu bar. The iPhone also has
+**House Control** (button): it opens the app on the home, the floor plan editor or settings, and shows how the home
+is when it is made wide ("6 on · AC 23°").
 
 Quick actions (iPhone): press and hold the app icon for up to four of your scenes, lamps and ACs.
 Pick them in **Settings → Quick Actions**: add with **+**, drag to reorder, swipe to remove. Each home has its own set;
@@ -60,6 +62,7 @@ widget tap ─▶ AppIntent ─▶ HomeSnapshot.apply ─▶ home.json (at once)
 | `core/Sources/HouseCore/WidgetBridge.swift` | The app's side: stores snapshots, hands queued actions to the panel |
 | `web/src/widgets.js` | Builds the snapshot in the panel page and runs queued actions (`house.widget`) |
 | `widgets/Sources/` | Widgets, controls, intents and the isometric model (`HouseModel.swift`), shared by iPhone and Mac |
+| `widgets/Sources/OpenApp.swift` | The intent that opens the app on a screen; compiled into the iPhone app as well, where it runs |
 | `widgets/project.yml` | The Mac's widget extension (built and embedded by `scripts/build-app.sh`) |
 | `ios/project.yml` | The iPhone's widget extension (target `HouseWidgets`) |
 | `ios/Sources/QuickActions.swift` | The icon's quick actions and their editor |

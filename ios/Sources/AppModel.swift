@@ -180,6 +180,7 @@ final class AppModel {
         }
         widgets.onSnapshot = { [weak self] in self?.quickActions.update(home: $0) }
         QuickActionCenter.handler = { [weak self] id, title in self?.runQuickAction(id, title: title) }
+        OpenAppRouter.handler = { [weak self] in self?.open($0) }
         web.onMessage = { [weak self] in self?.handle($0) }
         web.load { [weak self] in self?.bootPayload() ?? [:] }
 
@@ -576,12 +577,19 @@ final class AppModel {
     // MARK: - Mac sync
 
     /// A `housecontrol://pair?…` link, from the camera, the clipboard or another app, or
-    /// `housecontrol://open?device=…` from a widget.
+    /// `housecontrol://open?device=…` from a widget, `housecontrol://open?screen=editor|settings`
+    /// from a link (the House Control control itself runs `OpenHouseControlIntent`).
     @discardableResult
     func open(_ url: URL) -> Bool {
         if url.scheme == SyncPairing.scheme, url.host == "open" {
+            let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            if let screen = query.first(where: { $0.name == "screen" })?.value.flatMap(AppScreen.init(rawValue:)),
+               screen != .home {
+                open(screen)
+                return true
+            }
             showSettings = false
-            let device = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "device" }?.value
+            let device = query.first { $0.name == "device" }?.value
             if let device {
                 if pageReady { web.call("openDevice", device) } else { pendingDevice = device }
             }
@@ -590,6 +598,22 @@ final class AppModel {
         guard let pairing = SyncPairing(link: url.absoluteString) else { return false }
         pair(pairing)
         return true
+    }
+
+    /// The screen the House Control control (or Shortcuts) asked for. The welcome and new-home
+    /// sheets come first: then the app just opens.
+    func open(_ screen: AppScreen) {
+        guard !showWelcome, !showNewHome else { return }
+        switch screen {
+        case .home:
+            showSettings = false
+        case .editor:
+            openEditor()
+        case .settings:
+            guard !showEditor else { return }
+            settingsPath = []
+            showSettings = true
+        }
     }
 
     func pair(_ pairing: SyncPairing) {

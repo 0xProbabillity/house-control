@@ -268,7 +268,7 @@ Every widget is live: tap a lamp, a scene or an AC and it switches without openi
   **Climate** (an AC's dial with the room temperature, power and − / +).
 - **Lock Screen:** Home Status, Light and Climate as circles, rectangles and an inline line.
 - **Controls** for Control Center, the Lock Screen and the Action button (iOS 18, macOS 26): All Lights, a Light,
-  a Scene, an Air Conditioner.
+  a Scene, an Air Conditioner, and on the iPhone **House Control**, which opens the app.
 - **Quick actions:** press and hold the app icon on the iPhone. Choose which scenes, lamps and ACs it offers in
   **Settings → Quick Actions**.
 
