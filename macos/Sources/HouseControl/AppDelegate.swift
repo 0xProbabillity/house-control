@@ -19,6 +19,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var panel: PanelController!
     private var editor: EditorController?
+    /// Where a new editor window opens ("service:hue", …), when Settings asked for a connection.
+    private var editorSection: String?
+    private var settings: SettingsWindowController?
     private var pollTimer: Timer?
     /// AI Access: the private link an AI assistant uses to run the home.
     private lazy var agent: AgentController = {
@@ -30,6 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             self.panel.host.call("agentLive", live)
             self.refreshStatusIcon()
+            self.refreshSettings()
         }
         return agent
     }()
@@ -69,7 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if islandEnabled { showIsland() }
         LoginItem.followMove()
 
-        // HOUSE_SNAPSHOT_DIR=<folder> writes panel.png and island.png there a few seconds
+        // HOUSE_SNAPSHOT_DIR=<folder> writes panel.png and island.png (and settings.png) there a few seconds
         // after launch: a look at the UI without a screen (see HOUSE_RENDER_HIDDEN).
         if let folder = ProcessInfo.processInfo.environment["HOUSE_SNAPSHOT_DIR"] {
             let directory = URL(fileURLWithPath: folder, isDirectory: true)
@@ -77,10 +81,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 self?.panel.host.snapshot(to: directory.appendingPathComponent("panel.png"))
                 self?.island?.host.snapshot(to: directory.appendingPathComponent("island.png"))
+                self?.settings?.snapshot(to: directory.appendingPathComponent("settings.png"))
             }
         }
         if ProcessInfo.processInfo.environment["HOUSE_OPEN_PAIRING"] != nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.pairPhone() }
+        }
+        if let pane = ProcessInfo.processInfo.environment["HOUSE_OPEN_SETTINGS"] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.showSettings(pane: pane.isEmpty || pane == "1" ? nil : pane) }
         }
         if ProcessInfo.processInfo.environment["HOUSE_OPEN_EDITOR"] != nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.openEditor() }
@@ -175,6 +183,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if NSApp.currentEvent?.type == .rightMouseUp {
             panel.hide()
             let menu = NSMenu()
+            let settingsItem = menu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
+            settingsItem.target = self
+            settingsItem.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
+            menu.addItem(.separator())
             menu.addItem(withTitle: "Edit Home…", action: #selector(openEditor), keyEquivalent: "").target = self
             menu.addItem(withTitle: "Load Floor Plan…", action: #selector(loadPlan), keyEquivalent: "").target = self
             menu.addItem(withTitle: "Reveal Plan File", action: #selector(revealPlan), keyEquivalent: "").target = self
@@ -228,6 +240,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !smartLife.isSmartLifeConnected, !phoneUserCode.isEmpty { account["userCode"] = phoneUserCode }
         boot["smartLife"] = account
         boot["services"] = hub.servicesInfo
+        if let section = editorSection { boot["section"] = section }
         switch ProcessInfo.processInfo.environment["HOUSE_OPEN_EDITOR"] {
         case "smartlife": boot["section"] = "service:smartlife"
         case "homeassistant", "hue", "homekit", "connections":
@@ -251,6 +264,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         reloadLinks()
         setPolling(false) // reads at once while the panel or the island is open
         sync.broadcast()
+        refreshSettings()
     }
 
     @objc private func reloadAll() {
@@ -259,6 +273,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.host.load()
         if island?.isShown == true { island?.host.load() }
         sync.broadcast()
+        refreshSettings()
     }
 
     @objc private func loadPlan() {
@@ -318,8 +333,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.activateFileViewerSelecting([hub.log.fileURL])
     }
 
-    @objc private func openEditor() {
+    @objc private func openEditor() { showEditor(section: nil) }
+
+    /// `section` ("connections", "service:hue", …) opens the editor on that screen.
+    private func showEditor(section: String?) {
         panel.hide()
+        if let section, let editor { editor.host.call("openSection", section) }
+        editorSection = section
         if editor == nil {
             let host = WebHost(mode: "editor", transparent: false) { [unowned self] in self.bootPayload() }
             host.onMessage = { [weak self, unowned host] message in self?.handle(message, from: host) }
@@ -331,6 +351,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             editor = controller
             host.load()
         }
+        editorSection = nil
         editor?.show()
     }
 
@@ -375,6 +396,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "openAgent": openAgent()
         case "revealPlan": revealPlan()
         case "openEditor": openEditor()
+        case "openSettings": showSettings()
         case "quit": NSApp.terminate(nil)
         case "setOpenAtLogin": setOpenAtLogin(message["on"] as? Bool ?? false)
 
@@ -557,6 +579,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let show = island?.isShown != true
         UserDefaults.standard.set(show, forKey: "island")
         if show { showIsland() } else { island?.hide() }
+        refreshSettings()
     }
 
     // MARK: - Open at Login
@@ -579,8 +602,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         panel.host.call("openAtLogin", LoginItem.state.rawValue)
         // The very first registration can take a moment to show in the status.
+        refreshSettings()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
             self?.panel.host.call("openAtLogin", LoginItem.state.rawValue)
+            self?.refreshSettings()
         }
     }
 
@@ -615,7 +640,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.editor?.host.call("servicesChanged", self.hub.servicesInfo)
             }
         }
-        sync.onPeersChanged = { [weak self] in self?.refreshPairingWindow() }
+        sync.onPeersChanged = { [weak self] in
+            self?.refreshPairingWindow()
+            self?.refreshSettings()
+        }
         sync.onShowQR = { [weak self] content, device in self?.showLoginCode(content, for: device) }
         sync.start() // only listens once a phone has been paired
     }
@@ -719,12 +747,83 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         loginWindow?.setStatus("Requested by \(device)", active: true)
     }
 
+    // MARK: - Settings
+
+    @objc private func openSettings() { showSettings() }
+    @objc private func openAbout() { showSettings(pane: "About") }
+
+    private func showSettings(pane: String? = nil) {
+        panel.hide()
+        if settings == nil {
+            let controller = SettingsWindowController()
+            let model = controller.model
+            model.setOpenAtLogin = { [weak self] on in self?.setOpenAtLogin(on) }
+            model.setIsland = { [weak self] on in
+                guard let self, on != (self.island?.isShown == true) else { return }
+                self.toggleIsland()
+            }
+            model.selectPlan = { [weak self] plan in
+                guard let self, plan != self.plans.activePlan else { return }
+                self.plans.select(plan)
+                self.reloadAll()
+                self.editor?.host.load()
+            }
+            model.editHome = { [weak self] in self?.openEditor() }
+            model.loadPlan = { [weak self] in self?.loadPlan() }
+            model.revealPlan = { [weak self] in self?.revealPlan() }
+            model.openConnection = { [weak self] id in self?.showEditor(section: "service:\(id)") }
+            model.pairPhone = { [weak self] in self?.pairPhone() }
+            model.openAgent = { [weak self] in self?.openAgent() }
+            model.stopAgent = { [weak self] in self?.agent.stop() }
+            model.revealLog = { [weak self] in self?.revealLog() }
+            controller.onShow = { [weak self] in self?.refreshSettings() }
+            settings = controller
+        }
+        settings?.show(pane: pane)
+    }
+
+    /// Puts what is true now into an open Settings window.
+    private func refreshSettings() {
+        guard let model = settings?.model else { return }
+        model.openAtLogin = LoginItem.state
+        model.islandShown = island?.isShown == true
+        var choices = PlanStore.bundled.map { id in
+            SettingsModel.Plan(id: id, name: "Demo · \(id == "home" ? "Apartment" : id.capitalized)")
+        }
+        if plans.hasCustomPlan { choices.insert(.init(id: "custom", name: plans.customPlanName ?? "My home"), at: 0) }
+        model.plans = choices
+        model.activePlan = plans.activePlan
+        let info = hub.servicesInfo
+        func entry(_ id: String) -> [String: Any] { info[id] as? [String: Any] ?? [:] }
+        func connected(_ id: String) -> Bool { entry(id)["connected"] as? Bool ?? false }
+        let homeKit = entry("homekit")
+        model.connections = [
+            .init(id: "smartlife", name: "Smart Life", symbol: "bolt.horizontal.fill", tint: .orange,
+                  detail: connected("smartlife") ? "Signed in" : "Not signed in", connected: connected("smartlife")),
+            .init(id: "homeassistant", name: "Home Assistant", symbol: "house.and.flag.fill", tint: .blue,
+                  detail: connected("homeassistant") ? entry("homeassistant")["name"] as? String ?? "Connected" : "Not connected",
+                  connected: connected("homeassistant")),
+            .init(id: "hue", name: "Philips Hue", symbol: "lightbulb.2.fill", tint: .indigo,
+                  detail: connected("hue") ? entry("hue")["name"] as? String ?? "Connected" : "Not paired", connected: connected("hue")),
+            .init(id: "homekit", name: "Apple Home", symbol: "homekit", tint: .yellow,
+                  detail: connected("homekit")
+                    ? "\(homeKit["count"] as? Int ?? 0) devices, from \(homeKit["from"] as? String ?? "your iPhone")"
+                    : "Comes from a paired iPhone", connected: connected("homekit")),
+        ]
+        model.phones = sync.connectedDevices
+        model.aiLive = agent.isLive
+    }
+
     // MARK: - Menu (gives the editor window the usual shortcuts)
 
     private func buildMainMenu() {
         let main = NSMenu()
         let appItem = NSMenuItem()
         let appMenu = NSMenu()
+        appMenu.addItem(withTitle: "About House Control", action: #selector(openAbout), keyEquivalent: "").target = self
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",").target = self
+        appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Quit House Control", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
         main.addItem(appItem)

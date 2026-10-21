@@ -188,9 +188,17 @@ async function boot() {
           icon: openAtLogin === 'on' ? icon('check', 16, 2.4) : null,
           action: () => post('setOpenAtLogin', { on: openAtLogin !== 'on' }),
         },
+        { label: 'Settings…', action: () => post('openSettings') },
         { label: 'Quit House Control', action: () => post('quit') });
     }
     openMenu(panel.anchorMenu, anchor, items);
+  }
+
+  // ⌘, opens the Mac's Settings window, as in every Mac app (the panel has no menu bar of its own).
+  if (isNative && !isPhone) {
+    window.addEventListener('keydown', (ev) => {
+      if (ev.metaKey && ev.key === ',') { ev.preventDefault(); post('openSettings'); }
+    });
   }
 
   const opened = window.__HOUSE_BOOT__?.openDevice || new URLSearchParams(location.search).get('device');

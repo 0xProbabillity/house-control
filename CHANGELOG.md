@@ -14,6 +14,10 @@ What changed in each release of House Control. The Mac app is on
 
 ### Mac
 
+- **Settings window** (⌘,): General (Open at Login, the island), Home (floor plans, the editor, plan files),
+  Connections (Smart Life, Home Assistant, Hue and Apple Home, each a click away from its setup), iPhone (pairing
+  and who is connected), AI Access and About. It is in the menu bar icon's right-click menu and the panel's gear
+  menu too ([#6](https://github.com/0xProbabillity/house-control/issues/6)).
 - **Open at Login**, in the menu bar icon's right-click menu and in the panel's gear menu: House Control starts with
   your Mac. It is the app's entry under System Settings → General → Login Items, so it can be switched off there too.
   Run from the disk image, the app asks to be moved to Applications first; moved there later, the login item follows it.

@@ -37,11 +37,12 @@ export async function bootEditor(root) {
   let doc = structuredClone(await loadRawConfig());
   for (const key of Object.values(KEYS)) doc[key] ||= [];
 
-  // HOUSE_OPEN_EDITOR=connections|smartlife|homeassistant|hue|homekit opens a connection screen.
-  const startAt = window.__HOUSE_BOOT__?.section || new URLSearchParams(location.search).get('section') || '';
-  let sel = startAt === 'connections' ? { kind: 'connections' }
-    : startAt.startsWith('service:') ? { kind: 'service', service: startAt.slice(8) }
-      : startAt === 'tuya' ? { kind: 'service', service: 'smartlife' } : { kind: 'home' };
+  // "connections", "service:smartlife|homeassistant|hue|homekit": where the editor opens
+  // (HOUSE_OPEN_EDITOR, or the Mac's Settings window through incoming.openSection).
+  const sectionSel = (at) => (at === 'connections' ? { kind: 'connections' }
+    : at.startsWith('service:') ? { kind: 'service', service: at.slice(8) }
+      : at === 'tuya' ? { kind: 'service', service: 'smartlife' } : { kind: 'home' });
+  let sel = sectionSel(window.__HOUSE_BOOT__?.section || new URLSearchParams(location.search).get('section') || '');
   let dirty = false;
   let world = null;
   let phone = null; // the iPhone's layout and gestures, set up by buildPhoneLayout()
@@ -1175,6 +1176,7 @@ export async function bootEditor(root) {
   dirty = false;
   validate();
   schedulePreview(0);
+  incoming.openSection = (at) => select(sectionSel(at));
   // A plan saved on the other device (the Mac, or the paired iPhone) while this editor is open.
   incoming.planArrived = (config, from) => {
     if (dirty) {
