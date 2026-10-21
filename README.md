@@ -346,7 +346,7 @@ None of these are part of this repository, and the build does not embed them in 
 **Sign out** in the editor deletes `smartlife.json`. Deleting the folder resets the app to the demo plan.
 
 On the iPhone the floor plan lives in the app's own folder, and the Smart Life session, the pairing key and the
-Home Assistant and Hue connections the Mac shared in the Keychain.
+Home Assistant and Hue connections the Mac shared live in the Keychain.
 
 ## Development
 
