@@ -1,12 +1,15 @@
 # Changelog
 
 What changed in each release of House Control. The Mac app is on
-[Releases](https://github.com/0xProbabillity/house-control/releases); the iPhone app is on TestFlight.
+[Releases](https://github.com/0xProbabillity/house-control/releases); the iPhone app is on the App Store and TestFlight.
 
-## Unreleased
+## 1.1.0 — 2026-10-22
 
 ### iPhone
 
+- **Fixed: the app quit at the first touch on iOS 17.** It made its web view before it had a window; it now makes
+  it when it first goes on screen.
+- **Phone editor:** a tap on what is already selected brings up its details.
 - **House Control in Control Center:** a button that opens the app, for Control Center, the Lock Screen and the
   Action button (iOS 18). It opens on the home in 3D and, made wide, says how the home is ("6 on · AC 23°"); tap it
   while editing Control Center to have it open the floor plan editor or settings instead. **Open House Control** is
@@ -22,11 +25,21 @@ What changed in each release of House Control. The Mac app is on
   your Mac. It is the app's entry under System Settings → General → Login Items, so it can be switched off there too.
   Run from the disk image, the app asks to be moved to Applications first; moved there later, the login item follows it.
 
+### 3D
+
+- **Floor plans with many lamps no longer render black.** Every lamp that casts a shadow costs the 3D view a texture
+  unit, and a real home with more than about 15 lamps ran out of them. Up to 8 lamps keep their shadow now (one per
+  room first, ceiling lights and pendants before the rest); all of them still light their room. Thanks,
+  [@wzpan](https://github.com/wzpan) ([#13](https://github.com/0xProbabillity/house-control/pull/13)).
+- **An AC or heater low on the wall blows along the floor** instead of through it. Thanks,
+  [@sidun-av](https://github.com/sidun-av) ([#10](https://github.com/0xProbabillity/house-control/pull/10)).
+
 ### Home Assistant
 
 - **A thermostat that is on but not running shows as idle.** When the room is already warm (or cool) enough, Home
   Assistant reports `hvac_action: idle`; the 3D unit then stops blowing air and its tile and island chip are outlined
-  with "Idle" instead of lit as if it were heating.
+  with "Idle" instead of lit as if it were heating. Thanks, [@sidun-av](https://github.com/sidun-av)
+  ([#14](https://github.com/0xProbabillity/house-control/pull/14)).
 
 ## 1.0.0 — 2026-10-15
 
