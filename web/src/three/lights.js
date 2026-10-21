@@ -42,6 +42,7 @@ function spot(intensity, y) {
   light.shadow.normalBias = 0.03;
   light.shadow.radius = 5;
   light.userData.max = intensity;
+  light.userData.canShadow = true;
   return light;
 }
 
@@ -58,6 +59,7 @@ function point(intensity, y, { shadow = true, distance = 0, x = 0, z = 0 } = {})
     light.shadow.radius = 4;
   }
   light.userData.max = intensity;
+  light.userData.canShadow = light.castShadow;
   return light;
 }
 
