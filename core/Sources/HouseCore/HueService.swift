@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import Network
 
 /// A Philips Hue Bridge on the local network, through its own API (CLIP v2). No cloud and no
 /// account: the bridge hands out a key when its round button is pressed. Hue lamps become the
@@ -39,8 +40,7 @@ public final class HueService: DeviceService {
         long.timeoutIntervalForRequest = 600 // the bridge sends a keep-alive well within this
         streamSession = URLSession(configuration: long, delegate: trust, delegateQueue: nil)
         var saved = vault.read().flatMap { try? JSONDecoder().decode(Config.self, from: $0) }
-        if var previous = saved, previous.host.lowercased().hasPrefix("[fe80:"),
-           !previous.host.contains("]:"),
+        if var previous = saved, Self.isLegacyLinkLocalHost(previous.host),
            let hostname = Self.bonjourHostname(bridgeId: previous.bridgeId) {
             // Older builds saved the interface-scoped IPv6 selected during discovery. Keep
             // the paired key and certificate pin, but move requests to the bridge's stable mDNS name.
@@ -50,6 +50,12 @@ public final class HueService: DeviceService {
         }
         config = saved
         if let config { trust.pin(host: config.host, fingerprint: config.certificate); listen() }
+    }
+
+    static func isLegacyLinkLocalHost(_ host: String) -> Bool {
+        // Only automatic discovery's bracketed address without a custom port is migrated.
+        guard host.hasPrefix("["), host.hasSuffix("]") else { return false }
+        return IPv6Address(BridgeTrust.bare(host))?.isLinkLocal == true
     }
 
     static func bonjourHostname(bridgeId: String?) -> String? {

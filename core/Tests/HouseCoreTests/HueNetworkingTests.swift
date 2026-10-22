@@ -20,6 +20,16 @@ final class HueNetworkingTests: XCTestCase {
     }
 
     @MainActor
+    func testLegacyMigrationRecognizesTheIPv6LinkLocalRange() {
+        for host in ["[fe80::1%25en11]", "[fe90::1%25en0]", "[febf::1]"] {
+            XCTAssertTrue(HueService.isLegacyLinkLocalHost(host), host)
+        }
+        for host in ["[fec0::1]", "[2001:db8::1]", "192.168.1.2:8443", "[fe80::1]:8443"] {
+            XCTAssertFalse(HueService.isLegacyLinkLocalHost(host), host)
+        }
+    }
+
+    @MainActor
     func testBridgeHostnameRejectsMalformedIDs() {
         for id in ["001788FFFE123456", "00:17:88:FF:FE:12:34:56", "00-17-88-FF-FE-12-34-56"] {
             XCTAssertEqual(HueService.bonjourHostname(bridgeId: id), "001788123456.local")
