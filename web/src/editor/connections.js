@@ -1,5 +1,5 @@
 // The editor's "Connections": the smart home platforms House Control can link the plan's
-// lamps and ACs to (Smart Life, Home Assistant, Philips Hue, Apple Home), the screens that
+// lamps, ACs and robot vacuums to (Smart Life, Home Assistant, Philips Hue, Apple Home), the screens that
 // connect each one, and the pickers that link a lamp or an AC to one of their devices.
 import { h } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
@@ -13,7 +13,7 @@ const LOOK = {
   hue: { icon: 'bulb', tint: '#c38bff', blurb: 'A Hue Bridge on this network. No account needed' },
   homekit: { icon: 'home', tint: '#ffb340', blurb: 'HomeKit and Matter accessories, through your iPhone' },
 };
-const KIND_TITLES = { light: 'Lights and plugs', ac: 'Air conditioners', sensor: 'Temperature sensors' };
+const KIND_TITLES = { light: 'Lights and plugs', ac: 'Air conditioners', vacuum: 'Robot vacuums', sensor: 'Temperature sensors' };
 
 export function createConnections({ rerender, toast, usedBy, onOpen }) {
   const boot = window.__HOUSE_BOOT__ || {};
@@ -106,9 +106,9 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
     if (state.errors[id]) return h('p.note.bad', state.errors[id]);
     const list = devicesOf(id);
     if (!state.devices) return null;
-    if (!list.length) return h('p.note', 'Connected, but no lamps, air conditioners or temperature sensors were found.');
+    if (!list.length) return h('p.note', 'Connected, but no lamps, air conditioners, robot vacuums or temperature sensors were found.');
     const used = usedBy();
-    const groups = ['light', 'ac', 'sensor'].map((kind) => [kind, list.filter((d) => d.kind === kind)]).filter(([, l]) => l.length);
+    const groups = ['light', 'ac', 'vacuum', 'sensor'].map((kind) => [kind, list.filter((d) => d.kind === kind)]).filter(([, l]) => l.length);
     return h('div.devices-list', groups.map(([kind, items]) => [
       h('h3', `${KIND_TITLES[kind]} · ${items.length}`),
       items.map((d) => h('div.device',
@@ -192,7 +192,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
           h('li', 'Under “Long-lived access tokens” press Create token, name it “House Control”, copy it here.')),
         button,
         ha.error ? h('p.note.bad', ha.error) : null,
-        h('p.note', 'The token stays on this Mac (and goes to the iPhones you paired, over their encrypted link). Lights, switches, climate devices and temperature sensors appear here.')),
+        h('p.note', 'The token stays on this Mac (and goes to the iPhones you paired, over their encrypted link). Lights, switches, climate devices, robot vacuums and temperature sensors appear here.')),
     ];
   }
 
@@ -329,13 +329,15 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
 
   const find = (value) => (state.devices || []).find((d) => `${d.service}|${d.id}` === value);
 
-  /** The "Real device" section of a lamp or an AC. `onLinked(device)` adapts the item. */
+  /** The "Real device" section of a lamp, an AC or a robot vacuum. `onLinked(device)` adapts the item. */
   function deviceSection(item, kind, { snapshot, changed }) {
     const link = linkOf(item);
     const current = link ? `${link.service}|${link.id}` : '';
     if (!anyConnected()) {
       return section('Real device',
-        h('p.note', 'Simulated. Connect Smart Life, Home Assistant, Philips Hue or Apple Home to control the real one.'),
+        h('p.note', kind === 'vacuum'
+          ? 'Simulated. Connect Home Assistant to control the real one.'
+          : 'Simulated. Connect Smart Life, Home Assistant, Philips Hue or Apple Home to control the real one.'),
         h('button.btn.wide', { onclick: () => onOpen(null) }, icon('link', 14), 'Open Connections'));
     }
     if (!state.devices && !state.loading) setTimeout(() => load({ quiet: true }), 0);
@@ -396,7 +398,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
   /** "id → plan item name" for every device the plan links, to mark them in the lists. */
   function usedMap(doc) {
     const out = new Map();
-    for (const d of [...doc.lights, ...doc.acs]) {
+    for (const d of [...doc.lights, ...doc.acs, ...(doc.vacuums || [])]) {
       const l = linkOf(d);
       if (l) out.set(`${l.service}|${l.id}`, d.name || d.id);
       if (d.sensor?.id) out.set(`${d.sensor.service}|${d.sensor.id}`, `${d.name || d.id} · room`);

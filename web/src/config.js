@@ -8,9 +8,9 @@ export class ConfigError extends Error {}
 
 export const LIGHT_KINDS = LIGHT_TYPES;
 
-// A lamp or an AC is real when it is linked to a device of a connected platform:
-// `link: { service, id }` (Home Assistant, Philips Hue, Apple Home) or, for Smart Life,
-// `tuya: { deviceId }`. An AC's `sensor: { service, id }` is a thermometer for its room.
+// A lamp, an AC or a robot vacuum is real when it is linked to a device of a connected
+// platform: `link: { service, id }` (Home Assistant, Philips Hue, Apple Home) or, for Smart
+// Life, `tuya: { deviceId }`. An AC's `sensor: { service, id }` is a thermometer for its room.
 export const LINK_FIELDS = ['tuya', 'link', 'sensor'];
 
 export function linkOf(d) {
@@ -102,6 +102,17 @@ export function normalize(raw) {
     return { ...a, name: a.name || a.id, y: a.y ?? 2.2, min: a.min ?? 16, max: a.max ?? 30 };
   });
 
+  // A robot vacuum: `room` and `pos` say where its dock stands.
+  const vacuums = (raw.vacuums || []).map((v) => {
+    unique(v.id, 'A robot vacuum');
+    need(roomIds.has(v.room), `Robot vacuum "${v.id}" refers to unknown room "${v.room}"`);
+    // A `pos` outside the room is no error, as for lamps: the dock still stands against the
+    // room's wall nearest to it (dockPose), and plan-edit's check() warns about it.
+    need(isPoint(v.pos), `Robot vacuum "${v.id}" needs "pos": [x, z], where its dock stands`);
+    need(v.rot == null || Number.isFinite(v.rot), `Robot vacuum "${v.id}" has a "rot" that is not a number`);
+    return { ...v, name: v.name || v.id };
+  });
+
   const scenes = (raw.scenes || []).map((s) => {
     need(typeof s.id === 'string' && s.id, 'A scene is missing an "id"');
     return { id: s.id, name: s.name || s.id, icon: s.icon || 'sun', lights: s.lights || {}, acs: s.acs || {} };
@@ -123,6 +134,7 @@ export function normalize(raw) {
     furniture: raw.furniture || [],
     lights,
     acs,
+    vacuums,
     scenes,
     bounds: { minX, minZ, maxX, maxZ },
   };

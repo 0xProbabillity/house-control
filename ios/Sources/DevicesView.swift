@@ -99,7 +99,7 @@ struct DevicesView: View {
         .refreshable { await catalog.load(model) }
         .task { if !catalog.loaded { await catalog.load(model) } }
         .sheet(item: $picking) { item in
-            DevicePicker(title: item.name, kind: item.kind == .ac ? "ac" : "light", current: item.link,
+            DevicePicker(title: item.name, kind: item.kind.rawValue, current: item.link,
                          used: editor?.usedDevices ?? [:], catalog: catalog) { device in
                 model.editPlan { $0.link(item.id, to: device?.raw) }
                 Haptics.shared.play("success")
@@ -158,8 +158,8 @@ struct DevicesView: View {
     private func row(_ item: PlanEditor.Item) -> some View {
         let device = catalog.device(item.link)
         return HStack(spacing: 14) {
-            IconBadge(symbol: item.kind == .ac ? "air.conditioner.horizontal.fill" : "lightbulb.fill",
-                      tint: item.link == nil ? Theme.muted : (item.kind == .ac ? Theme.accent : Theme.warm))
+            IconBadge(symbol: Self.symbol(item.kind),
+                      tint: item.link == nil ? Theme.muted : (item.kind == .light ? Theme.warm : Theme.accent))
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.name).font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text).lineLimit(1)
                 HStack(spacing: 6) {
@@ -184,6 +184,15 @@ struct DevicesView: View {
         .frame(minHeight: 66)
         .accessibilityElement(children: .combine)
         .accessibilityHint("Choose the real device")
+    }
+
+    private static func symbol(_ kind: DeviceKind) -> String {
+        switch kind {
+        case .ac: return "air.conditioner.horizontal.fill"
+        // The robot symbol is new in iOS 18.
+        case .vacuum: return UIImage(systemName: "robotic.vacuum.fill") != nil ? "robotic.vacuum.fill" : "circle.circle.fill"
+        default: return "lightbulb.fill"
+        }
     }
 
     private func sensorRow(_ item: PlanEditor.Item) -> some View {
@@ -326,10 +335,10 @@ struct AddDevicesView: View {
                 }
                 .listRowBackground(Theme.surface)
 
-                ForEach(["light", "ac"], id: \.self) { kind in
+                ForEach(["light", "ac", "vacuum"], id: \.self) { kind in
                     let list = candidates.filter { $0.kind == kind }
                     if !list.isEmpty {
-                        Section(kind == "ac" ? "Air conditioners" : "Lights and plugs") {
+                        Section(["ac": "Air conditioners", "vacuum": "Robot vacuums"][kind] ?? "Lights and plugs") {
                             ForEach(list) { device in row(device) }
                         }
                     }

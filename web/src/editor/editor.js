@@ -10,6 +10,7 @@ import { h, clamp } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { isNative, isPhone, call, post, haptic, incoming } from '../bridge.js';
 import { createConnections } from './connections.js';
+import { dockPose } from '../three/vacuum-path.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
 const sv = (tag, attrs = {}, ...kids) => {
@@ -19,8 +20,8 @@ const sv = (tag, attrs = {}, ...kids) => {
   return el;
 };
 
-const KEYS = { room: 'rooms', light: 'lights', ac: 'acs', furniture: 'furniture', opening: 'openings', scene: 'scenes' };
-const TITLES = { room: 'Rooms', light: 'Lights', ac: 'Air conditioners', furniture: 'Furniture', opening: 'Doors & windows', scene: 'Scenes' };
+const KEYS = { room: 'rooms', light: 'lights', ac: 'acs', vacuum: 'vacuums', furniture: 'furniture', opening: 'openings', scene: 'scenes' };
+const TITLES = { room: 'Rooms', light: 'Lights', ac: 'Air conditioners', vacuum: 'Robot vacuums', furniture: 'Furniture', opening: 'Doors & windows', scene: 'Scenes' };
 const FLOOR_FILL = { oak: '#4a3d2e', walnut: '#3c2f28', tile: '#39424b', stone: '#30353c' };
 const WALLS = ['north', 'east', 'south', 'west'];
 const SCENE_ICONS = ['sun', 'sofa', 'film', 'moon', 'door', 'table', 'bed', 'tv', 'sparkles'];
@@ -58,7 +59,7 @@ export async function bootEditor(root) {
   const links = createConnections({
     rerender: () => {
       renderSidebar();
-      if (['connections', 'service', 'light', 'ac'].includes(sel.kind)) renderInspector();
+      if (['connections', 'service', 'light', 'ac', 'vacuum'].includes(sel.kind)) renderInspector();
     },
     toast,
     usedBy: () => links.usedMap(doc),
@@ -153,9 +154,10 @@ export async function bootEditor(root) {
   function validate() {
     try {
       valid = normalize(structuredClone(doc));
-      const linked = [...doc.lights, ...doc.acs].filter(isLinked).length;
+      const linked = [...doc.lights, ...doc.acs, ...doc.vacuums].filter(isLinked).length;
+      const robots = doc.vacuums.length ? ` · ${doc.vacuums.length} vacuum${doc.vacuums.length === 1 ? '' : 's'}` : '';
       status.className = 'status';
-      status.replaceChildren(h('span.ok', '●'), ` ${doc.rooms.length} rooms · ${doc.lights.length} lights · ${doc.acs.length} ACs · `,
+      status.replaceChildren(h('span.ok', '●'), ` ${doc.rooms.length} rooms · ${doc.lights.length} lights · ${doc.acs.length} ACs${robots} · `,
         `${linked} linked to real devices`, dirty ? h('span.dirty', ' · unsaved changes') : '');
     } catch (e) {
       valid = null;
@@ -170,6 +172,7 @@ export async function bootEditor(root) {
     const state = { lights: {}, acs: {} };
     for (const l of cfg.lights) state.lights[l.id] = { on: previewLights, brightness: 0.85, temp: 3200, color: l.color || null };
     for (const a of cfg.acs) state.acs[a.id] = { on: previewLights, mode: 'cool', fan: 'auto', swing: 'swing', sleep: false, target: 23 };
+    state.vacuums = Object.fromEntries(cfg.vacuums.map((v) => [v.id, { status: 'docked', battery: 100 }]));
     return { state, on: () => () => {} };
   }
 
@@ -211,6 +214,7 @@ export async function bootEditor(root) {
     if (kind === 'room') return [item.name || item.id, `${fix(item.rect[2])} × ${fix(item.rect[3])} m`];
     if (kind === 'light') return [item.name || item.id, `${roomName(item.room)} · ${item.type}`];
     if (kind === 'ac') return [item.name || item.id, `${roomName(item.room)} · ${item.wall} wall`];
+    if (kind === 'vacuum') return [item.name || item.id, `${roomName(item.room)} · dock`];
     if (kind === 'furniture') return [item.type, roomName(roomAt(item.pos)?.id) || '—'];
     if (kind === 'opening') return [item.type || 'door', `${fix(Math.hypot(item.to[0] - item.from[0], item.to[1] - item.from[1]))} m`];
     return [item.name || item.id, `${Object.keys(item.lights || {}).length} rules`];
@@ -244,7 +248,7 @@ export async function bootEditor(root) {
   }
 
   function uniqueId(base) {
-    const ids = new Set([...doc.rooms, ...doc.lights, ...doc.acs, ...doc.scenes].map((x) => x.id));
+    const ids = new Set([...doc.rooms, ...doc.lights, ...doc.acs, ...doc.vacuums, ...doc.scenes].map((x) => x.id));
     if (!ids.has(base)) return base;
     for (let i = 2; ; i++) if (!ids.has(`${base}${i}`)) return `${base}${i}`;
   }
@@ -264,6 +268,10 @@ export async function bootEditor(root) {
     } else if (kind === 'ac') {
       if (!room) return toast('Add a room first', true);
       list.push({ id: uniqueId(`${room.id}.ac`), name: `${room.name} AC`, room: room.id, wall: 'north', pos: [center[0], room.rect[1]], y: 2.2 });
+    } else if (kind === 'vacuum') {
+      if (!room) return toast('Add a room first', true);
+      // The dock goes against the north wall; the 3D view stands it on the wall nearest to `pos`.
+      list.push({ id: uniqueId(`${room.id}.vacuum`), name: 'Robot vacuum', room: room.id, pos: [center[0], fix(room.rect[1] + Math.min(0.3, room.rect[3] / 2))] });
     } else if (kind === 'furniture') {
       list.push({ type: 'sofa', pos: center, rot: 0 });
     } else if (kind === 'opening') {
@@ -298,6 +306,7 @@ export async function bootEditor(root) {
       // Devices cannot outlive their room.
       doc.lights = doc.lights.filter((l) => l.room !== gone.id);
       doc.acs = doc.acs.filter((a) => a.room !== gone.id);
+      doc.vacuums = doc.vacuums.filter((v) => v.room !== gone.id);
     }
     if (kind === 'light' || kind === 'ac' || kind === 'room') {
       const ids = new Set([...doc.lights, ...doc.acs].map((d) => d.id));
@@ -373,6 +382,23 @@ export async function bootEditor(root) {
       }, big ? sv('rect', { x: -0.62, y: -0.12, width: 1.24, height: 0.74, class: 'hit' }) : null,
         sv('rect', { x: -0.47, y: 0.08, width: 0.94, height: 0.24, rx: 0.07 }),
         sv('path', { d: 'M-0.3 0.42v0.22M0 0.42v0.3M0.3 0.42v0.22', class: 'flow' })));
+    });
+
+    doc.vacuums.forEach((v, i) => {
+      // Drawn where the 3D view puts it: the dock against its wall, the robot sitting on it.
+      const room = doc.rooms.find((r) => r.id === v.room);
+      if (!room || !Array.isArray(v.pos)) return;
+      const [x, z, w, d] = room.rect;
+      const pose = dockPose({ id: room.id, x, z, w, d }, v.pos, v.rot);
+      const angle = (Math.atan2(-pose.nx, pose.nz) * 180) / Math.PI;
+      kids.push(sv('g', {
+        class: `p-vac${isSel('vacuum', i) ? ' sel' : ''}${isLinked(v) ? ' linked' : ''}`, 'data-kind': 'vacuum', 'data-index': i,
+        transform: `translate(${pose.x} ${pose.z}) rotate(${angle})`,
+      }, big ? sv('circle', { cx: 0, cy: 0.2, r: 0.5, class: 'hit' }) : null,
+        sv('rect', { x: -0.15, y: -0.07, width: 0.3, height: 0.12, rx: 0.03, class: 'dock' }),
+        sv('circle', { cx: 0, cy: 0.23, r: 0.17, class: 'robot' }),
+        sv('path', { d: 'M-0.12 0.35A0.17 0.17 0 0 0 0.12 0.35', class: 'bumper' }),
+        sv('circle', { cx: 0, cy: 0.19, r: 0.045, class: 'lidar' })));
     });
 
     doc.lights.forEach((l, i) => {
@@ -451,6 +477,7 @@ export async function bootEditor(root) {
       drag.riders = [
         ...doc.lights.filter((l) => l.room === item.id).map((o) => ({ o, pos: [...o.pos] })),
         ...doc.acs.filter((a) => a.room === item.id).map((o) => ({ o, pos: [...o.pos] })),
+        ...doc.vacuums.filter((v) => v.room === item.id).map((o) => ({ o, pos: [...o.pos] })),
         ...doc.furniture.filter((f) => Array.isArray(f.pos) && inside(f.pos)).map((o) => ({ o, pos: [...o.pos] })),
       ];
       drag.openings = doc.openings.filter((o) => inside(o.from) && inside(o.to)).map((o) => ({ o, from: [...o.from], to: [...o.to] }));
@@ -493,7 +520,7 @@ export async function bootEditor(root) {
       snapAC(item, [px, pz]);
     } else {
       item.pos = [fix(drag.pos[0] + dx), fix(drag.pos[1] + dz)];
-      if (drag.kind === 'light') {
+      if (drag.kind === 'light' || drag.kind === 'vacuum') {
         const room = roomAt(item.pos);
         if (room) item.room = room.id;
       }
@@ -628,6 +655,26 @@ export async function bootEditor(root) {
         h('p.note', 'Dragging the unit on the plan snaps it to the nearest wall of its room.')),
       links.deviceSection(item, 'ac', linkHooks),
       links.sensorSection(item, linkHooks));
+    } else if (kind === 'vacuum') {
+      head(item.name || item.id, `id: ${item.id}`);
+      nodes.push(section('Robot vacuum',
+        bind('Name', text(), prop(item, 'name', '')),
+        bind('Room of its dock', choice(doc.rooms.map((r) => [r.id, r.name || r.id])), {
+          ...prop(item, 'room'), event: 'change',
+          // The dock moves into the room picked, to the point of it nearest to where it was.
+          set: (id) => {
+            item.room = id;
+            const [x, z, w, d] = doc.rooms.find((r) => r.id === id)?.rect || [];
+            if (x == null || !Array.isArray(item.pos)) return;
+            const m = Math.min(0.3, w / 2, d / 2);
+            item.pos = [fix(clamp(item.pos[0], x + m, x + w - m)), fix(clamp(item.pos[1], z + m, z + d - m))];
+          },
+        })),
+      section('Dock, m',
+        row(bind('X', number(), { ...at(item, 'pos', 0), parse: parseNum }), bind('Z', number(), { ...at(item, 'pos', 1), parse: parseNum })),
+        bind('Facing, ° (empty: back to the nearest wall)', number(15), { ...optional(item, 'rot'), parse: optNum }),
+        h('p.note', 'The dock stands against the wall of its room nearest to this point. While it cleans, the robot drives a likely route through every room its dock’s room leads to by doors and open passages: Home Assistant does not report where it really is.')),
+      links.deviceSection(item, 'vacuum', linkHooks));
     } else if (kind === 'furniture') {
       head(item.type, 'Decoration only');
       nodes.push(section('Furniture',
@@ -928,7 +975,7 @@ export async function bootEditor(root) {
     sidebar.classList.add('p-list');
     listSheet.append(h('div.p-modal-head', h('b', 'Items'), h('button.p-text', { onclick: closeModals }, 'Done')), sidebar);
     const addables = [
-      ['room', 'home', 'Room'], ['light', 'bulb', 'Lamp'], ['ac', 'ac', 'Air conditioner'],
+      ['room', 'home', 'Room'], ['light', 'bulb', 'Lamp'], ['ac', 'ac', 'Air conditioner'], ['vacuum', 'vacuum', 'Robot vacuum'],
       ['opening', 'opening', 'Door or window'], ['furniture', 'furniture', 'Furniture'], ['scene', 'sparkles', 'Scene'],
     ];
     addSheet.append(h('div.p-modal-head', h('b', 'Add to the plan'), h('button.p-text', { onclick: closeModals }, 'Cancel')),
@@ -1061,7 +1108,7 @@ export async function bootEditor(root) {
       const room = sel.kind === 'room' && doc.rooms[sel.index];
       const [px, pz] = planPoint(ev);
       const inRoom = room && px >= room.rect[0] && px <= room.rect[0] + room.rect[2] && pz >= room.rect[1] && pz <= room.rect[1] + room.rect[3];
-      if (kind === 'resize' || (kind && kind !== 'none' && isSel(kind, index)) || (inRoom && kind !== 'light' && kind !== 'ac')) {
+      if (kind === 'resize' || (kind && kind !== 'none' && isSel(kind, index)) || (inRoom && !['light', 'ac', 'vacuum'].includes(kind))) {
         const what = kind === 'resize' || isSel(kind, index) ? [kind, index] : ['room', sel.index];
         // The view holds still while something is dragged past the plan's edge.
         if (!ui.view) ui.view = fitBox();

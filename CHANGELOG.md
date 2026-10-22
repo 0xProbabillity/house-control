@@ -15,6 +15,18 @@ What changed in each release of House Control. The Mac app is on
   while editing Control Center to have it open the floor plan editor or settings instead. **Open House Control** is
   in Shortcuts too.
 
+### Robot vacuums
+
+- **Robot vacuums** in the floor plan (`vacuums`), linked to Home Assistant's `vacuum` entities or simulated. A tile
+  and a sheet in the panel: status and battery, Start / Pause, Dock, and the suction levels the robot has. A tap on
+  the tile or on the robot in 3D only opens the sheet; it never starts the robot.
+- In 3D the robot sits on its dock against a wall, drives a likely route while it cleans — every room its dock's room
+  leads to, in lanes, through the middle of each doorway — goes home the same way, and stops where it is when
+  paused. Its LED shows the status; an error makes it pulse red. Nothing is drawn while it stands still.
+- The battery comes from the robot's battery sensor in Home Assistant (2025.8 and later), or from `battery_level`
+  on older integrations. A robot Home Assistant cannot reach says so and stands still.
+- The editors place, move, link and remove it; AI Access lists it and gets a `control_vacuums` tool and action links.
+
 ### Mac
 
 - **Settings window** (⌘,): General (Open at Login, the island), Home (floor plans, the editor, plan files),

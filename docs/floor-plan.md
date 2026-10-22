@@ -57,6 +57,10 @@ Heights (`y`, `sill`, `head`) are metres above the floor. Angles are degrees.
     { "id": "living.ac", "name": "Living AC", "room": "living", "wall": "west", "pos": [0, 0.8], "y": 2.2 }
   ],
 
+  "vacuums": [
+    { "id": "living.vacuum", "name": "Robot vacuum", "room": "living", "pos": [3.0, 4.5] }
+  ],
+
   "scenes": [
     { "id": "movie", "name": "Movie", "icon": "film",
       "lights": { "*": { "on": false }, "living.tv": { "on": true, "brightness": 0.9, "color": "#6a4cff" } },
@@ -143,6 +147,23 @@ Decoration only. Every piece has `type`, `pos` (`[x, z]` of its centre) and an o
 | `link`, `tuya` | Link to a real device — see below |
 | `sensor` | A thermometer for the room — see below |
 
+## `vacuums`
+
+A robot vacuum and its dock. Optional: a plan without it has none.
+
+| Field | Meaning |
+| --- | --- |
+| `id`, `name` | As for lights |
+| `room` | The room its dock stands in |
+| `pos` | `[x, z]` of the dock, in that room. The dock backs onto the room's wall nearest to it |
+| `rot` | Optional: turns the dock instead (degrees, as for furniture: `0` faces south) and leaves it at `pos` |
+| `link` | Link to a real device — see below. Home Assistant only for now |
+
+While it cleans, the 3D view shows a likely route, not the robot's real position (Home Assistant does not report it):
+every room the dock's room leads to through `door` and `open` openings, in lanes, from room to room through the
+middle of each doorway. A doorway narrower than about 45 cm, a window and a door to the outside lead nowhere.
+When it is sent home it drives back the same way and backs onto its dock.
+
 ## `scenes`
 
 | Field | Meaning |
@@ -156,7 +177,7 @@ In both maps the key `"*"` applies to every device, and a device's own entry ove
 
 ## Linking real devices
 
-A light or an AC becomes real when it is linked to a device of a connected platform. The editor fills the link
+A light, an AC or a robot vacuum becomes real when it is linked to a device of a connected platform. The editor fills the link
 in when you pick a device under **Real device**; by hand it looks like this:
 
 ```jsonc
@@ -168,6 +189,10 @@ in when you pick a device under **Real device**; by hand it looks like this:
 { "id": "living.ac", "name": "Living AC", "room": "living", "wall": "west", "pos": [0, 0.8],
   "link": { "service": "homeassistant", "id": "climate.living_room" },
   "sensor": { "service": "hue", "id": "<id of a Hue motion sensor's thermometer>" } }
+
+// A robot vacuum from Home Assistant
+{ "id": "living.vacuum", "name": "Robot vacuum", "room": "living", "pos": [3.0, 4.5],
+  "link": { "service": "homeassistant", "id": "vacuum.roborock_s7" } }
 
 // Smart Life keeps its own object
 { "id": "bed.ac", "name": "Bedroom AC", "room": "bedroom", "wall": "north", "pos": [2, 0],

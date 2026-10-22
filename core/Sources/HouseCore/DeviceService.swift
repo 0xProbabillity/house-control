@@ -3,7 +3,8 @@ import Foundation
 /// A smart home platform the plan's lamps and ACs can be linked to, besides Smart Life:
 /// Home Assistant, Philips Hue, Apple Home. Each one speaks the panel's own vocabulary —
 /// a light is `on` / `brightness` 0…1 / `temp` in kelvin / `color` "#rrggbb", an AC is
-/// `on` / `target` / `mode` / `fan` / … — so the hub and the UI never see what is underneath.
+/// `on` / `target` / `mode` / `fan` / …, a robot vacuum is `status` / `battery` / `fan` —
+/// so the hub and the UI never see what is underneath.
 @MainActor
 public protocol DeviceService: AnyObject {
     /// "homeassistant", "hue", "homekit": what a plan's `link.service` says.
@@ -37,7 +38,7 @@ public extension DeviceService {
 }
 
 public enum DeviceKind: String {
-    case light, ac, sensor
+    case light, ac, sensor, vacuum
 
     /// A lamp the panel shows as on, given a new brightness or colour, is switched on as well:
     /// the real one may be off (switched off elsewhere since the last read), and some
@@ -83,16 +84,22 @@ public struct ServiceDevice {
 public struct DeviceReading {
     public var light: [String: Any]?
     public var ac: [String: Any]?
-    /// What an AC can do: `modes`, `fans`, `swing`, `sleep`, `eco` (see the store's acFeatures).
+    /// A robot vacuum: `status` (cleaning, docked, returning, paused, idle or error; the hub
+    /// makes it "unavailable" when the platform cannot reach the robot), and
+    /// `battery` 0…100 and `fan` (the platform's own name for it) when it reports them.
+    public var vacuum: [String: Any]?
+    /// What an AC can do: `modes`, `fans`, `swing`, `sleep`, `eco` (see the store's acFeatures);
+    /// what a vacuum can do: `fans`, `canStart`, `canPause`, `canReturn` (the store's vacuumFeatures).
     public var features: [String: Any]?
     /// A temperature sensor's reading in °C.
     public var temperature: Double?
     public var online = true
 
-    public init(light: [String: Any]? = nil, ac: [String: Any]? = nil, features: [String: Any]? = nil,
-                temperature: Double? = nil, online: Bool = true) {
+    public init(light: [String: Any]? = nil, ac: [String: Any]? = nil, vacuum: [String: Any]? = nil,
+                features: [String: Any]? = nil, temperature: Double? = nil, online: Bool = true) {
         self.light = light
         self.ac = ac
+        self.vacuum = vacuum
         self.features = features
         self.temperature = temperature
         self.online = online

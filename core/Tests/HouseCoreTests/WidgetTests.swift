@@ -79,9 +79,26 @@ final class WidgetTests: XCTestCase {
         let h = try JSONDecoder().decode(HomeSnapshot.self, from: Data(json.utf8))
         XCTAssertEqual(h.lights[0].service, "smartlife")
         XCTAssertFalse(h.isSimulated)
+        XCTAssertNil(h.vacuums) // written before there were vacuums
         let plan = h.linksPlan
         let lamp = (plan["lights"] as? [[String: Any]])?.first
         XCTAssertEqual((lamp?["tuya"] as? [String: Any])?["deviceId"] as? String, "abc")
+    }
+
+    func testSnapshotDecodesVacuums() throws {
+        let json = """
+        {"version":1,"name":"Home","plan":"custom","updated":1,"scene":null,
+         "rooms":[{"id":"r","name":"R","x":0,"z":0,"w":3,"d":3}],"lights":[],"acs":[],"scenes":[],
+         "vacuums":[{"id":"r.vacuum","name":"Robo","room":"r","x":0.5,"z":0.3,"status":"cleaning","battery":72,
+                     "fan":null,"service":"homeassistant","links":{"link":{"service":"homeassistant","id":"vacuum.robo"}}}]}
+        """
+        let h = try JSONDecoder().decode(HomeSnapshot.self, from: Data(json.utf8))
+        XCTAssertEqual(h.vacuum("r.vacuum")?.status, "cleaning")
+        XCTAssertEqual(h.vacuums?.first?.battery, 72)
+        XCTAssertNil(h.vacuums?.first?.fan)
+        XCTAssertFalse(h.isSimulated)
+        let robot = (h.linksPlan["vacuums"] as? [[String: Any]])?.first
+        XCTAssertEqual((robot?["link"] as? [String: Any])?["id"] as? String, "vacuum.robo")
     }
 
     func testQueueAndPublish() throws {

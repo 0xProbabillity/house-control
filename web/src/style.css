@@ -693,6 +693,44 @@ html.native .card { width: auto; height: auto; box-shadow:
 
 .sheet-note { margin-top: auto; padding: 12px 14px; border-radius: 16px; background: var(--glass); border: 1px solid var(--line); font-size: 12px; line-height: 1.45; color: var(--muted); display: flex; gap: 10px; align-items: center; }
 
+/* ---------- robot vacuum ---------- */
+
+.tile.vacuum { cursor: pointer; }
+.tile.vacuum.on .bubble { color: #06162c; }
+.vac-readout { align-items: center; }
+.vac-status {
+  --c: var(--muted);
+  flex: 1; min-width: 0;
+  font-family: -apple-system, 'SF Pro Display', 'Inter', system-ui, sans-serif;
+  font-size: 44px; line-height: 1.2; font-weight: 300; letter-spacing: -0.03em;
+  color: color-mix(in srgb, var(--c) 55%, #fff);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color 260ms;
+}
+.vac-battery {
+  height: 44px; padding: 0 14px; border-radius: 16px; flex: none;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums;
+  background: var(--glass); border: 1px solid var(--line);
+}
+.vac-battery .icon { color: var(--muted); }
+.vac-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; flex: none; }
+.vac-action {
+  height: 58px; border-radius: 18px;
+  display: flex; align-items: center; justify-content: center; gap: 9px;
+  font-size: 14px; font-weight: 650;
+  background: var(--glass); border: 1px solid var(--line);
+  transition: background 220ms, border-color 220ms, transform 300ms var(--spring), opacity 220ms, box-shadow 300ms;
+}
+@media (hover: hover) { .vac-action:not(:disabled):hover { background: var(--glass-hi); } }
+.vac-action:not(:disabled):active { transform: scale(0.96); }
+.vac-action:disabled { opacity: 0.4; cursor: default; }
+.vac-action.primary { background: linear-gradient(180deg, rgba(74, 222, 128, 0.3), rgba(74, 222, 128, 0.12)); border-color: rgba(74, 222, 128, 0.5); }
+.vac-action.primary.on { background: linear-gradient(180deg, rgba(255, 216, 74, 0.28), rgba(255, 216, 74, 0.1)); border-color: rgba(255, 216, 74, 0.5); }
+/* Suction sits right under the buttons; the note goes to the bottom, as in the other sheets. */
+.vac-options { grid-template-columns: 1fr; margin-top: 0; margin-bottom: 14px; }
+.vac-options .option:disabled { opacity: 0.4; cursor: default; transform: none; }
+
 /* ---------- iPhone ---------- */
 /* The same panel fills the whole screen: no card, no notch, safe areas respected,
    and controls sized for a thumb instead of a pointer. */
@@ -768,6 +806,9 @@ html.ios .pad { max-height: 150px; border-radius: 18px; }
 html.ios .swatch { height: 36px; border-radius: 12px; }
 html.ios .swatches { margin-top: 12px; }
 html.ios .sheet-note { font-size: 13px; }
+html.ios .vac-status { font-size: 52px; }
+html.ios .vac-battery { height: 48px; font-size: 16px; }
+html.ios .vac-action { height: 64px; border-radius: 20px; font-size: 15.5px; }
 html.ios .menu { min-width: 190px; border-radius: 20px; }
 html.ios .menu button { height: 46px; font-size: 15px; border-radius: 14px; }
 html.ios .menu button:active { background: rgba(255, 255, 255, 0.1); color: var(--text); }

@@ -51,6 +51,15 @@ export function createAgent({ store, config, raw, render, onAction }) {
     real: isLinked(cfg), ...state.lights[cfg.id],
     brightness: Math.round(state.lights[cfg.id].brightness * 100),
   });
+  function vacuumState(s = {}) {
+    const what = s.status === 'docked' && Number.isFinite(s.battery) && s.battery < 100 ? 'docked, charging' : s.status;
+    return [what, Number.isFinite(s.battery) && `battery ${Math.round(s.battery)}%`, s.fan && `suction ${s.fan}`].filter(Boolean).join(', ');
+  }
+
+  const vacuumJSON = (cfg) => ({
+    id: cfg.id, name: cfg.name, room: cfg.room, real: isLinked(cfg), ...state.vacuums[cfg.id],
+    fans: store.vacuumFeatures(cfg.id).fans,
+  });
   const acJSON = (cfg) => ({
     id: cfg.id, name: cfg.name, room: cfg.room, real: isLinked(cfg),
     min: cfg.min, max: cfg.max, modes: store.acFeatures(cfg.id).modes, fans: store.acFeatures(cfg.id).fans,
@@ -62,17 +71,20 @@ export function createAgent({ store, config, raw, render, onAction }) {
     const lightsOn = config.lights.filter((l) => state.lights[l.id].on).length;
     const acsOn = config.acs.filter((a) => state.acs[a.id].on).length;
     const scene = config.scenes.find((s) => s.id === state.scene);
+    const robots = config.vacuums.length ? `, ${config.vacuums.length} robot vacuum${config.vacuums.length === 1 ? '' : 's'}` : '';
     const lines = [
       `Home "${config.name}": ${config.rooms.length} rooms, ${config.lights.length} lights (${lightsOn} on), `
-      + `${config.acs.length} air conditioners (${acsOn} running).${scene ? ` Active scene: ${scene.name}.` : ''}`,
+      + `${config.acs.length} air conditioners (${acsOn} running)${robots}.${scene ? ` Active scene: ${scene.name}.` : ''}`,
     ];
     for (const room of config.rooms) {
       const lights = config.lights.filter((l) => l.room === room.id);
       const acs = config.acs.filter((a) => a.room === room.id);
-      if (!lights.length && !acs.length) { lines.push('', `${room.name} [${room.id}] — no devices`); continue; }
+      const vacuums = config.vacuums.filter((v) => v.room === room.id);
+      if (!lights.length && !acs.length && !vacuums.length) { lines.push('', `${room.name} [${room.id}] — no devices`); continue; }
       lines.push('', `${room.name} [${room.id}]`);
       for (const l of lights) lines.push(`  • ${l.name} [${l.id}] — light (${l.type}; ${lightAbilities(l)}): ${lightState(l)}`);
       for (const a of acs) lines.push(`  • ${a.name} [${a.id}] — air conditioner (${a.min}–${a.max}°C): ${acState(a)}`);
+      for (const v of vacuums) lines.push(`  • ${v.name} [${v.id}] — robot vacuum (its dock is here; it cleans the whole home): ${vacuumState(state.vacuums[v.id])}`);
     }
     if (config.scenes.length) {
       lines.push('', `Scenes: ${config.scenes.map((s) => `${s.name} [${s.id}]`).join(', ')}`);
@@ -88,6 +100,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
         id: r.id, name: r.name,
         lights: config.lights.filter((l) => l.room === r.id).map(lightJSON),
         acs: config.acs.filter((a) => a.room === r.id).map(acJSON),
+        vacuums: config.vacuums.filter((v) => v.room === r.id).map(vacuumJSON),
       })),
       scenes: config.scenes.map((s) => ({ id: s.id, name: s.name })),
     };
@@ -202,6 +215,44 @@ export function createAgent({ store, config, raw, render, onAction }) {
     return { changed, notes };
   }
 
+  const VACUUM_ACTIONS = { start: 'cleaning', pause: 'paused', dock: 'returning' };
+
+  function controlVacuums(args) {
+    const devices = resolve(args.vacuums ?? args.targets ?? args.target, config.vacuums, 'robot vacuums');
+    const notes = [];
+    const changed = [];
+    if (args.action != null && !VACUUM_ACTIONS[args.action]) fail('"action" is start, pause or dock.');
+    for (const cfg of devices) {
+      const f = store.vacuumFeatures(cfg.id);
+      const status = state.vacuums[cfg.id].status;
+      if (status === 'unavailable') { notes.push(`${cfg.name} is unavailable: its platform cannot reach it.`); continue; }
+      const patch = {};
+      // What the sheet would not offer either: nothing is sent for it.
+      if (args.action === 'start') {
+        if (f.canStart === false) notes.push(`${cfg.name} cannot be started from here.`);
+        else if (status === 'cleaning') notes.push(`${cfg.name} is already cleaning.`);
+        else patch.status = 'cleaning';
+      } else if (args.action === 'pause') {
+        if (!f.canPause) notes.push(`${cfg.name} cannot pause.`);
+        else if (status !== 'cleaning' && status !== 'returning') notes.push(`${cfg.name} is ${status}: there is nothing to pause.`);
+        else patch.status = 'paused';
+      } else if (args.action === 'dock') {
+        if (!f.canReturn) notes.push(`${cfg.name} cannot be sent to its dock.`);
+        else if (status === 'docked' || status === 'returning') notes.push(`${cfg.name} is already ${status === 'docked' ? 'on its dock' : 'on its way home'}.`);
+        else patch.status = 'returning';
+      }
+      if (args.fan != null) {
+        if (!f.fans.includes(args.fan)) fail(`${cfg.name} suction levels: ${f.fans.join(', ') || 'none'}.`);
+        patch.fan = args.fan;
+      }
+      if (!Object.keys(patch).length) continue;
+      store.setVacuum(cfg.id, patch);
+      changed.push(cfg);
+    }
+    if (!changed.length && !notes.length) fail('Nothing to do: pass "action" (start, pause, dock) or "fan".');
+    return { changed, notes };
+  }
+
   function activateScene(args) {
     const key = norm(args.scene ?? '');
     const scene = config.scenes.find((s) => s.id === args.scene || norm(s.name) === key);
@@ -213,13 +264,15 @@ export function createAgent({ store, config, raw, render, onAction }) {
   function describeChange(changed, notes, kind) {
     const lines = changed.map((cfg) => (kind === 'light'
       ? `${roomName.get(cfg.room)} · ${cfg.name}: ${lightState(cfg)}`
-      : `${roomName.get(cfg.room)} · ${cfg.name}: ${acState(cfg)}`));
+      : kind === 'vacuum' ? `${cfg.name}: ${vacuumState(state.vacuums[cfg.id])}`
+        : `${roomName.get(cfg.room)} · ${cfg.name}: ${acState(cfg)}`));
     return [...lines, ...notes].join('\n');
   }
 
   function shortSummary(changed, kind) {
     const names = changed.map((c) => c.name);
-    const list = names.length > 3 ? `${names.length} ${kind === 'light' ? 'lights' : 'ACs'}` : names.join(', ');
+    const plural = { light: 'lights', ac: 'ACs', vacuum: 'robot vacuums' }[kind];
+    const list = names.length > 3 ? `${names.length} ${plural}` : names.join(', ');
     if (kind === 'light') {
       const on = changed.filter((c) => state.lights[c.id].on).length;
       const verb = on === changed.length ? 'On' : on === 0 ? 'Off' : 'Set';
@@ -227,6 +280,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
       const extra = changed.length === 1 && first.on && changed[0].capabilities.includes('brightness') ? ` · ${pct(first.brightness)}` : '';
       return `${verb}: ${list}${extra}`;
     }
+    if (kind === 'vacuum') return `${list}: ${state.vacuums[changed[0].id].status}`;
     const a = state.acs[changed[0].id];
     return a.on ? `${list} → ${a.target}° ${a.mode}` : `Off: ${list}`;
   }
@@ -255,7 +309,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
     {
       name: 'get_home', group: 'read',
       title: 'Look at the home',
-      description: 'Every room with its lights and air conditioners, what each can do and what it is doing now, and the scenes. Call this first.',
+      description: 'Every room with its lights, air conditioners and robot vacuums, what each can do and what it is doing now, and the scenes. Call this first.',
       inputSchema: { type: 'object', properties: {} },
       annotations: { readOnlyHint: true, openWorldHint: false },
       run: () => ({ text: overview(), data: structured(), summary: 'Looked at the home', quiet: true }),
@@ -305,6 +359,25 @@ export function createAgent({ store, config, raw, render, onAction }) {
       },
     },
     {
+      name: 'control_vacuums', group: 'control',
+      title: 'Control robot vacuums',
+      description: 'Start a robot vacuum cleaning the home, pause it, or send it back to its dock; optionally set its suction level '
+        + '(the names get_home lists under "fans"). Only when the user asks: a robot that starts by surprise is unwelcome.',
+      inputSchema: {
+        type: 'object', required: ['vacuums'],
+        properties: {
+          vacuums: { ...TARGETS, description: 'Which robots: ids like "living.vacuum", names, or "all".' },
+          action: { type: 'string', enum: Object.keys(VACUUM_ACTIONS) },
+          fan: { type: 'string', description: 'Suction level, one of the robot\'s own names' },
+        },
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      run(args) {
+        const { changed, notes } = controlVacuums(args);
+        return { text: describeChange(changed, notes, 'vacuum') || notes.join('\n'), summary: changed.length ? shortSummary(changed, 'vacuum') : notes[0] };
+      },
+    },
+    {
       name: 'activate_scene', group: 'control',
       title: 'Activate a scene',
       description: 'Set every light and air conditioner the way a scene says ("Cozy", "Movie", "Night"…). See get_home for the list.',
@@ -322,7 +395,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
     {
       name: 'get_floor_plan', group: 'read',
       title: 'Read the 3D floor plan',
-      description: 'The floor plan the 3D model is built from: rooms, walls openings, furniture (by index), lights, ACs and scenes, '
+      description: 'The floor plan the 3D model is built from: rooms, walls openings, furniture (by index), lights, ACs, robot vacuums and scenes, '
         + 'plus the furniture catalogue and the coordinate rules. Read it before edit_floor_plan.',
       inputSchema: { type: 'object', properties: {} },
       annotations: { readOnlyHint: true, openWorldHint: false },
@@ -347,7 +420,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
         + 'furnish_room{room,items[]}, add_furniture{item|items[]}, update_furniture{index,set{}}, remove_furniture{index}, '
         + 'add_opening{type,from,to,sill,head}, remove_opening{index}, add_light{id,name,room,type,pos,capabilities,y,rot,length,color}, '
         + 'update_light{id,set{}}, remove_light{id}, add_ac{id,name,room,wall,pos,y,min,max}, update_ac{id,set{}}, remove_ac{id}, '
-        + 'add_scene{id,name,icon,lights{},acs{}}, update_scene{id,set{}}, remove_scene{id}. '
+        + 'add_vacuum{id,name,room,pos,rot}, update_vacuum{id,set{}}, remove_vacuum{id}, add_scene{id,name,icon,lights{},acs{}}, update_scene{id,set{}}, remove_scene{id}. '
         + 'Indexes are those from get_floor_plan, before this edit.',
       inputSchema: {
         type: 'object', required: ['operations'],
@@ -359,7 +432,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
               properties: {
                 op: { type: 'string', enum: ['set_home', 'add_room', 'update_room', 'remove_room', 'furnish_room', 'add_furniture',
                   'update_furniture', 'remove_furniture', 'add_opening', 'remove_opening', 'add_light', 'update_light', 'remove_light',
-                  'add_ac', 'update_ac', 'remove_ac', 'add_scene', 'update_scene', 'remove_scene'] },
+                  'add_ac', 'update_ac', 'remove_ac', 'add_vacuum', 'update_vacuum', 'remove_vacuum', 'add_scene', 'update_scene', 'remove_scene'] },
                 id: { type: 'string' }, name: { type: 'string' }, room: { type: 'string' },
                 rect: { type: 'array', items: { type: 'number' }, description: '[x, z, width, depth] in metres' },
                 floor: { type: 'string', enum: FLOOR_KINDS },
@@ -370,6 +443,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
                 type: { type: 'string', description: `opening: door, window, open; light: ${LIGHT_KINDS.join(', ')}` },
                 from: { type: 'array', items: { type: 'number' } }, to: { type: 'array', items: { type: 'number' } },
                 pos: { type: 'array', items: { type: 'number' } },
+                rot: { type: 'number' },
                 wall: { type: 'string', enum: WALLS },
                 capabilities: { type: 'array', items: { type: 'string', enum: ['brightness', 'temp', 'color'] } },
                 icon: { type: 'string', enum: SCENE_ICONS },
@@ -509,6 +583,14 @@ export function createAgent({ store, config, raw, render, onAction }) {
         onAction?.({ client, summary: shortSummary(changed.changed, 'ac') });
         return done(`Done.\n${describeChange(changed.changed, changed.notes, 'ac')}`, shortSummary(changed.changed, 'ac'));
       }
+      if (kind === 'vacuum') {
+        if (!VACUUM_ACTIONS[action]) return refuse(`unknown robot vacuum action "${action}".`);
+        changed = controlVacuums({ vacuums: [id], action });
+        // Refused for every robot (cannot pause, already docked…): say why.
+        if (!changed.changed.length) return refuse(changed.notes.join(' '));
+        onAction?.({ client, summary: shortSummary(changed.changed, 'vacuum') });
+        return done(`Done.\n${describeChange(changed.changed, changed.notes, 'vacuum')}`, shortSummary(changed.changed, 'vacuum'));
+      }
       if (kind === 'scene') {
         const scene = activateScene({ scene: id });
         onAction?.({ client, summary: `Scene · ${scene.name}` });
@@ -548,7 +630,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
   /* ---------- the guide ---------- */
 
   function instructions(permissions) {
-    const can = [permissions?.control !== false && 'switch and adjust its lights and air conditioners and run scenes',
+    const can = [permissions?.control !== false && 'switch and adjust its lights and air conditioners, start or dock its robot vacuums and run scenes',
       permissions?.edit !== false && 'change its 3D floor plan (rooms, furniture, devices, scenes)'].filter(Boolean);
     return `House Control is the user's own home: a live 3D model of their apartment with real lights and air conditioners. `
       + `Through these tools you can see it${can.length ? ` and ${can.join(', and ')}` : ''}. `
@@ -600,7 +682,8 @@ export function createAgent({ store, config, raw, render, onAction }) {
       for (const room of config.rooms) {
         const lights = config.lights.filter((l) => l.room === room.id);
         const acs = config.acs.filter((a) => a.room === room.id);
-        if (!lights.length && !acs.length) continue;
+        const vacuums = config.vacuums.filter((v) => v.room === room.id);
+        if (!lights.length && !acs.length && !vacuums.length) continue;
         L.push('', `### ${room.name}`);
         if (lights.length > 1) L.push(`- All ${room.name} lights: on ${base}/do/room/${room.id}/lights/on · off ${base}/do/room/${room.id}/lights/off`);
         for (const l of lights) {
@@ -620,6 +703,10 @@ export function createAgent({ store, config, raw, render, onAction }) {
           L.push(`  - temperature (switches it on): ${temps.join(' · ')}`);
           L.push(`  - mode: ${f.modes.map((m) => `${m} ${u}/mode/${m}`).join(' · ')}`);
           L.push(`  - fan: ${f.fans.map((m) => `${m} ${u}/fan/${m}`).join(' · ')}`);
+        }
+        for (const v of vacuums) {
+          const u = `${base}/do/vacuum/${encodeURIComponent(v.id)}`;
+          L.push(`- ${v.name} [robot vacuum: ${vacuumState(state.vacuums[v.id])}]: start ${u}/start · pause ${u}/pause · back to its dock ${u}/dock`);
         }
       }
       L.push('');
@@ -674,4 +761,5 @@ const PLAN_RULES = `Floor plan rules:
 - Openings: doors, windows and open gaps sit on walls, given by two end points "from"/"to" on that wall line.
 - Lights: "type" ceiling, pendant, spots, floor, table or strip; "capabilities" any of brightness, temp, color (none = plain switch).
 - Air conditioners hang on a wall: "wall" north/south/east/west and "pos" on that wall line.
+- Robot vacuums: "room" and "pos" [x, z] are where the dock stands, inside that room; the dock backs onto the nearest wall unless "rot" turns it.
 - Devices marked "linked": true are real hardware: keep their ids, do not remove them.`;

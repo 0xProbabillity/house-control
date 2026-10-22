@@ -1,7 +1,8 @@
 import Foundation
 
 /// Small edits to a floor plan that the iPhone makes without the drawing editor: linking a
-/// lamp or an AC to a real device, adding real devices to a room, starting a new home.
+/// lamp, an AC or a robot vacuum to a real device, adding real devices to a room, starting
+/// a new home.
 /// Works on the plan exactly as stored (`[String: Any]`), the same form the web editor
 /// edits, and follows its rules (`web/src/editor/connections.js`, `web/src/config.js`).
 public struct PlanEditor {
@@ -9,7 +10,7 @@ public struct PlanEditor {
 
     public init(plan: [String: Any]) { self.plan = plan }
 
-    /// A lamp or an AC of the plan, for lists.
+    /// A lamp, an AC or a robot vacuum of the plan, for lists.
     public struct Item: Identifiable, Equatable {
         public let id: String
         public let kind: DeviceKind
@@ -50,7 +51,7 @@ public struct PlanEditor {
     public var items: [Item] {
         let names = Dictionary(rooms.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
         var out: [Item] = []
-        for (kind, key) in [(DeviceKind.light, "lights"), (.ac, "acs")] {
+        for (kind, key) in Self.deviceLists {
             for device in plan[key] as? [[String: Any]] ?? [] {
                 guard let id = device["id"] as? String else { continue }
                 let room = device["room"] as? String ?? ""
@@ -61,6 +62,9 @@ public struct PlanEditor {
         }
         return out
     }
+
+    /// The plan's lists of devices, and the kind of device each one holds.
+    static let deviceLists: [(DeviceKind, String)] = [(.light, "lights"), (.ac, "acs"), (.vacuum, "vacuums")]
 
     static func link(of device: [String: Any]) -> DeviceRef? {
         if let link = device["link"] as? [String: Any], let service = link["service"] as? String,
@@ -97,7 +101,7 @@ public struct PlanEditor {
     // MARK: - Linking
 
     private func index(of id: String) -> (key: String, index: Int)? {
-        for key in ["lights", "acs"] {
+        for (_, key) in Self.deviceLists {
             if let i = (plan[key] as? [[String: Any]] ?? []).firstIndex(where: { $0["id"] as? String == id }) { return (key, i) }
         }
         return nil
@@ -109,9 +113,10 @@ public struct PlanEditor {
         plan[key] = list
     }
 
-    /// Links the lamp or AC `id` to `device` (a device as `DeviceHub.allDevices` lists it),
-    /// or unlinks it (nil). A lamp takes over what the device can do, an AC its range.
+    /// Links the lamp, AC or vacuum `id` to `device` (a device as `DeviceHub.allDevices` lists
+    /// it), or unlinks it (nil). A lamp takes over what the device can do, an AC its range.
     public mutating func link(_ id: String, to device: [String: Any]?) {
+        let key = index(of: id)?.key
         update(id) { item in
             item["link"] = nil
             if var tuya = item["tuya"] as? [String: Any] {
@@ -128,9 +133,8 @@ public struct PlanEditor {
                 // A Smart Life thermometer only works beside a Smart Life AC.
                 item["tuya"] = nil
             }
-            let isAC = item["wall"] != nil
-            if !isAC, let caps = device["capabilities"] as? [String] { item["capabilities"] = caps }
-            if isAC, let min = (device["min"] as? NSNumber)?.doubleValue,
+            if key == "lights", let caps = device["capabilities"] as? [String] { item["capabilities"] = caps }
+            if key == "acs", let min = (device["min"] as? NSNumber)?.doubleValue,
                let max = (device["max"] as? NSNumber)?.doubleValue {
                 item["min"] = Int(min.rounded())
                 item["max"] = Int(max.rounded())
@@ -161,7 +165,7 @@ public struct PlanEditor {
 
     private var allIds: Set<String> {
         var ids = Set<String>()
-        for key in ["rooms", "lights", "acs", "scenes"] {
+        for key in ["rooms", "lights", "acs", "vacuums", "scenes"] {
             for entry in plan[key] as? [[String: Any]] ?? [] { if let id = entry["id"] as? String { ids.insert(id) } }
         }
         return ids
@@ -193,9 +197,9 @@ public struct PlanEditor {
         return "ceiling"
     }
 
-    /// Adds real devices (as `DeviceHub.allDevices` lists them) to `room` as linked lamps
-    /// and ACs, spread over the room so none stands on another. Sensors are skipped.
-    /// Returns the ids of the new items.
+    /// Adds real devices (as `DeviceHub.allDevices` lists them) to `room` as linked lamps,
+    /// ACs and robot vacuums, spread over the room so none stands on another. Sensors are
+    /// skipped. Returns the ids of the new items.
     @discardableResult
     public mutating func add(_ devices: [[String: Any]], to room: String) -> [String] {
         guard let r = rect(of: room) else { return [] }
@@ -205,6 +209,7 @@ public struct PlanEditor {
         var acs = plan["acs"] as? [[String: Any]] ?? []
         let newLights = devices.filter { ($0["kind"] as? String) == "light" }
         let newACs = devices.filter { ($0["kind"] as? String) == "ac" }
+        let newVacuums = devices.filter { ($0["kind"] as? String) == "vacuum" }
         var added: [String] = []
 
         // Lamps on a grid inside the room, away from the lamps already there.
@@ -252,14 +257,27 @@ public struct PlanEditor {
             acs.append(ac)
             added.append(id)
         }
+        // Vacuum docks along the north wall from its west end, where the 3D view stands
+        // them against the wall.
+        var vacuums = plan["vacuums"] as? [[String: Any]] ?? []
+        let existingVacuums = vacuums.filter { $0["room"] as? String == room }.count
+        for (n, device) in newVacuums.enumerated() {
+            let along = min(x + w - 0.3, x + 0.5 + Double(existingVacuums + n) * 0.6)
+            let id = uniqueId("\(room).vacuum", taken: taken)
+            taken.insert(id)
+            vacuums.append(["id": id, "name": device["name"] as? String ?? "Robot vacuum", "room": room,
+                            "pos": [Self.fix(along), Self.fix(z + min(0.3, d / 2))]])
+            added.append(id)
+        }
         plan["lights"] = lights
         plan["acs"] = acs
+        if !vacuums.isEmpty { plan["vacuums"] = vacuums }
         // Link each new item to its device.
-        for (id, device) in zip(added, newLights + newACs) { link(id, to: device) }
+        for (id, device) in zip(added, newLights + newACs + newVacuums) { link(id, to: device) }
         return added
     }
 
-    /// Removes a lamp or an AC, and its mentions in the scenes.
+    /// Removes a lamp, an AC or a vacuum, and its mentions in the scenes.
     public mutating func remove(_ id: String) {
         guard let (key, i) = index(of: id), var list = plan[key] as? [[String: Any]] else { return }
         list.remove(at: i)
