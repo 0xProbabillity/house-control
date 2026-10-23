@@ -225,7 +225,7 @@ public final class SyncClient {
             self.channel = nil
             // The handshake fails when the Mac's key was reset since this phone was paired.
             if case .some(.tls) = error {
-                self.set(.failed("\(pairing.name) did not accept this pairing. Pair again from the Mac's menu: Pair iPhone…"))
+                self.set(.failed("\(pairing.name) did not accept this pairing. Pair again on the computer: Pair Phone… in House Control's menu"))
             } else if self.running {
                 self.set(.searching)
             }

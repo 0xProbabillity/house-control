@@ -94,7 +94,7 @@ struct SmartLifeView: View {
                         .background(Color.black.opacity(0.3), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(typing ? Theme.accent : Theme.line))
                     if !model.suggestedUserCode.isEmpty, userCode == model.suggestedUserCode {
-                        Label("Filled in from your Mac", systemImage: "laptopcomputer")
+                        Label("Filled in from your computer", systemImage: "laptopcomputer")
                             .font(.system(size: 13))
                             .foregroundStyle(Theme.muted)
                     }
@@ -153,7 +153,7 @@ struct SmartLifeView: View {
                         IconBadge(symbol: "laptopcomputer", tint: Theme.green)
                         VStack(alignment: .leading, spacing: 4) {
                             Text("The code is on \(mac)").font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
-                            Text("Switch to Smart Life on this iPhone, tap the scanner on its Home tab and point it at the Mac's screen. The code stays there while you are away; come back here when you have confirmed.")
+                            Text("Switch to Smart Life on this iPhone, tap the scanner on its Home tab and point it at the computer's screen. The code stays there while you are away; come back here when you have confirmed.")
                                 .font(.system(size: 14)).foregroundStyle(Theme.muted)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -167,7 +167,7 @@ struct SmartLifeView: View {
                         step(1, "Save the code to Photos (below).")
                         step(2, "In Smart Life tap **+** → **Scan**, then the **photo** icon, and pick the code.")
                         step(3, "Confirm the login and come back here.")
-                        Text("Or show it on another screen: share it to a computer or tablet, or pair a Mac and it appears there.")
+                        Text("Or show it on another screen: share it to a computer or tablet, or pair a Mac or PC and it appears there.")
                             .font(.system(size: 13.5)).foregroundStyle(Theme.faint)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -211,7 +211,7 @@ struct SmartLifeView: View {
                     .buttonStyle(SecondaryButtonStyle())
                 }
                 if !onMac, model.macName != nil {
-                    Button { onMac = model.showOnMac(login.content) } label: { Label("Show on Mac", systemImage: "laptopcomputer") }
+                    Button { onMac = model.showOnMac(login.content) } label: { Label("Show on computer", systemImage: "laptopcomputer") }
                         .buttonStyle(SecondaryButtonStyle())
                 }
             }

@@ -135,7 +135,7 @@ struct HomeAssistantView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            Footnote(text: "The token stays on this iPhone, in the Keychain, and goes to the Mac you paired, over your encrypted link. Lights, switches, climate devices and temperature sensors can then be linked to your plan.")
+            Footnote(text: "The token stays on this iPhone, in the Keychain, and goes to the computer you paired, over your encrypted link. Lights, switches, climate devices and temperature sensors can then be linked to your plan.")
         }
     }
 
@@ -194,9 +194,9 @@ struct HomeAssistantView: View {
                 .confirmationDialog("Disconnect Home Assistant?", isPresented: $confirmDisconnect, titleVisibility: .visible) {
                     Button("Disconnect", role: .destructive) { model.disconnect(service: "homeassistant") }
                 } message: {
-                    Text("Its devices go back to being simulated, here and on your paired Mac.")
+                    Text("Its devices go back to being simulated, here and on your paired computer.")
                 }
-            Footnote(text: "Connected on this iPhone or on your Mac, it works on both: they share the connection over their encrypted link.")
+            Footnote(text: "Connected on this iPhone or on your paired computer, it works on both: they share the connection over their encrypted link.")
         }
         .transition(.opacity)
     }
@@ -330,7 +330,7 @@ struct HueView: View {
             Button { start(["host": host.trimmingCharacters(in: .whitespaces), "name": "Hue Bridge"]) } label: { Text("Pair") }
                 .buttonStyle(SecondaryButtonStyle())
                 .disabled(host.trimmingCharacters(in: .whitespaces).isEmpty)
-            Footnote(text: "No account needed: the bridge lets one app in when its button is pressed. The key it gives stays on this iPhone and your paired Mac.")
+            Footnote(text: "No account needed: the bridge lets one app in when its button is pressed. The key it gives stays on this iPhone and your paired computer.")
         }
     }
 
@@ -401,7 +401,7 @@ struct HueView: View {
                 .confirmationDialog("Disconnect the Hue Bridge?", isPresented: $confirmDisconnect, titleVisibility: .visible) {
                     Button("Disconnect", role: .destructive) { model.disconnect(service: "hue") }
                 } message: {
-                    Text("Its lamps go back to being simulated, here and on your paired Mac.")
+                    Text("Its lamps go back to being simulated, here and on your paired computer.")
                 }
         }
         .transition(.opacity)

@@ -67,7 +67,7 @@ struct NewHomeView: View {
                         } message: {
                             Text(model.macName == nil
                                  ? "This iPhone keeps one home of your own. Export the current one from the editor first if you want to keep it."
-                                 : "This iPhone keeps one home of your own, and \(model.macName ?? "your Mac") gets the new one too.")
+                                 : "This iPhone keeps one home of your own, and \(model.macName ?? "your computer") gets the new one too.")
                         }
                 }
                 .padding(.horizontal, 18)

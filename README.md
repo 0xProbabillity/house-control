@@ -131,7 +131,7 @@ AI Access and About.
 | Do this | To get this |
 | --- | --- |
 | Click the menu bar icon | Open or close the panel |
-| Right-click the menu bar icon | Settings, Edit Home, Load Floor Plan, Reveal Plan File, Reveal Device Log, Show Island, Open at Login, Pair iPhone, AI Access, Reload, Quit |
+| Right-click the menu bar icon | Settings, Edit Home, Load Floor Plan, Reveal Plan File, Reveal Device Log, Show Island, Open at Login, Pair Phone, AI Access, Reload, Quit |
 | `⌘,` | Settings |
 | Click a lamp in the 3D view, or its tile | Toggle it |
 | Drag sideways across a light tile | Dim it |
@@ -230,22 +230,26 @@ apps, so it stays out of the App Store edition entirely: its code lives in its o
 that only the Smart Life edition and the Mac app link, and `build-ios.sh` refuses an App Store archive that contains it.
 The two editions are separate apps (bundle id and App Group), so both can sit on one phone.
 
-### Sync with the Mac
+### Sync with a Mac or PC
 
-Optional. Pair a Mac and your floor plan — rooms, furniture, lamps, scenes and the links to real devices — plus the
-Home Assistant and Hue connections stay the same on both, whichever one you set up or edit first.
+Optional. Pair a Mac or a Windows PC and your floor plan — rooms, furniture, lamps, scenes and the links to real
+devices — plus the Home Assistant and Hue connections stay the same on both, whichever one you set up or edit first.
+[House Control for Windows](https://github.com/0xProbabillity/house-control-windows) pairs exactly like the Mac app.
 
-1. On the Mac: right-click the menu bar icon → **Pair iPhone…**. A QR code appears.
+1. On the computer: right-click the House Control icon — in the menu bar on a Mac, in the taskbar's tray on a PC —
+   → **Pair Phone…** (**Pair iPhone…** in older versions). A QR code appears.
    macOS asks once whether House Control may find devices on your local network: allow it.
-2. On the iPhone: **Settings** (the sliders button) → **Pair with Mac**, and point the camera at the code.
-   Or press **Copy Pairing Link** on the Mac and paste it on the phone.
+2. On the iPhone: **Settings** (the sliders button) → **Pair with Mac or PC**, and point the camera at the code.
+   Or press **Copy Pairing Link** on the computer and paste it on the phone.
+
+[House Control for Android](https://github.com/0xProbabillity/house-control-android) pairs with the same code.
 
 From then on, whenever both are on the same Wi-Fi and the app is open, a plan saved on one reaches the other a
-moment later. A home set up on the phone first goes to the Mac when you pair them. If both changed the plan while
-apart, the phone asks which one to keep. A Home Assistant or Hue Bridge connected, or disconnected, on either side
+moment later. A home set up on the phone first goes to the computer when you pair them. If both changed the plan
+while apart, the phone asks which one to keep. A Home Assistant or Hue Bridge connected, or disconnected, on either side
 is the newest one on both.
 
-Nothing goes through a server. The Mac advertises itself with Bonjour and the two talk over TLS with a
+Nothing goes through a server. The computer advertises itself with Bonjour (DNS-SD) and the two talk over TLS with a
 pre-shared key that only the QR code carries, so a device that never saw the code cannot connect.
 **Reset Pairing…** in the pairing window issues a new key.
 
@@ -394,7 +398,7 @@ Environment variables understood by the app:
 | `HOUSE_DOCK=1` | Show a Dock icon, so UI automation tools can see the app |
 | `HOUSE_ISLAND=0` | Run without the island (`1` forces it on) |
 | `HOUSE_ISLAND_EXPANDED=1` | Keep the island open |
-| `HOUSE_OPEN_PAIRING=1` | Open the Pair iPhone window at launch |
+| `HOUSE_OPEN_PAIRING=1` | Open the Pair Phone window at launch |
 | `HOUSE_COMPUTER_NAME="Studio Mac"` | The name paired iPhones see, instead of the Mac's own (screenshots) |
 | `HOUSE_SNAPSHOT_DIR=/some/folder` | Write `panel.png` and `island.png` there a few seconds after launch |
 | `HOUSE_RENDER_HIDDEN=1` | Keep drawing while the screen is locked, for unattended captures |

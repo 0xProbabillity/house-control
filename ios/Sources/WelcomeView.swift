@@ -32,8 +32,8 @@ struct WelcomeView: View {
             VStack(alignment: .leading, spacing: 26) {
                 feature("hand.tap.fill", Theme.warm, "Tap a lamp, drag to dim",
                         "Lights, colours, air conditioners and scenes, right on the floor plan.")
-                feature("pencil.and.ruler.fill", Theme.accent, "Draw it here or on your Mac",
-                        "Rooms, lamps and ACs, on this iPhone. Pair a Mac any time: both stay in sync.")
+                feature("pencil.and.ruler.fill", Theme.accent, "Draw it here or on your computer",
+                        "Rooms, lamps and ACs, on this iPhone. Pair a Mac or PC any time: both stay in sync.")
                 feature("lightbulb.2.fill", Theme.green, "Your real devices",
                         AppModel.includesSmartLife
                             ? "Smart Life, Home Assistant, Philips Hue and Apple Home. Until you connect one, everything is simulated."
@@ -44,7 +44,7 @@ struct WelcomeView: View {
 
             Button { model.finishWelcome(.setUpHere) } label: { Label("Set up my home", systemImage: "house.fill") }
                 .buttonStyle(PrimaryButtonStyle())
-            Button { model.finishWelcome(.pair) } label: { Label("Pair with my Mac", systemImage: "laptopcomputer.and.iphone") }
+            Button { model.finishWelcome(.pair) } label: { Label("Pair with Mac or PC", systemImage: "laptopcomputer.and.iphone") }
                 .buttonStyle(SecondaryButtonStyle())
                 .padding(.top, 10)
             Button("Explore the demo home") { model.finishWelcome(.demo) }
