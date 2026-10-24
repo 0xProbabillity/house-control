@@ -130,6 +130,39 @@ final class ServiceTests: XCTestCase {
             .first?.data["hvac_mode"] as? String, "off")
     }
 
+    func testHomeAssistantMapsCoversToBlinds() {
+        let roller = HomeAssistantService.device(from: [
+            "entity_id": "cover.living_sheer", "state": "open",
+            "attributes": ["friendly_name": "Living Sheer", "device_class": "shade", "supported_features": 15],
+        ])
+        XCTAssertEqual(roller?.kind, .blind)
+        XCTAssertEqual(roller?.capabilities, ["position", "stop"])
+        XCTAssertEqual(roller?.detail, "cover · shade")
+        // Open and close only: no part-way, no stop.
+        XCTAssertEqual(HomeAssistantService.device(from: ["entity_id": "cover.garage", "state": "closed",
+                                                          "attributes": ["supported_features": 3]])?.capabilities, [])
+
+        let half = HomeAssistantService.reading(from: ["entity_id": "cover.a", "state": "open", "attributes": ["current_position": 40]])
+        XCTAssertEqual(half.blind?["position"] as? Double, 0.4)
+        XCTAssertTrue(half.blind?["moving"] is NSNull)
+        let closing = HomeAssistantService.reading(from: ["entity_id": "cover.a", "state": "closing", "attributes": ["current_position": 70]])
+        XCTAssertEqual(closing.blind?["moving"] as? String, "closing")
+        // Without a position the open/closed state stands in for it.
+        XCTAssertEqual(HomeAssistantService.reading(from: ["entity_id": "cover.g", "state": "closed", "attributes": [:]]).blind?["position"] as? Double, 0)
+        XCTAssertEqual(HomeAssistantService.reading(from: ["entity_id": "cover.a", "state": "unavailable", "attributes": [:]]).online, false)
+
+        func services(_ patch: [String: Any]) -> [String] {
+            HomeAssistantService.calls(for: "cover.a", patch: patch, state: [:], fans: [:], modes: [:]).map(\.service)
+        }
+        XCTAssertEqual(services(["position": 1.0]), ["open_cover"])
+        XCTAssertEqual(services(["position": 0.0]), ["close_cover"])
+        XCTAssertEqual(services(["stop": true]), ["stop_cover"])
+        let part = HomeAssistantService.calls(for: "cover.a", patch: ["position": 0.25], state: [:], fans: [:], modes: [:])
+        XCTAssertEqual(part.first?.service, "set_cover_position")
+        XCTAssertEqual(part.first?.data["position"] as? Int, 25)
+        XCTAssertEqual(part.first?.data["entity_id"] as? String, "cover.a")
+    }
+
     func testHomeAssistantAddressIsNormalized() throws {
         XCTAssertEqual(try HomeAssistantService.normalize("homeassistant.local"), "http://homeassistant.local:8123")
         XCTAssertEqual(try HomeAssistantService.normalize(" http://10.0.0.5:8123/ "), "http://10.0.0.5:8123")
@@ -223,10 +256,11 @@ final class ServiceTests: XCTestCase {
             "lights": [["id": "lamp", "link": ["service": "homekit", "id": "L1"]], ["id": "sim"]],
             "acs": [["id": "ac", "link": ["service": "homekit", "id": "A1"], "sensor": ["service": "homekit", "id": "S1"]],
                     ["id": "ac2", "sensor": ["service": "homekit", "id": "S1"]]],
+            "blinds": [["id": "blind", "link": ["service": "homekit", "id": "B1"]]],
         ])
-        XCTAssertEqual(hub.linkedDeviceCount, 2)
+        XCTAssertEqual(hub.linkedDeviceCount, 3)
         XCTAssertTrue(hub.canPoll)
-        XCTAssertEqual(fake.watched, ["L1", "A1", "S1"])
+        XCTAssertEqual(fake.watched, ["L1", "A1", "S1", "B1"])
 
         let sent = expectation(description: "sent")
         hub.command(["id": "lamp", "kind": "light", "patch": ["on": true], "state": ["on": true]]) { reply in
@@ -252,11 +286,18 @@ final class ServiceTests: XCTestCase {
         XCTAssertEqual(acs?["ac"]?["roomTemp"] as? Double, 19.5)  // from the sensor, not the unit
         XCTAssertEqual(acs?["ac2"]?["roomTemp"] as? Double, 19.5) // a simulated AC with a real sensor
         XCTAssertNotNil((update?["features"] as? [String: Any])?["ac"])
+        XCTAssertEqual((update?["blinds"] as? [String: [String: Any]])?["blind"]?["position"] as? Double, 0.3)
+
+        let lowered = expectation(description: "blind")
+        hub.command(["id": "blind", "kind": "blind", "patch": ["position": 0.0]]) { _ in lowered.fulfill() }
+        await fulfillment(of: [lowered], timeout: 2)
+        XCTAssertEqual(fake.sent.last?.id, "B1")
+        XCTAssertEqual(fake.sent.last?.kind, .blind)
 
         var simulated: [String: Any]?
         hub.command(["id": "sim", "kind": "light", "patch": ["on": true]]) { simulated = $0 }
         XCTAssertEqual(simulated?["ok"] as? Bool, true)
-        XCTAssertTrue(fake.sent.count == 1)
+        XCTAssertTrue(fake.sent.count == 2)
     }
 
     // MARK: - A real Home Assistant (opt-in)
@@ -371,6 +412,7 @@ private final class FakeService: DeviceService {
             "L1": DeviceReading(light: ["on": true, "brightness": 0.5]),
             "A1": DeviceReading(ac: ["on": true, "target": 23.0, "roomTemp": 26.0], features: ["modes": ["cool"]]),
             "S1": DeviceReading(temperature: 19.5),
+            "B1": DeviceReading(blind: ["position": 0.3, "moving": NSNull()]),
         ].filter { ids.contains($0.key) }
     }
     func send(kind: DeviceKind, id: String, patch: [String: Any], state: [String: Any]) async throws {

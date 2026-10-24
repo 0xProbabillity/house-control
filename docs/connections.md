@@ -1,6 +1,7 @@
 # Connecting real devices
 
-House Control links the lamps and air conditioners of your floor plan to real devices on four platforms.
+House Control links the lamps, air conditioners and blinds of your floor plan to real devices on four platforms
+(blinds through Home Assistant for now).
 One home can mix them: Hue lamps, a Home Assistant air conditioner and a Smart Life plug side by side.
 Everything you do not link stays simulated.
 
@@ -37,6 +38,7 @@ Tuya — so connecting it brings all of them in at once.
 | `light.*` | A lamp: on/off, brightness, white temperature and colour as its colour modes allow |
 | `switch.*` | A lamp on a plug: on/off |
 | `climate.*` | An air conditioner: power, target, the modes it has (`cool`, `heat`, `dry`, `fan_only`, `auto`/`heat_cool`), its fan speeds, swing, `eco` and `sleep` presets |
+| `cover.*` | A blind: how far open (`current_position`), open, close, stop; one without SET_POSITION only opens and closes all the way |
 | `sensor.*` with `device_class: temperature` | A thermometer for an AC's room |
 
 Areas become the room shown next to each device. House Control subscribes to Home Assistant's events, so a

@@ -98,12 +98,13 @@ curl -X POST https://….trycloudflare.com/<key>/api/set_lights -d '{"lights": [
 
 | Tool | Does |
 | --- | --- |
-| `get_home` | Every room with its lights and ACs, what each can do and what it is doing, and the scenes |
+| `get_home` | Every room with its lights, ACs and blinds, what each can do and what it is doing, and the scenes |
 | `set_lights` | On, off, toggle, brightness (%), white temperature (K), colour — for ids, whole rooms, names or `all` |
 | `set_air_conditioners` | On, off, target temperature, mode, fan speed |
+| `set_blinds` | Open, close, how far open (%), stop |
 | `activate_scene` | Runs a scene |
 | `get_floor_plan` | The plan behind the 3D model, the coordinate rules and the furniture catalogue |
-| `edit_floor_plan` | A list of operations applied together: `furnish_room` (replace everything in a room — the photo case), add / update / remove rooms, furniture, doors and windows, lights, ACs and scenes |
+| `edit_floor_plan` | A list of operations applied together: `furnish_room` (replace everything in a room — the photo case), add / update / remove rooms, furniture, doors and windows, lights, ACs, blinds and scenes |
 | `replace_floor_plan` | A whole new plan, e.g. drawn from a sketch |
 | `undo_floor_plan_edit` | Puts back the plan as it was before the last change |
 | `render_home` | A picture of the 3D model, whole or one room, so the assistant can check its work |

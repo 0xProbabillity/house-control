@@ -1,5 +1,5 @@
 // The control panel that lives in the menu bar popover: header, scenes, rooms,
-// device tiles and the detail sheets for a light or an AC.
+// device tiles and the detail sheets for a light, an AC or a blind.
 import * as THREE from 'three';
 import { h, clamp, createSlider, createColorPad, openMenu } from './dom.js';
 import { icon } from './icons.js';
@@ -16,6 +16,8 @@ const SWATCHES = ['#ff5a4f', '#ff9a3c', '#ffd84a', '#5fe08a', '#42d6e8', '#4f8df
 const TEMP_GRADIENT = 'linear-gradient(90deg, #2f7df6 0%, #58b4f5 34%, #f3e2c0 62%, #f6a54a 82%, #f0762c 100%)';
 const DIM_GRADIENT = 'linear-gradient(90deg, #4a4f5e 0%, #b9a98c 45%, #ffe2b0 100%)';
 const KELVIN_GRADIENT = 'linear-gradient(90deg, #ff9438 0%, #ffbd7a 30%, #ffe2c2 62%, #dfe9ff 100%)';
+const DAYLIGHT_GRADIENT = 'linear-gradient(90deg, #2b3142 0%, #5d7392 45%, #8ec5ff 100%)';
+const DAYLIGHT = '#8ec5ff';
 
 const NAVY = new THREE.Color('#17274f');
 const tmp = new THREE.Color();
@@ -24,6 +26,14 @@ const css = (c) => `#${c.getHexString()}`;
 function lightStatus(cfg, s) {
   if (!s.on) return 'Off';
   return cfg.capabilities.includes('brightness') ? `${Math.round(s.brightness * 100)}%` : 'On';
+}
+
+function blindStatus(s) {
+  if (s.moving === 'opening') return 'Opening…';
+  if (s.moving === 'closing') return 'Closing…';
+  if (s.position >= 0.99) return 'Open';
+  if (s.position <= 0.01) return 'Closed';
+  return `${Math.round(s.position * 100)}% open`;
 }
 
 function acTemperatureColor(target, cfg) {
@@ -236,7 +246,34 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     };
   }
 
+  function blindTile(cfg) {
+    const sub = h('div.tile-sub');
+    const send = (e, fn) => { e.stopPropagation(); haptic('light'); fn(); };
+    const el = h('div.tile.blind', { role: 'button', tabindex: 0, 'aria-label': cfg.name, onclick: () => openSheet({ kind: 'blind', id: cfg.id }) },
+      h('div.bubble', icon('blind', 19)),
+      h('div.tile-text', h('div.tile-name', cfg.name), sub),
+      h('div.stepper',
+        h('button', { 'aria-label': `Open ${cfg.name}`, onclick: (e) => send(e, () => store.setBlind(cfg.id, { position: 1 })) }, icon('raise', 15, 2.2)),
+        cfg.capabilities.includes('stop')
+          ? h('button', { 'aria-label': `Stop ${cfg.name}`, onclick: (e) => send(e, () => store.stopBlind(cfg.id)) }, icon('stop', 13, 2.4))
+          : null,
+        h('button', { 'aria-label': `Close ${cfg.name}`, onclick: (e) => send(e, () => store.setBlind(cfg.id, { position: 0 })) }, icon('lower', 15, 2.2))),
+      h('div.tile-level'));
+    el.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') openSheet({ kind: 'blind', id: cfg.id }); });
+    el.style.setProperty('--c', DAYLIGHT);
+    return {
+      el, cfg, kind: 'blind',
+      update() {
+        const s = state.blinds[cfg.id];
+        el.classList.toggle('on', s.position > 0.01);
+        el.style.setProperty('--level', String(s.position));
+        sub.textContent = ui.room === 'all' && !isPhone ? `${blindStatus(s)} · ${roomName.get(cfg.room)}` : blindStatus(s);
+      },
+    };
+  }
+
   for (const cfg of config.acs) tiles.set(cfg.id, acTile(cfg));
+  for (const cfg of config.blinds) tiles.set(cfg.id, blindTile(cfg));
   for (const cfg of config.lights) tiles.set(cfg.id, lightTile(cfg));
 
   function toggleLight(id) {
@@ -255,6 +292,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
       if (!devices.length) continue;
       if (ui.room === 'all') nodes.push(h('div.group-label', room.name));
       devices.filter((t) => t.kind === 'ac').forEach(add);
+      devices.filter((t) => t.kind === 'blind').forEach(add);
       devices.filter((t) => t.kind === 'light').forEach(add);
     }
     if (!nodes.length) nodes.push(h('div.group-label', 'No devices in this room yet'));
@@ -271,7 +309,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
 
   function openSheet(target) {
     ui.sheet = target;
-    sheetView = target.kind === 'ac' ? acSheet(target.id) : lightSheet(target.id);
+    sheetView = target.kind === 'ac' ? acSheet(target.id) : target.kind === 'blind' ? blindSheet(target.id) : lightSheet(target.id);
     sheet.replaceChildren(...sheetView.nodes);
     panel.classList.add('hidden');
     sheet.classList.remove('hidden');
@@ -279,7 +317,8 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     sheet.inert = false;
     card.classList.add('detail');
     hideTooltip();
-    onFocus(target.kind === 'ac' ? target : { kind: 'room', id: store.lightCfg.get(target.id).room });
+    const cfg = target.kind === 'blind' ? store.blindCfg.get(target.id) : store.lightCfg.get(target.id);
+    onFocus(target.kind === 'ac' ? target : { kind: 'room', id: cfg.room });
     update();
   }
 
@@ -404,6 +443,40 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     };
   }
 
+  function blindSheet(id) {
+    const cfg = store.blindCfg.get(id);
+    const s = () => state.blinds[id];
+    const sub = h('div.sheet-sub');
+    const toggle = h('button.round.power', { 'aria-label': 'Open or close', onclick: () => { haptic('medium'); store.toggleBlind(id); } }, icon('blind', 20));
+    const big = bigNumber('% open');
+    const nodes = [sheetHead(cfg.name, sub, toggle), h('div.readout', big.el)];
+    let slider = null;
+    if (cfg.capabilities.includes('position')) {
+      slider = createSlider({
+        min: 0, max: 100, value: Math.round(s().position * 100), gradient: DAYLIGHT_GRADIENT, detent: 25,
+        labels: ['Closed', 'Open'],
+        onInput: (v) => store.setBlind(id, { position: v / 100 }),
+      });
+      nodes.push(h('div.slider-row', slider.el));
+    }
+    const action = (label, iconName, fn) => h('button.pill', { onclick: () => { haptic('light'); fn(); } }, icon(iconName, 14, 2.2), label);
+    nodes.push(h('div.blind-actions',
+      action('Open', 'raise', () => store.setBlind(id, { position: 1 })),
+      cfg.capabilities.includes('stop') ? action('Stop', 'stop', () => store.stopBlind(id)) : null,
+      action('Close', 'lower', () => store.setBlind(id, { position: 0 }))));
+    if (!slider) nodes.push(h('div.sheet-note', icon('blind', 20), `${roomName.get(cfg.room)} · this blind only opens and closes all the way.`));
+    return {
+      nodes,
+      update() {
+        const b = s();
+        toggle.classList.toggle('on', b.position > 0.01);
+        sub.replaceChildren(roomName.get(cfg.room), ' · ', h('b', blindStatus(b)));
+        big.set(Math.round(b.position * 100), b.position <= 0.01);
+        slider?.set(Math.round(b.position * 100));
+      },
+    };
+  }
+
   function lightSheet(id) {
     const cfg = store.lightCfg.get(id);
     const s = () => state.lights[id];
@@ -478,6 +551,9 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
       const cfg = store.lightCfg.get(hit.id);
       const s = state.lights[hit.id];
       name = cfg.name; status = lightStatus(cfg, s); on = s.on; color = css(lightColor(s, tmp));
+    } else if (hit.kind === 'blind') {
+      const s = state.blinds[hit.id];
+      name = store.blindCfg.get(hit.id).name; status = blindStatus(s); on = s.position > 0.01; color = DAYLIGHT;
     } else {
       const cfg = store.acCfg.get(hit.id);
       const s = state.acs[hit.id];

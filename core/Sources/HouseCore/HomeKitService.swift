@@ -170,6 +170,7 @@ public final class HomeKitService: NSObject, DeviceService {
     }
 
     public func send(kind: DeviceKind, id: String, patch: [String: Any], state: [String: Any]) async throws {
+        guard kind != .blind else { throw ServiceFailure("Blinds from Apple Home are not supported yet") }
         guard let entry = entries().first(where: { $0.service.uniqueIdentifier.uuidString == id }) else {
             throw ServiceFailure("This device is no longer in Apple Home")
         }

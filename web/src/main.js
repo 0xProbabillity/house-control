@@ -52,7 +52,7 @@ async function boot() {
   }
 
   const store = createStore(config);
-  const linked = [...config.lights, ...config.acs].some(isLinked);
+  const linked = [...config.lights, ...config.acs, ...config.blinds].some(isLinked);
   // Never invent a starting state for real hardware: it reports its own.
   if (!store.restored && !linked) {
     // First launch: start with something worth looking at.
@@ -78,7 +78,7 @@ async function boot() {
       onPick(target) {
         if (!target) return;
         if (target.kind === 'light') { haptic('light'); store.toggleLight(target.id); }
-        else if (target.kind === 'ac') panel.openSheet(target);
+        else if (target.kind === 'ac' || target.kind === 'blind') panel.openSheet(target);
         else if (target.kind === 'room') panel.selectRoom(target.id);
       },
     });
@@ -124,6 +124,7 @@ async function boot() {
   };
   incoming.openDevice = (id) => {
     if (store.acCfg.has(id)) panel.openSheet({ kind: 'ac', id });
+    else if (store.blindCfg.has(id)) panel.openSheet({ kind: 'blind', id });
     else if (store.lightCfg.has(id)) panel.openSheet({ kind: 'light', id });
     else if (config.rooms.some((r) => r.id === id)) { panel.closeSheet(); panel.selectRoom(id); }
   };
@@ -148,7 +149,7 @@ async function boot() {
   incoming.openAtLogin = (state) => { openAtLogin = state; };
 
   store.onDeviceError = (id, message) => {
-    const name = store.lightCfg.get(id)?.name || store.acCfg.get(id)?.name || id;
+    const name = store.lightCfg.get(id)?.name || store.acCfg.get(id)?.name || store.blindCfg.get(id)?.name || id;
     panel.toast(`${name}: ${message}`);
     haptic('error');
   };
@@ -203,6 +204,7 @@ async function boot() {
 
   const opened = window.__HOUSE_BOOT__?.openDevice || new URLSearchParams(location.search).get('device');
   if (store.acCfg.has(opened)) panel.openSheet({ kind: 'ac', id: opened });
+  else if (store.blindCfg.has(opened)) panel.openSheet({ kind: 'blind', id: opened });
   else if (store.lightCfg.has(opened)) panel.openSheet({ kind: 'light', id: opened });
 
   if (!isNative) show();

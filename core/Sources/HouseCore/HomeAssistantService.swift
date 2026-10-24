@@ -2,8 +2,9 @@ import Foundation
 
 /// A Home Assistant server on the local network (or anywhere it is reachable), through its
 /// REST API with a long-lived access token. Lights and switches become lamps, `climate`
-/// entities become air conditioners and temperature sensors can stand in for an AC's room
-/// reading. A WebSocket subscription tells the hub the moment something changes.
+/// entities become air conditioners, `cover` entities become blinds and temperature sensors
+/// can stand in for an AC's room reading. A WebSocket subscription tells the hub the moment
+/// something changes.
 @MainActor
 public final class HomeAssistantService: DeviceService {
     public let id = "homeassistant"
@@ -179,6 +180,10 @@ public final class HomeAssistantService: DeviceService {
             guard isTemperature(attributes) else { return nil }
             device = ServiceDevice(id: id, name: name, kind: .sensor)
             device.detail = "temperature sensor"
+        case "cover":
+            device = ServiceDevice(id: id, name: name, kind: .blind)
+            device.capabilities = coverCapabilities(Int(attributes.double("supported_features") ?? 0))
+            device.detail = "cover · " + (attributes["device_class"] as? String ?? "blind")
         default:
             return nil
         }
@@ -191,6 +196,14 @@ public final class HomeAssistantService: DeviceService {
         if modes.contains(where: { $0 != "onoff" }) { caps.append("brightness") }
         if modes.contains("color_temp") { caps.append("temp") }
         if modes.contains(where: { ["hs", "xy", "rgb", "rgbw", "rgbww"].contains($0) }) { caps.append("color") }
+        return caps
+    }
+
+    /// A cover's `supported_features` bits: 4 is SET_POSITION, 8 is STOP.
+    static func coverCapabilities(_ features: Int) -> [String] {
+        var caps: [String] = []
+        if features & 4 != 0 { caps.append("position") }
+        if features & 8 != 0 { caps.append("stop") }
         return caps
     }
 
@@ -258,6 +271,16 @@ public final class HomeAssistantService: DeviceService {
                 "swing": swings.contains("off") && swings.count > 1,
                 "sleep": presets.contains("sleep"), "eco": presets.contains("eco"),
             ]
+        } else if id.hasPrefix("cover.") {
+            var blind: [String: Any] = [:]
+            // Home Assistant's 100 is fully open, as is the panel's 1.
+            if let p = attributes.double("current_position") {
+                blind["position"] = max(0, min(1, p / 100))
+            } else if value == "open" || value == "closed" {
+                blind["position"] = value == "open" ? 1.0 : 0.0
+            }
+            blind["moving"] = value == "opening" || value == "closing" ? value : NSNull()
+            reading.blind = blind
         } else if id.hasPrefix("sensor."), let t = Double(value) {
             reading.temperature = (attributes["unit_of_measurement"] as? String) == "°F" ? (t - 32) * 5 / 9 : t
         }
@@ -292,6 +315,14 @@ public final class HomeAssistantService: DeviceService {
             }
             guard !data.isEmpty || patch["on"] as? Bool == true else { return [] }
             return [call("turn_on", data)]
+        }
+        if domain == "cover" {
+            if patch["stop"] as? Bool == true { return [call("stop_cover")] }
+            guard let p = patch["position"] as? Double else { return [] }
+            // All the way is open/close, which every cover supports; part-way needs SET_POSITION.
+            if p >= 0.995 { return [call("open_cover")] }
+            if p <= 0.005 { return [call("close_cover")] }
+            return [call("set_cover_position", ["position": Int((p * 100).rounded())])]
         }
         guard domain == "climate" else { return [] }
 

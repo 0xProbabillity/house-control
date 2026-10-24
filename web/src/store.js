@@ -12,6 +12,11 @@ function defaultLight(cfg) {
   return { on: false, brightness: 0.8, temp: 3000, color: cfg.color || null };
 }
 
+// A blind is open (1) until a real one says otherwise; `moving` is only ever reported.
+function defaultBlind() {
+  return { position: 1, moving: null };
+}
+
 function defaultAC(cfg, outdoor) {
   return {
     on: false, target: 24, mode: 'cool', fan: 'auto', swing: 'swing',
@@ -25,10 +30,12 @@ export function createStore(config) {
   const listeners = new Set();
   const lightCfg = new Map(config.lights.map((l) => [l.id, l]));
   const acCfg = new Map(config.acs.map((a) => [a.id, a]));
+  const blindCfg = new Map(config.blinds.map((b) => [b.id, b]));
 
-  const state = { lights: {}, acs: {}, scene: null };
+  const state = { lights: {}, acs: {}, blinds: {}, scene: null };
   for (const l of config.lights) state.lights[l.id] = defaultLight(l);
   for (const a of config.acs) state.acs[a.id] = defaultAC(a, config.outdoorTemp);
+  for (const b of config.blinds) state.blinds[b.id] = defaultBlind();
   // What each real AC can do, as reported by the native side. A simulated AC can do everything.
   const features = {};
 
@@ -38,6 +45,7 @@ export function createStore(config) {
     if (saved && saved.home === config.name) {
       for (const [id, s] of Object.entries(saved.lights || {})) if (state.lights[id]) Object.assign(state.lights[id], s);
       for (const [id, s] of Object.entries(saved.acs || {})) if (state.acs[id]) Object.assign(state.acs[id], s);
+      for (const [id, s] of Object.entries(saved.blinds || {})) if (state.blinds[id]) Object.assign(state.blinds[id], s, { moving: null });
       for (const [id, f] of Object.entries(saved.features || {})) if (state.acs[id]) features[id] = f;
       state.scene = saved.scene || null;
       restored = true;
@@ -61,19 +69,20 @@ export function createStore(config) {
       post('summary', summary());
       // The native shell passes this on to its other views of the same home (the panel
       // and the island each run their own store), which adopt it without re-sending.
-      if (!change.adopted) post('state', { lights: state.lights, acs: state.acs, scene: state.scene, source: change.source ?? store.source ?? null });
+      if (!change.adopted) post('state', { lights: state.lights, acs: state.acs, blinds: state.blinds, scene: state.scene, source: change.source ?? store.source ?? null });
     }
   }
 
   // One command per device is in flight at a time. Whatever changes meanwhile is merged
   // into a single follow-up, so dragging a slider costs a couple of requests (or infrared
   // key presses) instead of dozens. A change the device refuses is rolled back.
-  const COOL_DOWN = { light: 300, ac: 900 };
+  const COOL_DOWN = { light: 300, ac: 900, blind: 600 };
   const outbox = new Map();
+  const stateOf = (kind, id) => (kind === 'light' ? state.lights : kind === 'blind' ? state.blinds : state.acs)[id];
 
   function transmit(kind, id, patch) {
     if (!isNative) return Promise.resolve();
-    const current = kind === 'light' ? state.lights[id] : state.acs[id];
+    const current = stateOf(kind, id);
     const sent = call('command', { kind, id, patch, state: { ...current } });
     // Never let a lost reply block the device for good.
     return Promise.race([sent, new Promise((resolve) => setTimeout(resolve, 20000))]);
@@ -104,7 +113,7 @@ export function createStore(config) {
   }
 
   function rollback(kind, id, patch, before, entry, error) {
-    const current = kind === 'light' ? state.lights[id] : state.acs[id];
+    const current = stateOf(kind, id);
     let any = false;
     for (const key of error.detail?.failed || Object.keys(patch)) {
       if (!(key in patch)) continue;
@@ -158,6 +167,22 @@ export function createStore(config) {
     return true;
   }
 
+  // `position` 0…1, 1 being fully open; `moving` ("opening", "closing" or null) comes from
+  // a real blind only and is never sent.
+  function writeBlind(id, patch, { remote = false } = {}) {
+    const cur = state.blinds[id];
+    if (!cur) return false;
+    const clean = {};
+    if ('position' in patch) clean.position = Math.round(clamp(Number(patch.position) || 0, 0, 1) * 100) / 100;
+    if (remote && 'moving' in patch) clean.moving = patch.moving || null;
+    const diff = Object.fromEntries(Object.entries(clean).filter(([k, v]) => cur[k] !== v));
+    if (!Object.keys(diff).length) return false;
+    const before = Object.fromEntries(Object.keys(diff).map((k) => [k, cur[k]]));
+    Object.assign(cur, clean);
+    if (!remote && 'position' in diff) dispatch('blind', id, { position: diff.position }, before);
+    return true;
+  }
+
   function summary() {
     const lights = Object.values(state.lights);
     const acs = Object.entries(state.acs).filter(([, a]) => a.on);
@@ -176,6 +201,7 @@ export function createStore(config) {
     restored,
     lightCfg,
     acCfg,
+    blindCfg,
     summary,
     /** Set by the UI: called with (device id, message) when a real device refuses a change. */
     onDeviceError: null,
@@ -204,6 +230,25 @@ export function createStore(config) {
       if (writeAC(id, patch)) emit({ type: 'ac', id });
     },
 
+    setBlind(id, patch) {
+      if (writeBlind(id, patch)) { state.scene = null; emit({ type: 'blind', id }); }
+    },
+    /** Open when it is down even a little, the way a wall switch's single button does. */
+    toggleBlind(id) { store.setBlind(id, { position: state.blinds[id].position > 0.02 ? 0 : 1 }); },
+    setBlinds(ids, position) {
+      let any = false;
+      for (const id of ids) any = writeBlind(id, { position }) || any;
+      if (any) { state.scene = null; emit({ type: 'bulk' }); }
+    },
+    /** Stops a moving blind where it is. A real one reports where that was; a simulated one is already there. */
+    stopBlind(id) {
+      if (!state.blinds[id]) return;
+      const slot = outbox.get(id);
+      // A stop replaces whatever was still waiting to be sent.
+      if (slot) { slot.pending = { stop: true }; slot.before = {}; return; }
+      dispatch('blind', id, { stop: true }, {});
+    },
+
     applyScene(sceneId) {
       const scene = config.scenes.find((s) => s.id === sceneId);
       if (!scene) return;
@@ -217,12 +262,16 @@ export function createStore(config) {
         const patch = { ...(scene.acs['*'] || {}), ...(scene.acs[id] || {}) };
         if (Object.keys(patch).length) writeAC(id, patch);
       }
+      for (const id of Object.keys(state.blinds)) {
+        const patch = { ...(scene.blinds['*'] || {}), ...(scene.blinds[id] || {}) };
+        if ('position' in patch) writeBlind(id, patch);
+      }
       state.scene = sceneId;
       emit({ type: 'bulk', scene: sceneId });
     },
 
     /** Reports the state again, for a view that has only just started. */
-    share() { post('state', { lights: state.lights, acs: state.acs, scene: state.scene }); },
+    share() { post('state', { lights: state.lights, acs: state.acs, blinds: state.blinds, scene: state.scene }); },
 
     // The state of another view of this home (see emit). Nothing goes to the devices:
     // the view where the change was made has already sent it.
@@ -230,6 +279,7 @@ export function createStore(config) {
       let any = false;
       for (const [id, s] of Object.entries(other.lights || {})) any = writeLight(id, s, { remote: true }) || any;
       for (const [id, s] of Object.entries(other.acs || {})) any = writeAC(id, s, { remote: true }) || any;
+      for (const [id, s] of Object.entries(other.blinds || {})) any = writeBlind(id, s, { remote: true }) || any;
       const scene = other.scene ?? null;
       if (scene !== state.scene) { state.scene = scene; any = true; }
       if (any) emit({ type: 'bulk', remote: true, adopted: true, source: other.source || null });
@@ -240,6 +290,7 @@ export function createStore(config) {
       let any = false;
       for (const [id, patch] of Object.entries(update.lights || {})) any = writeLight(id, patch, { remote: true }) || any;
       for (const [id, patch] of Object.entries(update.acs || {})) any = writeAC(id, patch, { remote: true }) || any;
+      for (const [id, patch] of Object.entries(update.blinds || {})) any = writeBlind(id, patch, { remote: true }) || any;
       for (const [id, f] of Object.entries(update.features || {})) {
         if (!state.acs[id] || JSON.stringify(features[id]) === JSON.stringify(f)) continue;
         features[id] = f;

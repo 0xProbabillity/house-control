@@ -455,6 +455,13 @@ html.native .card { width: auto; height: auto; box-shadow:
 .tile.ac.on.idle { background: var(--glass); border-color: var(--line); box-shadow: none; }
 .tile.ac.on.idle .bubble, .tile.ac.on.idle .mini-power { background: transparent; color: var(--c); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 70%, transparent); }
 
+/* A blind: how far it is open runs along the bottom, in daylight blue. */
+.tile.blind { grid-column: 1 / -1; cursor: pointer; }
+.tile.blind .tile-level { opacity: 0.6; }
+.tile.blind.on .bubble { color: #06162c; }
+.blind-actions { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
+.blind-actions .pill { display: inline-flex; align-items: center; gap: 6px; padding-inline: 14px; }
+
 .tile:focus-visible { outline: none; border-color: rgba(120, 175, 255, 0.8); }
 
 .panel-toast {

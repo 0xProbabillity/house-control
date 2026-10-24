@@ -3,7 +3,7 @@
 // real devices. On a phone the same pieces are laid out for a finger: the plan fills the
 // screen, the inspector is a sheet from the bottom, pinch zooms and drag pans.
 import './editor.css';
-import { normalize, loadRawConfig, LIGHT_KINDS, FLOOR_KINDS, isLinked } from '../config.js';
+import { normalize, loadRawConfig, LIGHT_KINDS, FLOOR_KINDS, BLIND_KINDS, isLinked } from '../config.js';
 import { createWorld } from '../three/world.js';
 import { FURNITURE_TYPES, footprint } from '../three/furniture.js';
 import { h, clamp } from '../ui/dom.js';
@@ -19,8 +19,8 @@ const sv = (tag, attrs = {}, ...kids) => {
   return el;
 };
 
-const KEYS = { room: 'rooms', light: 'lights', ac: 'acs', furniture: 'furniture', opening: 'openings', scene: 'scenes' };
-const TITLES = { room: 'Rooms', light: 'Lights', ac: 'Air conditioners', furniture: 'Furniture', opening: 'Doors & windows', scene: 'Scenes' };
+const KEYS = { room: 'rooms', light: 'lights', ac: 'acs', furniture: 'furniture', opening: 'openings', blind: 'blinds', scene: 'scenes' };
+const TITLES = { room: 'Rooms', light: 'Lights', ac: 'Air conditioners', furniture: 'Furniture', opening: 'Doors & windows', blind: 'Blinds', scene: 'Scenes' };
 const FLOOR_FILL = { oak: '#4a3d2e', walnut: '#3c2f28', tile: '#39424b', stone: '#30353c' };
 const WALLS = ['north', 'east', 'south', 'west'];
 const SCENE_ICONS = ['sun', 'sofa', 'film', 'moon', 'door', 'table', 'bed', 'tv', 'sparkles'];
@@ -153,9 +153,10 @@ export async function bootEditor(root) {
   function validate() {
     try {
       valid = normalize(structuredClone(doc));
-      const linked = [...doc.lights, ...doc.acs].filter(isLinked).length;
+      const linked = [...doc.lights, ...doc.acs, ...doc.blinds].filter(isLinked).length;
       status.className = 'status';
       status.replaceChildren(h('span.ok', '●'), ` ${doc.rooms.length} rooms · ${doc.lights.length} lights · ${doc.acs.length} ACs · `,
+        doc.blinds.length ? `${doc.blinds.length} blinds · ` : '',
         `${linked} linked to real devices`, dirty ? h('span.dirty', ' · unsaved changes') : '');
     } catch (e) {
       valid = null;
@@ -170,6 +171,8 @@ export async function bootEditor(root) {
     const state = { lights: {}, acs: {} };
     for (const l of cfg.lights) state.lights[l.id] = { on: previewLights, brightness: 0.85, temp: 3200, color: l.color || null };
     for (const a of cfg.acs) state.acs[a.id] = { on: previewLights, mode: 'cool', fan: 'auto', swing: 'swing', sleep: false, target: 23 };
+    // Half down, so the preview shows where each blind hangs.
+    state.blinds = Object.fromEntries(cfg.blinds.map((b) => [b.id, { position: 0.5 }]));
     return { state, on: () => () => {} };
   }
 
@@ -213,6 +216,7 @@ export async function bootEditor(root) {
     if (kind === 'ac') return [item.name || item.id, `${roomName(item.room)} · ${item.wall} wall`];
     if (kind === 'furniture') return [item.type, roomName(roomAt(item.pos)?.id) || '—'];
     if (kind === 'opening') return [item.type || 'door', `${fix(Math.hypot(item.to[0] - item.from[0], item.to[1] - item.from[1]))} m`];
+    if (kind === 'blind') return [item.name || item.id, `${roomName(item.room)} · ${item.style || 'roller'}`];
     return [item.name || item.id, `${Object.keys(item.lights || {}).length} rules`];
   }
 
@@ -244,7 +248,7 @@ export async function bootEditor(root) {
   }
 
   function uniqueId(base) {
-    const ids = new Set([...doc.rooms, ...doc.lights, ...doc.acs, ...doc.scenes].map((x) => x.id));
+    const ids = new Set([...doc.rooms, ...doc.lights, ...doc.acs, ...doc.blinds, ...doc.scenes].map((x) => x.id));
     if (!ids.has(base)) return base;
     for (let i = 2; ; i++) if (!ids.has(`${base}${i}`)) return `${base}${i}`;
   }
@@ -270,6 +274,11 @@ export async function bootEditor(root) {
       if (!room) return toast('Add a room first', true);
       const z = room.rect[1] + room.rect[3];
       list.push({ type: 'door', from: [fix(center[0] - 0.45), fix(z)], to: [fix(center[0] + 0.45), fix(z)] });
+    } else if (kind === 'blind') {
+      if (!room) return toast('Add a room first', true);
+      const pane = doc.openings.find((o) => o.type === 'window' && onEdgeOf(room, o));
+      if (!pane) return toast(`Add a window to ${room.name || room.id} first: a blind hangs in a window`, true);
+      list.push({ id: uniqueId(`${room.id}.blind`), name: `${room.name || room.id} blind`, room: room.id, from: [...pane.from], to: [...pane.to] });
     } else if (kind === 'scene') {
       list.push({ id: uniqueId('scene'), name: 'New scene', icon: 'sparkles', lights: { '*': { on: false } } });
     }
@@ -298,11 +307,12 @@ export async function bootEditor(root) {
       // Devices cannot outlive their room.
       doc.lights = doc.lights.filter((l) => l.room !== gone.id);
       doc.acs = doc.acs.filter((a) => a.room !== gone.id);
+      doc.blinds = doc.blinds.filter((b) => b.room !== gone.id);
     }
-    if (kind === 'light' || kind === 'ac' || kind === 'room') {
-      const ids = new Set([...doc.lights, ...doc.acs].map((d) => d.id));
+    if (kind === 'light' || kind === 'ac' || kind === 'blind' || kind === 'room') {
+      const ids = new Set([...doc.lights, ...doc.acs, ...doc.blinds].map((d) => d.id));
       for (const sc of doc.scenes) {
-        for (const map of [sc.lights, sc.acs]) for (const id of Object.keys(map || {})) if (id !== '*' && !ids.has(id)) delete map[id];
+        for (const map of [sc.lights, sc.acs, sc.blinds]) for (const id of Object.keys(map || {})) if (id !== '*' && !ids.has(id)) delete map[id];
       }
     }
     sel = { kind: 'home' };
@@ -365,6 +375,22 @@ export async function bootEditor(root) {
       }));
     });
 
+    const layers = new Map(); // blinds sharing a window are drawn side by side, as they hang
+    doc.blinds.forEach((bl, i) => {
+      // Drawn just inside its room, along the window it hangs in.
+      const room = doc.rooms.find((r) => r.id === bl.room);
+      const [nx, nz] = room ? inward(room, bl) : [0, 0];
+      const key = [bl.from, bl.to].map((p) => p.join(',')).sort().join('|');
+      const off = 0.16 + (layers.get(key) || 0) * 0.13;
+      layers.set(key, (layers.get(key) || 0) + 1);
+      const line = { x1: bl.from[0] + nx * off, y1: bl.from[1] + nz * off, x2: bl.to[0] + nx * off, y2: bl.to[1] + nz * off };
+      if (big) kids.push(sv('line', { class: 'p-hit', 'data-kind': 'blind', 'data-index': i, ...line }));
+      kids.push(sv('line', {
+        class: `p-blind ${bl.style || 'roller'}${isSel('blind', i) ? ' sel' : ''}${isLinked(bl) ? ' linked' : ''}`,
+        'data-kind': 'blind', 'data-index': i, ...line,
+      }));
+    });
+
     doc.acs.forEach((a, i) => {
       const rot = { north: 0, east: 90, south: 180, west: 270 }[a.wall] || 0;
       kids.push(sv('g', {
@@ -423,6 +449,43 @@ export async function bootEditor(root) {
     ac.pos = wall === 'north' ? [cx, rz] : wall === 'south' ? [cx, fix(rz + rd)] : wall === 'west' ? [rx, cz] : [fix(rx + rw), cz];
   }
 
+  // True when the opening `o` lies on one of the room's four edges.
+  function onEdgeOf(room, o) {
+    const [x, z, w, d] = room.rect;
+    const e = 1e-6;
+    const within = (v, a, b) => v >= a - e && v <= b + e;
+    if (o.from[1] === o.to[1]) {
+      return (Math.abs(o.from[1] - z) < e || Math.abs(o.from[1] - (z + d)) < e) && within(o.from[0], x, x + w) && within(o.to[0], x, x + w);
+    }
+    return (Math.abs(o.from[0] - x) < e || Math.abs(o.from[0] - (x + w)) < e) && within(o.from[1], z, z + d) && within(o.to[1], z, z + d);
+  }
+
+  // Unit step from a blind's wall into its room.
+  function inward(room, bl) {
+    const [x, z, w, d] = room.rect;
+    if (bl.from[1] === bl.to[1]) return [0, Math.sign(z + d / 2 - bl.from[1]) || 1];
+    return [Math.sign(x + w / 2 - bl.from[0]) || 1, 0];
+  }
+
+  // Hangs a blind in the window nearest the pointer, in the room on the pointer's side.
+  function snapBlind(bl, [px, pz]) {
+    const dist = (o) => {
+      const [ax, az] = o.from;
+      const [bx, bz] = o.to;
+      const len2 = (bx - ax) ** 2 + (bz - az) ** 2 || 1;
+      const t = clamp(((px - ax) * (bx - ax) + (pz - az) * (bz - az)) / len2, 0, 1);
+      return Math.hypot(px - (ax + t * (bx - ax)), pz - (az + t * (bz - az)));
+    };
+    const pane = doc.openings.filter((o) => o.type === 'window').sort((a, b) => dist(a) - dist(b))[0];
+    if (!pane || dist(pane) > 1.5) return;
+    const rooms = doc.rooms.filter((r) => onEdgeOf(r, pane));
+    const side = pane.from[1] === pane.to[1] ? Math.sign(pz - pane.from[1]) : Math.sign(px - pane.from[0]);
+    const room = rooms.find((r) => inward(r, pane)[pane.from[1] === pane.to[1] ? 1 : 0] === side) || rooms[0];
+    bl.from = [...pane.from];
+    bl.to = [...pane.to];
+    if (room) bl.room = room.id;
+  }
+
   let drag = null;
   plan.addEventListener('pointerdown', (ev) => {
     if (isPhone) return;
@@ -453,8 +516,9 @@ export async function bootEditor(root) {
         ...doc.acs.filter((a) => a.room === item.id).map((o) => ({ o, pos: [...o.pos] })),
         ...doc.furniture.filter((f) => Array.isArray(f.pos) && inside(f.pos)).map((o) => ({ o, pos: [...o.pos] })),
       ];
-      drag.openings = doc.openings.filter((o) => inside(o.from) && inside(o.to)).map((o) => ({ o, from: [...o.from], to: [...o.to] }));
-    } else if (kind === 'opening') {
+      drag.openings = [...doc.openings, ...doc.blinds.filter((b) => b.room === item.id)]
+        .filter((o) => inside(o.from) && inside(o.to)).map((o) => ({ o, from: [...o.from], to: [...o.to] }));
+    } else if (kind === 'opening' || kind === 'blind') {
       drag.from = [...item.from];
       drag.to = [...item.to];
     } else {
@@ -489,6 +553,8 @@ export async function bootEditor(root) {
     } else if (drag.kind === 'opening') {
       item.from = [fix(drag.from[0] + dx), fix(drag.from[1] + dz)];
       item.to = [fix(drag.to[0] + dx), fix(drag.to[1] + dz)];
+    } else if (drag.kind === 'blind') {
+      snapBlind(item, [px, pz]);
     } else if (drag.kind === 'ac') {
       snapAC(item, [px, pz]);
     } else {
@@ -628,6 +694,29 @@ export async function bootEditor(root) {
         h('p.note', 'Dragging the unit on the plan snaps it to the nearest wall of its room.')),
       links.deviceSection(item, 'ac', linkHooks),
       links.sensorSection(item, linkHooks));
+    } else if (kind === 'blind') {
+      head(item.name || item.id, `id: ${item.id}`);
+      item.capabilities ||= ['position', 'stop'];
+      const cap = (name) => ({
+        get: () => item.capabilities.includes(name),
+        set: (on) => { item.capabilities = item.capabilities.filter((c) => c !== name); if (on) item.capabilities.push(name); },
+      });
+      nodes.push(section('Blind',
+        bind('Name', text(), prop(item, 'name', '')),
+        row(bind('Room', choice(doc.rooms.map((r) => [r.id, r.name || r.id])), { ...prop(item, 'room'), event: 'change' }),
+          bind('Style', choice(BLIND_KINDS), { ...prop(item, 'style', 'roller'), event: 'change' }))),
+      section('Window, m',
+        row(bind('From X', number(), { ...at(item, 'from', 0), parse: parseNum }), bind('From Z', number(), { ...at(item, 'from', 1), parse: parseNum })),
+        row(bind('To X', number(), { ...at(item, 'to', 0), parse: parseNum }), bind('To Z', number(), { ...at(item, 'to', 1), parse: parseNum })),
+        row(bind('Bottom (window’s if empty)', number(), { ...optional(item, 'sill'), parse: optNum }),
+          bind('Top (window’s if empty)', number(), { ...optional(item, 'head'), parse: optNum })),
+        h('p.note', 'Dragging the blind on the plan hangs it in the nearest window. Two blinds in one window, a sheer and a blackout, hang one in front of the other.')),
+      section('What it can do',
+        h('div.checks',
+          bind('Stops part-way', h('input', { type: 'checkbox' }), { ...cap('position'), event: 'change' }),
+          bind('Can be stopped', h('input', { type: 'checkbox' }), { ...cap('stop'), event: 'change' })),
+        h('p.note', 'Leave “Stops part-way” off for a blind that only opens and closes all the way.')),
+      links.deviceSection(item, 'blind', linkHooks));
     } else if (kind === 'furniture') {
       head(item.type, 'Decoration only');
       nodes.push(section('Furniture',
@@ -668,7 +757,20 @@ export async function bootEditor(root) {
           get: () => (item.acs?.['*']?.on === true ? 'on' : item.acs?.['*']?.on === false ? 'off' : ''),
           set: (v) => { item.acs ||= {}; if (v === '') delete item.acs['*']; else item.acs['*'] = { on: v === 'on' }; },
           event: 'change',
-        })));
+        })),
+      doc.blinds.length ? section('Blinds',
+        [{ id: '*', name: 'All blinds (default)' }, ...doc.blinds].map((b) => bind(b.id === '*' ? b.name : `${b.name} · ${roomName(b.room)}`,
+          choice([['', 'Leave as is'], ['open', 'Open'], ['closed', 'Close']]), {
+            get: () => ({ 1: 'open', 0: 'closed' })[item.blinds?.[b.id]?.position] ?? '',
+            set: (v) => {
+              item.blinds ||= {};
+              if (v === '') delete item.blinds[b.id];
+              else item.blinds[b.id] = { position: v === 'open' ? 1 : 0 };
+              if (!Object.keys(item.blinds).length) delete item.blinds;
+            },
+            event: 'change',
+          })),
+        h('p.note', 'A blind can also be set part-way in the plan file: "position": 0.5 is half open.')) : null);
     }
     const key = `${sel.kind}:${sel.index ?? sel.service ?? ''}`;
     const same = key === inspector.dataset.key;
@@ -1061,7 +1163,7 @@ export async function bootEditor(root) {
       const room = sel.kind === 'room' && doc.rooms[sel.index];
       const [px, pz] = planPoint(ev);
       const inRoom = room && px >= room.rect[0] && px <= room.rect[0] + room.rect[2] && pz >= room.rect[1] && pz <= room.rect[1] + room.rect[3];
-      if (kind === 'resize' || (kind && kind !== 'none' && isSel(kind, index)) || (inRoom && kind !== 'light' && kind !== 'ac')) {
+      if (kind === 'resize' || (kind && kind !== 'none' && isSel(kind, index)) || (inRoom && kind !== 'light' && kind !== 'ac' && kind !== 'blind')) {
         const what = kind === 'resize' || isSel(kind, index) ? [kind, index] : ['room', sel.index];
         // The view holds still while something is dragged past the plan's edge.
         if (!ui.view) ui.view = fitBox();
