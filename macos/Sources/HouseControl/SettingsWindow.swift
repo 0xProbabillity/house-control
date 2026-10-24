@@ -55,7 +55,7 @@ final class SettingsWindowController: NSWindowController {
             ("General", "gearshape", AnyView(GeneralPane())),
             ("Home", "house", AnyView(HomePane())),
             ("Connections", "point.3.connected.trianglepath.dotted", AnyView(ConnectionsPane())),
-            ("iPhone", "iphone", AnyView(PhonePane())),
+            ("Phone", "iphone", AnyView(PhonePane())),
             ("AI Access", "sparkles", AnyView(AgentPane())),
             ("About", "info.circle", AnyView(AboutPane())),
         ]
@@ -139,7 +139,7 @@ private struct GeneralPane: View {
             }
             Section("Getting around") {
                 Tip(symbol: "cursorarrow.click", text: "Click the house in the menu bar for the panel.")
-                Tip(symbol: "contextualmenu.and.cursorarrow", text: "Right-click it for the menu: editor, iPhone, AI Access.")
+                Tip(symbol: "contextualmenu.and.cursorarrow", text: "Right-click it for the menu: editor, phone pairing, AI Access.")
                 Tip(symbol: "command", text: "⌘, opens these settings from any House Control window.")
             }
         }
@@ -192,7 +192,7 @@ private struct ConnectionsPane: View {
                     }
                 }
             } footer: {
-                Footnote("Connections are set up in the editor, where you also link each lamp and AC to its real device. Home Assistant and Hue are shared with a paired iPhone.")
+                Footnote("Connections are set up in the editor, where you also link each lamp and AC to its real device. Home Assistant and Hue are shared with a paired phone.")
             }
         }
     }
@@ -205,15 +205,15 @@ private struct PhonePane: View {
         Pane {
             Section {
                 if model.phones.isEmpty {
-                    Label("No iPhone is connected right now", systemImage: "iphone.slash").foregroundStyle(.secondary)
+                    Label("No phone is connected right now", systemImage: "iphone.slash").foregroundStyle(.secondary)
                 } else {
                     ForEach(model.phones, id: \.self) { phone in
                         Label { Text(phone) } icon: { Image(systemName: "iphone").foregroundStyle(.green) }
                     }
                 }
-                ActionRow(symbol: "qrcode", title: "Pair iPhone…", detail: "Show the code to scan with House Control on the iPhone", action: model.pairPhone)
+                ActionRow(symbol: "qrcode", title: "Pair Phone…", detail: "Show the code to scan with House Control on an Android phone or iPhone", action: model.pairPhone)
             } footer: {
-                Footnote("Paired, the iPhone gets this floor plan and its connections and keeps them in step with the Mac, whichever one you edit. An iPhone stays connected while its app is open.")
+                Footnote("Paired, the phone gets this floor plan and its connections and keeps them in step with the Mac, whichever one you edit. A phone stays connected while its app is open.")
             }
         }
     }

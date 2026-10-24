@@ -284,7 +284,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
     }
     nodes.push(section(info.connected ? 'How it works' : 'Set it up on your iPhone',
       h('ol.steps',
-        h('li', 'Pair your iPhone with this Mac: right-click the menu bar icon → Pair iPhone….'),
+        h('li', 'Pair your iPhone with this Mac: right-click the menu bar icon → Pair Phone….'),
         h('li', 'On the iPhone: House Control → Settings → Apple Home → Connect, and allow access to your Home data.'),
         h('li', 'Its lamps, air conditioners and thermometers appear here. Link them like any other device.')),
       h('p.note', 'Apple lets only iPhone, iPad and App Store apps use HomeKit, so the iPhone app switches these devices. On the Mac they show what you set, but stay simulated.')));

@@ -565,7 +565,7 @@ export async function bootEditor(root) {
         h('p.note', 'Walls facing the camera are cut away, so the azimuth decides which side of the home is open.')),
       section('How it works',
         h('p.note', isPhone
-          ? 'Tap anything on the plan, or find it under Items, to edit it. “Save” keeps the plan on this iPhone and sends it to your paired Mac. Coordinates are metres: x grows to the right (east), z grows downwards (south).'
+          ? 'Tap anything on the plan, or find it under Items, to edit it. “Save” keeps the plan on this iPhone and sends it to your paired computer. Coordinates are metres: x grows to the right (east), z grows downwards (south).'
           : 'Pick anything on the plan or in the list to edit it. “Save & apply” writes the plan to disk and reloads the menu bar panel. Coordinates are metres: x grows to the right (east), z grows downwards (south).')));
     } else if (kind === 'connections') {
       head('Connections', 'Where your real lamps and air conditioners live');
@@ -936,7 +936,7 @@ export async function bootEditor(root) {
         onclick: () => { closeModals(); add(kind); haptic('light'); ui.reveal(); },
       }, icon(name, 24, 1.8), h('span', label)))));
     confirmSheet.append(h('div.p-modal-head', h('b', 'Unsaved changes')),
-      h('p.note', 'Save them before closing? Saved plans reach your paired Mac too.'),
+      h('p.note', 'Save them before closing? Saved plans reach your paired computer too.'),
       h('div.p-confirm-actions',
         h('button.btn.primary.wide', { onclick: async () => { closeModals(); await save(); if (!dirty) close(); } }, 'Save and close'),
         h('button.btn.wide.danger', { onclick: () => { closeModals(); dirty = false; close(); } }, 'Discard changes'),

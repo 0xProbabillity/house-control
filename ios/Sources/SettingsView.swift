@@ -102,7 +102,7 @@ struct SettingsView: View {
                     .buttonStyle(SecondaryButtonStyle())
             }
             if !model.hasCustomPlan {
-                footnote("Make your own home here, or pair with House Control on a Mac and the one drawn there arrives by itself.")
+                footnote("Make your own home here, or pair with House Control on a Mac or PC and the one drawn there arrives by itself.")
             }
         }
     }
@@ -183,7 +183,7 @@ struct SettingsView: View {
 
     private var macSection: some View {
         VStack(spacing: 10) {
-            SectionTitle("Mac")
+            SectionTitle("Mac or PC")
             if let name = model.macName {
                 Card {
                     HStack(spacing: 14) {
@@ -218,7 +218,7 @@ struct SettingsView: View {
                 .confirmationDialog("Unpair from \(name)?", isPresented: $confirmUnpair, titleVisibility: .visible) {
                     Button("Unpair", role: .destructive) { model.unpair() }
                 } message: {
-                    Text("The floor plan stays on this iPhone but no longer follows the Mac.")
+                    Text("The floor plan stays on this iPhone but no longer follows the computer.")
                 }
                 footnote("Changes saved on either one reach the other while both are on the same Wi-Fi: the floor plan, device links, Home Assistant and Hue.")
             } else {
@@ -226,8 +226,8 @@ struct SettingsView: View {
                     HStack(alignment: .top, spacing: 14) {
                         IconBadge(symbol: "laptopcomputer.and.iphone", tint: Theme.accent)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Optional: a Mac").font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
-                            Text("Pair with House Control on a Mac and your home — rooms, lamps, device links, connections — stays the same on both, whichever one you edit.")
+                            Text("Optional: a Mac or PC").font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
+                            Text("Pair with House Control on a Mac or PC and your home — rooms, lamps, device links, connections — stays the same on both, whichever one you edit.")
                                 .font(.system(size: 14))
                                 .foregroundStyle(Theme.muted)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -235,7 +235,7 @@ struct SettingsView: View {
                     }
                 }
                 NavigationLink(value: SettingsRoute.pairing) {
-                    Label("Pair with Mac", systemImage: "qrcode.viewfinder")
+                    Label("Pair with Mac or PC", systemImage: "qrcode.viewfinder")
                 }
                 .buttonStyle(PrimaryButtonStyle())
             }
@@ -405,9 +405,9 @@ struct SettingsView: View {
 
     private var homeKitFootnote: String {
         if case .ready = model.homeKit, model.macName != nil {
-            return "This iPhone switches your Apple Home devices; your Mac lists them for its editor, but macOS lets only App Store apps use HomeKit."
+            return "This iPhone switches your Apple Home devices; your paired computer lists them for its editor, but only the iPhone app may use HomeKit."
         }
-        return "Home Assistant and Hue set up here or on your paired Mac work on both, shared over your encrypted link."
+        return "Home Assistant and Hue set up here or on your paired computer work on both, shared over your encrypted link."
     }
 
     // MARK: - About
@@ -421,8 +421,8 @@ struct SettingsView: View {
                 infoRow("Privacy", value: "No account, no analytics")
             }
             footnote(AppModel.includesSmartLife
-                ? "House Control talks to your own devices: Tuya's servers for Smart Life, your Home Assistant, your Hue Bridge, Apple Home, and your Mac. Nothing else leaves this iPhone."
-                : "House Control talks to your own devices: your Home Assistant, your Hue Bridge, Apple Home, and your Mac. Nothing else leaves this iPhone.")
+                ? "House Control talks to your own devices: Tuya's servers for Smart Life, your Home Assistant, your Hue Bridge, Apple Home, and your paired computer. Nothing else leaves this iPhone."
+                : "House Control talks to your own devices: your Home Assistant, your Hue Bridge, Apple Home, and your paired computer. Nothing else leaves this iPhone.")
             Card {
                 webRow(About.website, symbol: "globe", tint: Theme.accent, title: "Website", detail: "Features, help and the Mac app")
                 RowDivider()

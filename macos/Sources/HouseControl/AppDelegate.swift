@@ -200,7 +200,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                          action: #selector(toggleOpenAtLogin), keyEquivalent: "")
             loginItem.target = self
             loginItem.state = login == .on ? .on : login == .needsApproval ? .mixed : .off
-            menu.addItem(withTitle: "Pair iPhone…", action: #selector(pairPhone), keyEquivalent: "").target = self
+            menu.addItem(withTitle: "Pair Phone…", action: #selector(pairPhone), keyEquivalent: "").target = self
             let aiItem = menu.addItem(withTitle: agent.isLive ? "AI Access — Live" : "AI Access…", action: #selector(openAgent), keyEquivalent: "")
             aiItem.target = self
             aiItem.image = NSImage(systemSymbolName: "sparkles", accessibilityDescription: nil)
@@ -667,12 +667,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let editor, let plan = plans.customPlan() { editor.host.call("planArrived", plan, phone) }
     }
 
-    /// Shows the QR code an iPhone scans once to find this Mac and receive its floor plan.
+    /// Shows the QR code a phone scans once to find this Mac and receive its floor plan.
     @objc private func pairPhone() {
         panel.hide()
         let pairing = sync.enable(name: computerName)
         if pairingWindow == nil {
-            let window = QRWindowController(title: "Pair iPhone")
+            let window = QRWindowController(title: "Pair Phone")
             window.onClose = { [weak self] in self?.pairingWindow = nil }
             window.addButton("Copy Pairing Link") { [weak self] in
                 guard let link = self?.sync.pairing?.link else { return }
@@ -683,8 +683,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             pairingWindow = window
         }
         pairingWindow?.show(code: pairing.link,
-                            headline: "Scan with House Control on your iPhone",
-                            detail: "On the iPhone open Settings → Pair with Mac. Both devices must be on the same Wi-Fi. "
+                            headline: "Scan with House Control on your phone",
+                            detail: "On the phone, Android or iPhone, open Settings → Pair with Mac or PC (Pair with Mac in older versions). Both devices must be on the same Wi-Fi. "
                                 + "Your floor plan, device links and connections stay the same on both, whichever one you edit; "
                             + "they travel straight between them, encrypted with the key in this code.")
         refreshPairingWindow()
@@ -693,7 +693,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func resetPairing() {
         let alert = NSAlert()
         alert.messageText = "Reset pairing?"
-        alert.informativeText = "Every iPhone paired so far stops syncing until it scans the new code."
+        alert.informativeText = "Every phone paired so far stops syncing until it scans the new code."
         alert.addButton(withTitle: "Reset")
         alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
@@ -706,7 +706,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !devices.isEmpty {
             pairingWindow?.setStatus("Connected: \(devices.joined(separator: ", "))", active: true)
         } else if sync.isAdvertised {
-            pairingWindow?.setStatus("Waiting for an iPhone…", active: false)
+            pairingWindow?.setStatus("Waiting for a phone…", active: false)
         } else {
             // Until macOS lets the app use the local network, no phone can find this Mac.
             pairingWindow?.setStatus("Allow Local Network access for House Control in System Settings → Privacy & Security",
@@ -742,8 +742,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         loginWindow?.show(code: content,
                           headline: "Scan with the Smart Life app on \(device)",
-                          detail: "Switch to Smart Life on the iPhone, tap the scanner on its Home tab and confirm the login. "
-                              + "Then return to House Control: this window closes once the iPhone is signed in.")
+                          detail: "Switch to Smart Life on the phone, tap the scanner on its Home tab and confirm the login. "
+                              + "Then return to House Control: this window closes once the phone is signed in.")
         loginWindow?.setStatus("Requested by \(device)", active: true)
     }
 

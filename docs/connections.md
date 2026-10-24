@@ -64,7 +64,7 @@ so a different device answering at that address later is refused.
 Apple offers HomeKit to iPhone and iPad apps, and to Mac apps only through the Mac App Store. House Control is a
 download, so on the Mac it can list Apple Home devices but not switch them:
 
-1. Pair your iPhone with the Mac (right-click the menu bar icon → **Pair iPhone…**).
+1. Pair your iPhone with the Mac (right-click the menu bar icon → **Pair Phone…**).
 2. On the iPhone: **Settings → More connections → Apple Home → Connect**, and allow access to your Home data.
 3. The iPhone sends the list of your lamps, outlets, air conditioners (heater-coolers and thermostats) and
    thermometers to the Mac. Link them in the editor like any other device.
