@@ -4,7 +4,7 @@
 // shell only carries requests here (see AgentGateway.swift).
 import { AC_MODES, AC_FANS } from '../store.js';
 import { applyOperations, replacePlan, redactPlan, furnitureCatalog, PlanEditError, SCENE_ICONS, WALLS } from './plan-edit.js';
-import { LIGHT_KINDS, FLOOR_KINDS, isLinked } from '../config.js';
+import { LIGHT_KINDS, FLOOR_KINDS, BLIND_KINDS, isLinked } from '../config.js';
 
 export const COLORS = {
   red: '#ff3b30', orange: '#ff9500', yellow: '#ffd60a', green: '#34c759',
@@ -46,6 +46,12 @@ export function createAgent({ store, config, raw, render, onAction }) {
     return `on, ${s.mode}, target ${s.target}°C, fan ${s.fan} (${room})`;
   }
 
+  function blindState(s) {
+    const at = s.position >= 0.99 ? 'open' : s.position <= 0.01 ? 'closed' : `${pct(s.position)} open`;
+    return s.moving ? `${at}, ${s.moving}` : at;
+  }
+  const blindAbilities = (cfg) => (cfg.capabilities.includes('position') ? 'stops part-way' : 'open/close only');
+
   const lightJSON = (cfg) => ({
     id: cfg.id, name: cfg.name, room: cfg.room, type: cfg.type, abilities: cfg.capabilities,
     real: isLinked(cfg), ...state.lights[cfg.id],
@@ -57,22 +63,30 @@ export function createAgent({ store, config, raw, render, onAction }) {
     on: state.acs[cfg.id].on, target: state.acs[cfg.id].target, mode: state.acs[cfg.id].mode,
     fan: state.acs[cfg.id].fan, roomTemp: state.acs[cfg.id].roomTemp,
   });
+  const blindJSON = (cfg) => ({
+    id: cfg.id, name: cfg.name, room: cfg.room, style: cfg.style, real: isLinked(cfg), abilities: cfg.capabilities,
+    position: Math.round(state.blinds[cfg.id].position * 100), moving: state.blinds[cfg.id].moving,
+  });
 
   function overview() {
     const lightsOn = config.lights.filter((l) => state.lights[l.id].on).length;
     const acsOn = config.acs.filter((a) => state.acs[a.id].on).length;
     const scene = config.scenes.find((s) => s.id === state.scene);
+    const blindsOpen = config.blinds.filter((b) => state.blinds[b.id].position > 0.01).length;
     const lines = [
       `Home "${config.name}": ${config.rooms.length} rooms, ${config.lights.length} lights (${lightsOn} on), `
-      + `${config.acs.length} air conditioners (${acsOn} running).${scene ? ` Active scene: ${scene.name}.` : ''}`,
+      + `${config.acs.length} air conditioners (${acsOn} running)`
+      + `${config.blinds.length ? `, ${config.blinds.length} blinds (${blindsOpen} open)` : ''}.${scene ? ` Active scene: ${scene.name}.` : ''}`,
     ];
     for (const room of config.rooms) {
       const lights = config.lights.filter((l) => l.room === room.id);
       const acs = config.acs.filter((a) => a.room === room.id);
-      if (!lights.length && !acs.length) { lines.push('', `${room.name} [${room.id}] — no devices`); continue; }
+      const blinds = config.blinds.filter((b) => b.room === room.id);
+      if (!lights.length && !acs.length && !blinds.length) { lines.push('', `${room.name} [${room.id}] — no devices`); continue; }
       lines.push('', `${room.name} [${room.id}]`);
       for (const l of lights) lines.push(`  • ${l.name} [${l.id}] — light (${l.type}; ${lightAbilities(l)}): ${lightState(l)}`);
       for (const a of acs) lines.push(`  • ${a.name} [${a.id}] — air conditioner (${a.min}–${a.max}°C): ${acState(a)}`);
+      for (const b of blinds) lines.push(`  • ${b.name} [${b.id}] — ${b.style} blind (${blindAbilities(b)}): ${blindState(state.blinds[b.id])}`);
     }
     if (config.scenes.length) {
       lines.push('', `Scenes: ${config.scenes.map((s) => `${s.name} [${s.id}]`).join(', ')}`);
@@ -88,6 +102,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
         id: r.id, name: r.name,
         lights: config.lights.filter((l) => l.room === r.id).map(lightJSON),
         acs: config.acs.filter((a) => a.room === r.id).map(acJSON),
+        blinds: config.blinds.filter((b) => b.room === r.id).map(blindJSON),
       })),
       scenes: config.scenes.map((s) => ({ id: s.id, name: s.name })),
     };
@@ -202,6 +217,37 @@ export function createAgent({ store, config, raw, render, onAction }) {
     return { changed, notes };
   }
 
+  function setBlinds(args) {
+    const devices = resolve(args.blinds ?? args.targets ?? args.target, config.blinds, 'blinds');
+    const notes = [];
+    const changed = [];
+    let position = null;
+    if (args.position != null) {
+      const p = Number(args.position);
+      if (!Number.isFinite(p)) fail('"position" is how far open, 0 (closed) to 100 (open).');
+      position = clamp(p > 1 ? p / 100 : p, 0, 1);
+    } else if (args.open != null) {
+      position = args.open ? 1 : 0;
+    }
+    if (position == null && !args.stop) fail('Nothing to change: pass "open", "position" or "stop".');
+    for (const cfg of devices) {
+      if (args.stop) {
+        if (!cfg.capabilities.includes('stop')) { notes.push(`${cfg.name} cannot be stopped.`); continue; }
+        store.stopBlind(cfg.id);
+      } else {
+        let p = position;
+        // A blind without SET_POSITION goes the whole way: whichever end is nearer.
+        if (p > 0 && p < 1 && !cfg.capabilities.includes('position')) {
+          p = p >= 0.5 ? 1 : 0;
+          notes.push(`${cfg.name} only opens and closes all the way: ${p ? 'opened' : 'closed'} it.`);
+        }
+        store.setBlind(cfg.id, { position: p });
+      }
+      changed.push(cfg);
+    }
+    return { changed, notes };
+  }
+
   function activateScene(args) {
     const key = norm(args.scene ?? '');
     const scene = config.scenes.find((s) => s.id === args.scene || norm(s.name) === key);
@@ -211,15 +257,15 @@ export function createAgent({ store, config, raw, render, onAction }) {
   }
 
   function describeChange(changed, notes, kind) {
-    const lines = changed.map((cfg) => (kind === 'light'
-      ? `${roomName.get(cfg.room)} · ${cfg.name}: ${lightState(cfg)}`
-      : `${roomName.get(cfg.room)} · ${cfg.name}: ${acState(cfg)}`));
+    const lines = changed.map((cfg) => `${roomName.get(cfg.room)} · ${cfg.name}: ${
+      kind === 'light' ? lightState(cfg) : kind === 'blind' ? blindState(state.blinds[cfg.id]) : acState(cfg)}`);
     return [...lines, ...notes].join('\n');
   }
 
   function shortSummary(changed, kind) {
     const names = changed.map((c) => c.name);
-    const list = names.length > 3 ? `${names.length} ${kind === 'light' ? 'lights' : 'ACs'}` : names.join(', ');
+    const list = names.length > 3 ? `${names.length} ${{ light: 'lights', blind: 'blinds' }[kind] || 'ACs'}` : names.join(', ');
+    if (kind === 'blind') return changed.length ? `${capitalise(blindState(state.blinds[changed[0].id]))}: ${list}` : 'Blinds';
     if (kind === 'light') {
       const on = changed.filter((c) => state.lights[c.id].on).length;
       const verb = on === changed.length ? 'On' : on === 0 ? 'Off' : 'Set';
@@ -255,7 +301,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
     {
       name: 'get_home', group: 'read',
       title: 'Look at the home',
-      description: 'Every room with its lights and air conditioners, what each can do and what it is doing now, and the scenes. Call this first.',
+      description: 'Every room with its lights, air conditioners and blinds, what each can do and what it is doing now, and the scenes. Call this first.',
       inputSchema: { type: 'object', properties: {} },
       annotations: { readOnlyHint: true, openWorldHint: false },
       run: () => ({ text: overview(), data: structured(), summary: 'Looked at the home', quiet: true }),
@@ -305,9 +351,29 @@ export function createAgent({ store, config, raw, render, onAction }) {
       },
     },
     {
+      name: 'set_blinds', group: 'control',
+      title: 'Open or close blinds',
+      description: 'Open or close blinds, set how far open they are, or stop them while they move. Several at once is fine. '
+        + 'A blind that only opens and closes all the way goes to the nearer end; that is reported, not failed.',
+      inputSchema: {
+        type: 'object', required: ['blinds'],
+        properties: {
+          blinds: { ...TARGETS, description: 'Which blinds: ids like "bedroom.blackout", room ids, names, or "all".' },
+          open: { type: 'boolean', description: 'true: all the way open; false: closed' },
+          position: { type: 'number', minimum: 0, maximum: 100, description: 'How far open, percent: 0 closed, 100 open' },
+          stop: { type: 'boolean', description: 'Stop where they are now' },
+        },
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+      run(args) {
+        const { changed, notes } = setBlinds(args);
+        return { text: describeChange(changed, notes, 'blind') || notes.join('\n'), summary: changed.length ? shortSummary(changed, 'blind') : notes[0] };
+      },
+    },
+    {
       name: 'activate_scene', group: 'control',
       title: 'Activate a scene',
-      description: 'Set every light and air conditioner the way a scene says ("Cozy", "Movie", "Night"…). See get_home for the list.',
+      description: 'Set every light, air conditioner and blind the way a scene says ("Cozy", "Movie", "Night"…). See get_home for the list.',
       inputSchema: { type: 'object', required: ['scene'], properties: { scene: { type: 'string', description: 'Scene id or name' } } },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
       run(args) {
@@ -322,7 +388,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
     {
       name: 'get_floor_plan', group: 'read',
       title: 'Read the 3D floor plan',
-      description: 'The floor plan the 3D model is built from: rooms, walls openings, furniture (by index), lights, ACs and scenes, '
+      description: 'The floor plan the 3D model is built from: rooms, walls openings, furniture (by index), lights, ACs, blinds and scenes, '
         + 'plus the furniture catalogue and the coordinate rules. Read it before edit_floor_plan.',
       inputSchema: { type: 'object', properties: {} },
       annotations: { readOnlyHint: true, openWorldHint: false },
@@ -347,7 +413,8 @@ export function createAgent({ store, config, raw, render, onAction }) {
         + 'furnish_room{room,items[]}, add_furniture{item|items[]}, update_furniture{index,set{}}, remove_furniture{index}, '
         + 'add_opening{type,from,to,sill,head}, remove_opening{index}, add_light{id,name,room,type,pos,capabilities,y,rot,length,color}, '
         + 'update_light{id,set{}}, remove_light{id}, add_ac{id,name,room,wall,pos,y,min,max}, update_ac{id,set{}}, remove_ac{id}, '
-        + 'add_scene{id,name,icon,lights{},acs{}}, update_scene{id,set{}}, remove_scene{id}. '
+        + 'add_blind{id,name,room,from,to,style}, update_blind{id,set{}}, remove_blind{id}, '
+        + 'add_scene{id,name,icon,lights{},acs{},blinds{}}, update_scene{id,set{}}, remove_scene{id}. '
         + 'Indexes are those from get_floor_plan, before this edit.',
       inputSchema: {
         type: 'object', required: ['operations'],
@@ -359,7 +426,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
               properties: {
                 op: { type: 'string', enum: ['set_home', 'add_room', 'update_room', 'remove_room', 'furnish_room', 'add_furniture',
                   'update_furniture', 'remove_furniture', 'add_opening', 'remove_opening', 'add_light', 'update_light', 'remove_light',
-                  'add_ac', 'update_ac', 'remove_ac', 'add_scene', 'update_scene', 'remove_scene'] },
+                  'add_ac', 'update_ac', 'remove_ac', 'add_blind', 'update_blind', 'remove_blind', 'add_scene', 'update_scene', 'remove_scene'] },
                 id: { type: 'string' }, name: { type: 'string' }, room: { type: 'string' },
                 rect: { type: 'array', items: { type: 'number' }, description: '[x, z, width, depth] in metres' },
                 floor: { type: 'string', enum: FLOOR_KINDS },
@@ -368,12 +435,13 @@ export function createAgent({ store, config, raw, render, onAction }) {
                 index: { type: 'integer' },
                 set: { type: 'object', description: 'Fields to change' },
                 type: { type: 'string', description: `opening: door, window, open; light: ${LIGHT_KINDS.join(', ')}` },
+                style: { type: 'string', enum: BLIND_KINDS, description: 'blind only' },
                 from: { type: 'array', items: { type: 'number' } }, to: { type: 'array', items: { type: 'number' } },
                 pos: { type: 'array', items: { type: 'number' } },
                 wall: { type: 'string', enum: WALLS },
                 capabilities: { type: 'array', items: { type: 'string', enum: ['brightness', 'temp', 'color'] } },
                 icon: { type: 'string', enum: SCENE_ICONS },
-                lights: { type: 'object' }, acs: { type: 'object' },
+                lights: { type: 'object' }, acs: { type: 'object' }, blinds: { type: 'object', description: 'scene: blind id or "*" → {"position": 0–1}' },
               },
             },
           },
@@ -509,6 +577,16 @@ export function createAgent({ store, config, raw, render, onAction }) {
         onAction?.({ client, summary: shortSummary(changed.changed, 'ac') });
         return done(`Done.\n${describeChange(changed.changed, changed.notes, 'ac')}`, shortSummary(changed.changed, 'ac'));
       }
+      if (kind === 'blind') {
+        const args = { blinds: [id] };
+        if (action === 'open' || action === 'close') args.open = action === 'open';
+        else if (action === 'stop') args.stop = true;
+        else if (action === 'position') args.position = Number(value);
+        else return refuse(`unknown blind action "${action}".`);
+        changed = setBlinds(args);
+        onAction?.({ client, summary: shortSummary(changed.changed, 'blind') });
+        return done(`Done.\n${describeChange(changed.changed, changed.notes, 'blind')}`, shortSummary(changed.changed, 'blind'));
+      }
       if (kind === 'scene') {
         const scene = activateScene({ scene: id });
         onAction?.({ client, summary: `Scene · ${scene.name}` });
@@ -529,6 +607,12 @@ export function createAgent({ store, config, raw, render, onAction }) {
           onAction?.({ client, summary });
           return done(`Done.\n${describeChange(changed.changed, changed.notes, 'light')}`, summary);
         }
+        if (what === 'blinds' && (how === 'open' || how === 'close')) {
+          changed = setBlinds({ blinds: [room], open: how === 'open' });
+          const summary = `${how === 'open' ? 'Opened' : 'Closed'}: ${room === 'all' ? 'all blinds' : `${roomName.get(room) || room} blinds`}`;
+          onAction?.({ client, summary });
+          return done(`Done.\n${describeChange(changed.changed, changed.notes, 'blind')}`, summary);
+        }
         if (what === 'acs' && (how === 'on' || how === 'off')) {
           changed = setACs({ acs: [room], on: how === 'on' });
           const summary = `${how === 'on' ? 'On' : 'Off'}: ${room === 'all' ? 'all ACs' : `${roomName.get(room) || room} ACs`}`;
@@ -548,7 +632,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
   /* ---------- the guide ---------- */
 
   function instructions(permissions) {
-    const can = [permissions?.control !== false && 'switch and adjust its lights and air conditioners and run scenes',
+    const can = [permissions?.control !== false && 'switch and adjust its lights and air conditioners, open and close its blinds and run scenes',
       permissions?.edit !== false && 'change its 3D floor plan (rooms, furniture, devices, scenes)'].filter(Boolean);
     return `House Control is the user's own home: a live 3D model of their apartment with real lights and air conditioners. `
       + `Through these tools you can see it${can.length ? ` and ${can.join(', and ')}` : ''}. `
@@ -595,13 +679,23 @@ export function createAgent({ store, config, raw, render, onAction }) {
       L.push(`- All lights on: ${base}/do/all/lights/on`);
       L.push(`- All lights off: ${base}/do/all/lights/off`);
       if (config.acs.length) L.push(`- Every air conditioner off: ${base}/do/all/acs/off`);
+      if (config.blinds.length) L.push(`- Every blind: open ${base}/do/all/blinds/open · close ${base}/do/all/blinds/close`);
       L.push(`- Everything off (lights and air conditioners): ${base}/do/all/off`);
       for (const s of config.scenes) L.push(`- Scene "${s.name}": ${base}/do/scene/${encodeURIComponent(s.id)}`);
       for (const room of config.rooms) {
         const lights = config.lights.filter((l) => l.room === room.id);
         const acs = config.acs.filter((a) => a.room === room.id);
-        if (!lights.length && !acs.length) continue;
+        const blinds = config.blinds.filter((b) => b.room === room.id);
+        if (!lights.length && !acs.length && !blinds.length) continue;
         L.push('', `### ${room.name}`);
+        if (blinds.length > 1) L.push(`- All ${room.name} blinds: open ${base}/do/room/${room.id}/blinds/open · close ${base}/do/room/${room.id}/blinds/close`);
+        for (const b of blinds) {
+          const u = `${base}/do/blind/${encodeURIComponent(b.id)}`;
+          const parts = [`open ${u}/open`, `close ${u}/close`];
+          if (b.capabilities.includes('stop')) parts.push(`stop ${u}/stop`);
+          if (b.capabilities.includes('position')) for (const p of [25, 50, 75]) parts.push(`${p}% open ${u}/position/${p}`);
+          L.push(`- ${b.name} [${blindState(state.blinds[b.id])}]: ${parts.join(' · ')}`);
+        }
         if (lights.length > 1) L.push(`- All ${room.name} lights: on ${base}/do/room/${room.id}/lights/on · off ${base}/do/room/${room.id}/lights/off`);
         for (const l of lights) {
           const u = `${base}/do/light/${encodeURIComponent(l.id)}`;
@@ -674,4 +768,5 @@ const PLAN_RULES = `Floor plan rules:
 - Openings: doors, windows and open gaps sit on walls, given by two end points "from"/"to" on that wall line.
 - Lights: "type" ceiling, pendant, spots, floor, table or strip; "capabilities" any of brightness, temp, color (none = plain switch).
 - Air conditioners hang on a wall: "wall" north/south/east/west and "pos" on that wall line.
+- Blinds hang in a window: "from"/"to" the same as the window's, "room" the room it is in, "style" roller, sheer or blackout.
 - Devices marked "linked": true are real hardware: keep their ids, do not remove them.`;

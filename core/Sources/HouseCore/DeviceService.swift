@@ -1,9 +1,10 @@
 import Foundation
 
-/// A smart home platform the plan's lamps and ACs can be linked to, besides Smart Life:
+/// A smart home platform the plan's lamps, ACs and blinds can be linked to, besides Smart Life:
 /// Home Assistant, Philips Hue, Apple Home. Each one speaks the panel's own vocabulary —
 /// a light is `on` / `brightness` 0…1 / `temp` in kelvin / `color` "#rrggbb", an AC is
-/// `on` / `target` / `mode` / `fan` / … — so the hub and the UI never see what is underneath.
+/// `on` / `target` / `mode` / `fan` / …, a blind is `position` 0…1 (1 is fully open) and
+/// `stop` — so the hub and the UI never see what is underneath.
 @MainActor
 public protocol DeviceService: AnyObject {
     /// "homeassistant", "hue", "homekit": what a plan's `link.service` says.
@@ -37,7 +38,7 @@ public extension DeviceService {
 }
 
 public enum DeviceKind: String {
-    case light, ac, sensor
+    case light, ac, sensor, blind
 
     /// A lamp the panel shows as on, given a new brightness or colour, is switched on as well:
     /// the real one may be off (switched off elsewhere since the last read), and some
@@ -56,7 +57,8 @@ public struct ServiceDevice {
     public var kind: DeviceKind
     public var room: String?
     public var online = true
-    /// For lights: which of "brightness", "temp", "color" it supports.
+    /// For lights: which of "brightness", "temp", "color" it supports. For blinds: "position"
+    /// when it can stop part-way, "stop" when it can be stopped while moving.
     public var capabilities: [String] = []
     /// For ACs: the set-point range it accepts.
     public var range: (min: Double, max: Double)?
@@ -83,16 +85,19 @@ public struct ServiceDevice {
 public struct DeviceReading {
     public var light: [String: Any]?
     public var ac: [String: Any]?
+    /// A blind's `position` 0…1 and, while it travels, `moving`: "opening" or "closing".
+    public var blind: [String: Any]?
     /// What an AC can do: `modes`, `fans`, `swing`, `sleep`, `eco` (see the store's acFeatures).
     public var features: [String: Any]?
     /// A temperature sensor's reading in °C.
     public var temperature: Double?
     public var online = true
 
-    public init(light: [String: Any]? = nil, ac: [String: Any]? = nil, features: [String: Any]? = nil,
-                temperature: Double? = nil, online: Bool = true) {
+    public init(light: [String: Any]? = nil, ac: [String: Any]? = nil, blind: [String: Any]? = nil,
+                features: [String: Any]? = nil, temperature: Double? = nil, online: Bool = true) {
         self.light = light
         self.ac = ac
+        self.blind = blind
         self.features = features
         self.temperature = temperature
         self.online = online

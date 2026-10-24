@@ -143,6 +143,25 @@ Decoration only. Every piece has `type`, `pos` (`[x, z]` of its centre) and an o
 | `link`, `tuya` | Link to a real device — see below |
 | `sensor` | A thermometer for the room — see below |
 
+## `blinds`
+
+A blind hangs in a window. Give it the window's two end points; it hangs on the side of its room.
+
+```jsonc
+{ "id": "bedroom.blackout", "name": "Blackout", "room": "bedroom", "from": [0, 1.0], "to": [0, 2.6], "style": "blackout" }
+```
+
+| Field | Meaning |
+| --- | --- |
+| `id`, `name`, `room` | As for lights |
+| `from`, `to` | `[x, z]` end points on the wall, usually the same as its window's |
+| `style` | `roller` (the default), `sheer` or `blackout`: how the fabric looks in 3D |
+| `sill`, `head` | Bottom and top of what it covers. Default: those of the window at the same place, or `0.85` and `2.1` |
+| `capabilities` | `position` when it can stop part-way, `stop` when it can be stopped while moving. Default: both |
+| `link` | Link to a real device — see below |
+
+Two blinds in one window, a sheer and a blackout, hang one in front of the other, in the order they are listed.
+
 ## `scenes`
 
 | Field | Meaning |
@@ -151,12 +170,13 @@ Decoration only. Every piece has `type`, `pos` (`[x, z]` of its centre) and an o
 | `icon` | `sun`, `sofa`, `film`, `moon`, `door`, `table`, `bed`, `tv` or `sparkles` |
 | `lights` | Light id → what to set: `on`, `brightness` (0–1), `temp` (2200–6500 K), `color` (`#rrggbb`) |
 | `acs` | AC id → what to set: `on`, `target`, `mode` (`cool`, `heat`, `dry`, `fan`, `auto`), `fan` (`auto`, `low`, `medium`, `high`, `turbo`) |
+| `blinds` | Blind id → `position`: how far open, 0 (closed) to 1 (open) |
 
 In both maps the key `"*"` applies to every device, and a device's own entry overrides it.
 
 ## Linking real devices
 
-A light or an AC becomes real when it is linked to a device of a connected platform. The editor fills the link
+A light, an AC or a blind becomes real when it is linked to a device of a connected platform. The editor fills the link
 in when you pick a device under **Real device**; by hand it looks like this:
 
 ```jsonc
@@ -168,6 +188,10 @@ in when you pick a device under **Real device**; by hand it looks like this:
 { "id": "living.ac", "name": "Living AC", "room": "living", "wall": "west", "pos": [0, 0.8],
   "link": { "service": "homeassistant", "id": "climate.living_room" },
   "sensor": { "service": "hue", "id": "<id of a Hue motion sensor's thermometer>" } }
+
+// A blind and a Home Assistant cover
+{ "id": "bedroom.blackout", "name": "Blackout", "room": "bedroom", "from": [0, 1.0], "to": [0, 2.6],
+  "link": { "service": "homeassistant", "id": "cover.bedroom_blackout" } }
 
 // Smart Life keeps its own object
 { "id": "bed.ac", "name": "Bedroom AC", "room": "bedroom", "wall": "north", "pos": [2, 0],

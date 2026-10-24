@@ -3,12 +3,14 @@
 
 const LIGHT_TYPES = ['ceiling', 'pendant', 'spots', 'floor', 'table', 'strip'];
 const WALLS = ['north', 'south', 'east', 'west'];
+const BLIND_STYLES = ['roller', 'sheer', 'blackout'];
 
 export class ConfigError extends Error {}
 
 export const LIGHT_KINDS = LIGHT_TYPES;
+export const BLIND_KINDS = BLIND_STYLES;
 
-// A lamp or an AC is real when it is linked to a device of a connected platform:
+// A lamp, an AC or a blind is real when it is linked to a device of a connected platform:
 // `link: { service, id }` (Home Assistant, Philips Hue, Apple Home) or, for Smart Life,
 // `tuya: { deviceId }`. An AC's `sensor: { service, id }` is a thermometer for its room.
 export const LINK_FIELDS = ['tuya', 'link', 'sensor'];
@@ -102,9 +104,29 @@ export function normalize(raw) {
     return { ...a, name: a.name || a.id, y: a.y ?? 2.2, min: a.min ?? 16, max: a.max ?? 30 };
   });
 
+  // A blind hangs in front of a stretch of wall, usually a window: without its own sill and
+  // head it takes the window's, or the usual window height.
+  const sameLine = (o, b) => [o.from, o.to].every((p) => [b.from, b.to].some((q) => p[0] === q[0] && p[1] === q[1]));
+  const blinds = (raw.blinds || []).map((b) => {
+    unique(b.id, 'A blind');
+    need(roomIds.has(b.room), `Blind "${b.id}" refers to unknown room "${b.room}"`);
+    need(isPoint(b.from) && isPoint(b.to), `Blind "${b.id}" needs "from" and "to" points`);
+    need(b.from[0] === b.to[0] || b.from[1] === b.to[1], `Blind "${b.id}" must be axis-aligned`);
+    need(!b.style || BLIND_STYLES.includes(b.style), `Blind "${b.id}" has unknown style "${b.style}" (use ${BLIND_STYLES.join(', ')})`);
+    const pane = openings.find((o) => o.type === 'window' && sameLine(o, b));
+    return {
+      ...b,
+      name: b.name || b.id,
+      style: b.style || 'roller',
+      sill: b.sill ?? pane?.sill ?? 0.85,
+      head: b.head ?? pane?.head ?? 2.1,
+      capabilities: b.capabilities || ['position', 'stop'],
+    };
+  });
+
   const scenes = (raw.scenes || []).map((s) => {
     need(typeof s.id === 'string' && s.id, 'A scene is missing an "id"');
-    return { id: s.id, name: s.name || s.id, icon: s.icon || 'sun', lights: s.lights || {}, acs: s.acs || {} };
+    return { id: s.id, name: s.name || s.id, icon: s.icon || 'sun', lights: s.lights || {}, acs: s.acs || {}, blinds: s.blinds || {} };
   });
 
   const minX = Math.min(...rooms.map((r) => r.x));
@@ -123,6 +145,7 @@ export function normalize(raw) {
     furniture: raw.furniture || [],
     lights,
     acs,
+    blinds,
     scenes,
     bounds: { minX, minZ, maxX, maxZ },
   };
