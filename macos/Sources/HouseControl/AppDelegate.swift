@@ -684,7 +684,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         pairingWindow?.show(code: pairing.link,
                             headline: "Scan with House Control on your phone",
-                            detail: "On the phone, Android or iPhone, open Settings → Pair with Mac or PC. Both devices must be on the same Wi-Fi. "
+                            detail: "On the phone, Android or iPhone, open Settings → Pair with Mac or PC (Pair with Mac in older versions). Both devices must be on the same Wi-Fi. "
                                 + "Your floor plan, device links and connections stay the same on both, whichever one you edit; "
                             + "they travel straight between them, encrypted with the key in this code.")
         refreshPairingWindow()

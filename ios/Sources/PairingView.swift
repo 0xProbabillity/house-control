@@ -52,7 +52,7 @@ struct PairingView: View {
         Card(padding: 16) {
             VStack(alignment: .leading, spacing: 14) {
                 step(1, "On your computer, right-click the House Control icon: in the menu bar on a Mac, in the taskbar's tray on a PC.")
-                step(2, "Choose **Pair Phone…** — a code appears.")
+                step(2, "Choose **Pair Phone…** (**Pair iPhone…** in older versions) — a code appears.")
                 step(3, "Point this iPhone at the code. Both devices need to be on the same Wi-Fi.")
             }
         }
