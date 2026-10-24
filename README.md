@@ -6,7 +6,7 @@
 
 <p align="center">
   Your home as a live 3D model — in the Mac's menu bar, around its notch and on your iPhone —<br>
-  controlling its lights and air conditioners through Smart Life, Home Assistant, Philips Hue and Apple Home.
+  controlling its lights, air conditioners and blinds through Smart Life, Home Assistant, Philips Hue and Apple Home.
 </p>
 
 <p align="center">
@@ -27,7 +27,7 @@
 - **Lights.** Tap to toggle, drag across a tile to dim, open a light for brightness, white temperature and colour.
 - **Air conditioners.** Power, target temperature, mode and fan speed, with the room temperature from a real sensor if you have one.
 - **Scenes.** One tap sets every light and AC — "Cozy", "Movie", "Night", or your own.
-- **A visual editor.** Draw the rooms, drop in furniture, place lamps and ACs, and link each one to a real device.
+- **A visual editor.** Draw the rooms, drop in furniture, place lamps, ACs and blinds, and link each one to a real device.
 - **Your devices, wherever they live.** Smart Life / Tuya, Home Assistant (and the thousands of brands it runs),
   Philips Hue and Apple Home — mixed freely in one home. See [Connect real devices](#connect-real-devices).
 - **An island around the notch.** Rest the pointer on the MacBook's notch and a small live model of the home drops
@@ -137,6 +137,7 @@ AI Access and About.
 | Drag sideways across a light tile | Dim it |
 | Click the sliders icon on a light tile | Brightness, white temperature, colour |
 | Click an AC, or its tile | Open its sheet: temperature, mode, fan speed |
+| Click a blind, or its tile | Open its sheet: how far open, open, stop, close |
 | Click a room | Zoom in on it and list only its devices |
 | Drag the 3D view / scroll over it | Rotate / zoom |
 | `Esc` | Back, then close |
@@ -290,7 +291,7 @@ Right-click the icon and choose **Edit Home…**
 
 - Drag rooms to move them and drag a corner to resize; everything snaps to 5 cm.
 - Where two rooms touch, the wall between them appears by itself. Walls facing the camera are cut away.
-- Add doors, windows, furniture, lamps and air conditioners from the list on the left.
+- Add doors, windows, blinds, furniture, lamps and air conditioners from the list on the left.
 - **Save & apply** writes the plan and reloads the panel.
 
 The plan is a single JSON file, `~/Library/Application Support/HouseControl/plan.json`. You can write it by hand,

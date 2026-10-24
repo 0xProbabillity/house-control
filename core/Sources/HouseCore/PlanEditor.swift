@@ -1,7 +1,7 @@
 import Foundation
 
 /// Small edits to a floor plan that the iPhone makes without the drawing editor: linking a
-/// lamp or an AC to a real device, adding real devices to a room, starting a new home.
+/// lamp, an AC or a blind to a real device, adding real devices to a room, starting a new home.
 /// Works on the plan exactly as stored (`[String: Any]`), the same form the web editor
 /// edits, and follows its rules (`web/src/editor/connections.js`, `web/src/config.js`).
 public struct PlanEditor {
@@ -97,7 +97,7 @@ public struct PlanEditor {
     // MARK: - Linking
 
     private func index(of id: String) -> (key: String, index: Int)? {
-        for key in ["lights", "acs"] {
+        for key in ["lights", "acs", "blinds"] {
             if let i = (plan[key] as? [[String: Any]] ?? []).firstIndex(where: { $0["id"] as? String == id }) { return (key, i) }
         }
         return nil
@@ -161,7 +161,7 @@ public struct PlanEditor {
 
     private var allIds: Set<String> {
         var ids = Set<String>()
-        for key in ["rooms", "lights", "acs", "scenes"] {
+        for key in ["rooms", "lights", "acs", "blinds", "scenes"] {
             for entry in plan[key] as? [[String: Any]] ?? [] { if let id = entry["id"] as? String { ids.insert(id) } }
         }
         return ids
@@ -259,14 +259,14 @@ public struct PlanEditor {
         return added
     }
 
-    /// Removes a lamp or an AC, and its mentions in the scenes.
+    /// Removes a lamp, an AC or a blind, and its mentions in the scenes.
     public mutating func remove(_ id: String) {
         guard let (key, i) = index(of: id), var list = plan[key] as? [[String: Any]] else { return }
         list.remove(at: i)
         plan[key] = list
         guard var scenes = plan["scenes"] as? [[String: Any]] else { return }
         for s in scenes.indices {
-            for map in ["lights", "acs"] {
+            for map in ["lights", "acs", "blinds"] {
                 if var rules = scenes[s][map] as? [String: Any] {
                     rules[id] = nil
                     scenes[s][map] = rules

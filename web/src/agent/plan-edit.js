@@ -8,6 +8,8 @@ export const WALLS = ['north', 'south', 'east', 'west'];
 const FURNITURE_KEYS = ['type', 'pos', 'rot', 'width', 'height', 'size', 'color', 'chairs', 'stools', 'upper'];
 const LIGHT_KEYS = ['id', 'name', 'room', 'type', 'pos', 'y', 'rot', 'length', 'capabilities', 'color'];
 const AC_KEYS = ['id', 'name', 'room', 'wall', 'pos', 'y', 'min', 'max'];
+const BLIND_KEYS = ['id', 'name', 'room', 'from', 'to', 'sill', 'head', 'style', 'capabilities'];
+const BLIND_STYLES = ['roller', 'sheer', 'blackout'];
 
 export class PlanEditError extends Error {}
 
@@ -20,7 +22,7 @@ const pick = (obj, keys) => Object.fromEntries(Object.entries(obj || {}).filter(
 /** The plan as an AI sees it: links to real hardware are replaced by `"linked": true`. */
 export function redactPlan(raw) {
   const plan = structuredClone(raw);
-  for (const list of [plan.lights || [], plan.acs || []]) {
+  for (const list of [plan.lights || [], plan.acs || [], plan.blinds || []]) {
     for (const d of list) {
       if (LINK_FIELDS.some((k) => d[k])) {
         for (const k of LINK_FIELDS) delete d[k];
@@ -33,7 +35,7 @@ export function redactPlan(raw) {
 
 /** Puts the hardware links of `old` back into a plan an AI wrote from a redacted copy. */
 export function restoreLinks(plan, old) {
-  for (const key of ['lights', 'acs']) {
+  for (const key of ['lights', 'acs', 'blinds']) {
     const links = new Map((old[key] || []).map((d) => [d.id, pick(d, LINK_FIELDS)]));
     for (const d of plan[key] || []) {
       delete d.linked;
@@ -92,7 +94,8 @@ function checkRect(rect, where) {
 export function applyOperations(raw, operations) {
   if (!Array.isArray(operations) || !operations.length) fail('"operations" must be a non-empty list');
   const plan = structuredClone(raw);
-  for (const key of ['rooms', 'openings', 'furniture', 'lights', 'acs', 'scenes']) plan[key] = plan[key] || [];
+  for (const key of ['rooms', 'openings', 'furniture', 'lights', 'acs', 'blinds', 'scenes']) plan[key] = plan[key] || [];
+  const devices = () => [...plan.lights, ...plan.acs, ...plan.blinds];
   const originalFurniture = plan.furniture.length;
   const originalOpenings = plan.openings.length;
   const dropFurniture = new Set();
@@ -151,12 +154,13 @@ export function applyOperations(raw, operations) {
       }
       case 'remove_room': {
         const i = findById(plan.rooms, op.id, 'room');
-        const devices = [...plan.lights, ...plan.acs].filter((d) => d.room === op.id);
-        if (devices.some(isLinked)) fail(`${where}: this room has devices linked to real hardware; unlink them in the editor first`);
+        const inRoom = devices().filter((d) => d.room === op.id);
+        if (inRoom.some(isLinked)) fail(`${where}: this room has devices linked to real hardware; unlink them in the editor first`);
         const room = plan.rooms[i];
         plan.furniture.forEach((f, k) => { if (k < originalFurniture && roomAt({ rooms: [room] }, f.pos)) dropFurniture.add(k); });
         plan.lights = plan.lights.filter((d) => d.room !== op.id);
         plan.acs = plan.acs.filter((d) => d.room !== op.id);
+        plan.blinds = plan.blinds.filter((d) => d.room !== op.id);
         plan.rooms.splice(i, 1);
         changes.push(`removed room ${room.name}`);
         break;
@@ -213,7 +217,7 @@ export function applyOperations(raw, operations) {
         const list = isLight ? plan.lights : plan.acs;
         const device = pick(op, isLight ? LIGHT_KEYS : AC_KEYS);
         if (typeof device.id !== 'string' || !device.id) fail(`${where}: "id" is required, e.g. "living.reading"`);
-        if ([...plan.lights, ...plan.acs].some((d) => d.id === device.id)) fail(`${where}: id "${device.id}" is taken`);
+        if (devices().some((d) => d.id === device.id)) fail(`${where}: id "${device.id}" is taken`);
         if (isLight && !LIGHT_KINDS.includes(device.type)) fail(`${where}: "type" must be one of ${LIGHT_KINDS.join(', ')}`);
         if (!isLight && !WALLS.includes(device.wall)) fail(`${where}: "wall" must be one of ${WALLS.join(', ')}`);
         list.push(device);
@@ -242,6 +246,32 @@ export function applyOperations(raw, operations) {
         changes.push(`removed ${gone.name || gone.id}`);
         break;
       }
+      case 'add_blind':
+      case 'update_blind': {
+        const adding = op.op === 'add_blind';
+        const i = adding ? -1 : findById(plan.blinds, op.id, 'blind');
+        if (!adding && (LINK_FIELDS.some((k) => op.set?.[k]) || op.set?.linked != null)) fail(`${where}: links to real devices are made in the editor, not here`);
+        const blind = adding ? pick(op, BLIND_KEYS) : { ...plan.blinds[i], ...pick(op.set, BLIND_KEYS.filter((k) => k !== 'id')) };
+        if (typeof blind.id !== 'string' || !blind.id) fail(`${where}: "id" is required, e.g. "bedroom.blackout"`);
+        if (adding && devices().some((d) => d.id === blind.id)) fail(`${where}: id "${blind.id}" is taken`);
+        if (!isPoint(blind.from) || !isPoint(blind.to)) fail(`${where}: "from" and "to" must be [x, z] points, the window's own`);
+        if (blind.from[0] !== blind.to[0] && blind.from[1] !== blind.to[1]) fail(`${where}: a blind must be horizontal or vertical, like its window`);
+        if (blind.style != null && !BLIND_STYLES.includes(blind.style)) fail(`${where}: "style" must be one of ${BLIND_STYLES.join(', ')}`);
+        blind.from = blind.from.map(round);
+        blind.to = blind.to.map(round);
+        if (adding) plan.blinds.push(blind);
+        else plan.blinds[i] = blind;
+        changes.push(`${adding ? 'added' : 'changed'} blind ${blind.name || blind.id}`);
+        break;
+      }
+      case 'remove_blind': {
+        const i = findById(plan.blinds, op.id, 'blind');
+        if (isLinked(plan.blinds[i])) fail(`${where}: "${plan.blinds[i].name}" is a real device; unlink it in the editor before removing it`);
+        const [gone] = plan.blinds.splice(i, 1);
+        for (const sc of plan.scenes) delete sc.blinds?.[gone.id];
+        changes.push(`removed blind ${gone.name || gone.id}`);
+        break;
+      }
       case 'add_scene':
       case 'update_scene': {
         const adding = op.op === 'add_scene';
@@ -251,11 +281,16 @@ export function applyOperations(raw, operations) {
         if (source.icon != null && !SCENE_ICONS.includes(source.icon)) fail(`${where}: "icon" must be one of ${SCENE_ICONS.join(', ')}`);
         const scene = { id: source.id, name: String(source.name || source.id), icon: source.icon || 'sparkles',
           lights: source.lights || {}, acs: source.acs || {} };
+        if (source.blinds && Object.keys(source.blinds).length) scene.blinds = source.blinds;
         for (const [id, s] of Object.entries(scene.lights)) {
           if (id !== '*' && !plan.lights.some((l) => l.id === id)) fail(`${where}: unknown light "${id}"`);
           if (s.brightness != null && !(s.brightness > 0 && s.brightness <= 1)) fail(`${where}: scene brightness is 0–1 (0.6 = 60%)`);
         }
         for (const id of Object.keys(scene.acs)) if (id !== '*' && !plan.acs.some((a) => a.id === id)) fail(`${where}: unknown AC "${id}"`);
+        for (const [id, b] of Object.entries(scene.blinds || {})) {
+          if (id !== '*' && !plan.blinds.some((x) => x.id === id)) fail(`${where}: unknown blind "${id}"`);
+          if (!(isNum(b?.position) && b.position >= 0 && b.position <= 1)) fail(`${where}: a blind's scene "position" is 0–1 (0 closed, 1 open)`);
+        }
         if (adding) plan.scenes.push(scene);
         else plan.scenes[plan.scenes.findIndex((s) => s.id === op.id)] = scene;
         changes.push(`${adding ? 'added' : 'changed'} scene ${scene.name}`);
@@ -270,7 +305,7 @@ export function applyOperations(raw, operations) {
       default:
         fail(`${where}: unknown operation. Use one of: set_home, add_room, update_room, remove_room, furnish_room, `
           + 'add_furniture, update_furniture, remove_furniture, add_opening, remove_opening, add_light, update_light, '
-          + 'remove_light, add_ac, update_ac, remove_ac, add_scene, update_scene, remove_scene');
+          + 'remove_light, add_ac, update_ac, remove_ac, add_blind, update_blind, remove_blind, add_scene, update_scene, remove_scene');
     }
   });
 
@@ -304,8 +339,8 @@ export function replacePlan(old, next) {
   const plan = restoreLinks(structuredClone(next), old);
   plan.furniture = (plan.furniture || []).map((f, i) => cleanFurniture(f, `Furniture #${i}`));
   if (old.version != null && plan.version == null) plan.version = old.version;
-  const lost = [...(old.lights || []), ...(old.acs || [])].filter((d) => isLinked(d)
-    && ![...(plan.lights || []), ...(plan.acs || [])].some((n) => n.id === d.id));
+  const lost = [...(old.lights || []), ...(old.acs || []), ...(old.blinds || [])].filter((d) => isLinked(d)
+    && ![...(plan.lights || []), ...(plan.acs || []), ...(plan.blinds || [])].some((n) => n.id === d.id));
   if (lost.length) {
     fail(`The new plan drops devices linked to real hardware: ${lost.map((d) => `${d.name} (${d.id})`).join(', ')}. Keep them, with the same ids.`);
   }

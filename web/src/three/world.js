@@ -8,6 +8,7 @@ import { buildHouse } from './house.js';
 import { buildFurniture } from './furniture.js';
 import { LightUnit } from './lights.js';
 import { ACUnit } from './ac.js';
+import { BlindUnit } from './blind.js';
 
 export const STAGE_BG = '#0a0e1a';
 
@@ -87,7 +88,18 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
     acs.set(cfg.id, unit);
     scene.add(unit.group);
   }
-  const hitTargets = [...[...lights.values()].map((u) => u.hit), ...[...acs.values()].map((u) => u.hit), ...house.floors];
+  const blinds = new Map();
+  const perWindow = new Map(); // blinds sharing a window hang one in front of the other
+  for (const cfg of config.blinds) {
+    const key = [cfg.from, cfg.to].map((p) => p.join(',')).sort().join('|');
+    const layer = perWindow.get(key) || 0;
+    perWindow.set(key, layer + 1);
+    const unit = new BlindUnit(cfg, config.rooms.find((r) => r.id === cfg.room), camDir, layer);
+    blinds.set(cfg.id, unit);
+    scene.add(unit.group);
+  }
+  const units = () => [...lights.values(), ...acs.values(), ...blinds.values()];
+  const hitTargets = [...units().map((u) => u.hit), ...house.floors];
 
   // Night-time ambience: enough to read the model with every lamp off.
   scene.add(new THREE.HemisphereLight(0x8ea6ff, 0x0b0e17, 0.42));
@@ -204,6 +216,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
       unit.apply(store.state.lights[id], { ...opts, delay: opts.stagger ? 0.25 + i++ * 0.06 : 0 });
     }
     for (const [id, unit] of acs) unit.apply(store.state.acs[id], opts);
+    for (const [id, unit] of blinds) unit.apply(store.state.blinds[id], opts);
     wake();
   }
 
@@ -211,6 +224,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
     if (change.type === 'tick') return;
     if (change.type === 'light') lights.get(change.id).apply(store.state.lights[change.id]);
     else if (change.type === 'ac') acs.get(change.id).apply(store.state.acs[change.id]);
+    else if (change.type === 'blind') blinds.get(change.id).apply(store.state.blinds[change.id]);
     else syncAll();
     wake();
   });
@@ -234,7 +248,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
   }
 
   function unitOf(t) {
-    return t?.kind === 'light' ? lights.get(t.id) : t?.kind === 'ac' ? acs.get(t.id) : null;
+    return t?.kind === 'light' ? lights.get(t.id) : t?.kind === 'ac' ? acs.get(t.id) : t?.kind === 'blind' ? blinds.get(t.id) : null;
   }
 
   function screenAnchor(t) {
@@ -350,6 +364,9 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
     let active = updateRig(dt);
     for (const unit of lights.values()) active = unit.update(dt) || active;
     for (const unit of acs.values()) active = unit.update(dt) || active;
+    for (const unit of blinds.values()) active = unit.update(dt) || active;
+    // Shadows are rendered once for the static model; a blind on its way redraws them.
+    for (const unit of blinds.values()) if (unit.moved) renderer.shadowMap.needsUpdate = true;
     if (shadowFrames > 0) { renderer.shadowMap.needsUpdate = true; shadowFrames--; active = true; }
     if (active || awake > 0) {
       composer.render(dt);
@@ -380,6 +397,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
   const world = {
     lights,
     acs,
+    blinds,
 
     setInsets(top, bottom) { topInset = top; bottomInset = bottom; resize(); },
     resize,
@@ -415,6 +433,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
 
     dispose() {
       unsubscribe();
+      for (const unit of blinds.values()) unit.dispose();
       running = false;
       if (raf) cancelAnimationFrame(raf);
       raf = 0;
@@ -430,6 +449,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
         updateRig(0.05);
         for (const unit of lights.values()) unit.update(0.05);
         for (const unit of acs.values()) unit.update(0.05);
+        for (const unit of blinds.values()) unit.update(0.05);
       }
       renderer.shadowMap.needsUpdate = true;
       composer.render(0);

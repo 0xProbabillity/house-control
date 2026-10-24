@@ -97,6 +97,28 @@ final class PlanEditorTests: XCTestCase {
         XCTAssertEqual(Array(rules.keys), ["*"])
     }
 
+    func testBlindsAreLinkedAndRemovedLikeTheOtherDevices() {
+        var plan = sample()
+        plan["blinds"] = [["id": "living.blind", "name": "Sheer", "room": "living", "from": [1.0, 0.0], "to": [2.0, 0.0]]]
+        plan["scenes"] = [["id": "night", "blinds": ["living.blind": ["position": 0], "*": ["position": 0]]]]
+        var editor = PlanEditor(plan: plan)
+        // Its id is taken: a new room may not reuse it.
+        XCTAssertNotEqual(editor.addRoom(named: "living.blind"), "living.blind")
+
+        editor.link("living.blind", to: ["service": "homeassistant", "id": "cover.sheer", "capabilities": ["position", "stop"]])
+        var blind = (editor.plan["blinds"] as! [[String: Any]])[0]
+        XCTAssertEqual(blind["link"] as? [String: String], ["service": "homeassistant", "id": "cover.sheer"])
+        XCTAssertEqual(blind["capabilities"] as? [String], ["position", "stop"])
+        editor.link("living.blind", to: nil)
+        blind = (editor.plan["blinds"] as! [[String: Any]])[0]
+        XCTAssertNil(blind["link"])
+
+        editor.remove("living.blind")
+        XCTAssertEqual((editor.plan["blinds"] as! [[String: Any]]).count, 0)
+        let rules = (editor.plan["scenes"] as! [[String: Any]])[0]["blinds"] as! [String: Any]
+        XCTAssertEqual(Array(rules.keys), ["*"])
+    }
+
     func testFixtureGuess() {
         XCTAssertEqual(PlanEditor.fixture(for: "Bedside Lamp"), "table")
         XCTAssertEqual(PlanEditor.fixture(for: "Hue color lamp"), "ceiling")

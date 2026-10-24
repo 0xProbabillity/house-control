@@ -1,6 +1,6 @@
 // The editor's "Connections": the smart home platforms House Control can link the plan's
-// lamps and ACs to (Smart Life, Home Assistant, Philips Hue, Apple Home), the screens that
-// connect each one, and the pickers that link a lamp or an AC to one of their devices.
+// lamps, ACs and blinds to (Smart Life, Home Assistant, Philips Hue, Apple Home), the screens that
+// connect each one, and the pickers that link a lamp, an AC or a blind to one of their devices.
 import { h } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { isNative, call } from '../bridge.js';
@@ -13,7 +13,7 @@ const LOOK = {
   hue: { icon: 'bulb', tint: '#c38bff', blurb: 'A Hue Bridge on this network. No account needed' },
   homekit: { icon: 'home', tint: '#ffb340', blurb: 'HomeKit and Matter accessories, through your iPhone' },
 };
-const KIND_TITLES = { light: 'Lights and plugs', ac: 'Air conditioners', sensor: 'Temperature sensors' };
+const KIND_TITLES = { light: 'Lights and plugs', ac: 'Air conditioners', blind: 'Blinds and covers', sensor: 'Temperature sensors' };
 
 export function createConnections({ rerender, toast, usedBy, onOpen }) {
   const boot = window.__HOUSE_BOOT__ || {};
@@ -92,7 +92,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
         h('div.svc-text', h('b', SERVICES[id].name), h('span', LOOK[id].blurb)),
         h(`span.svc-status${connected(id) ? '.on' : ''}`, connected(id) ? icon('ok', 13, 2.4) : null, statusText(id)),
         icon('next', 16)))),
-      h('p.note', 'Lamps and ACs stay simulated until you link them: pick one on the plan, then choose its device under “Real device”. One home can mix them all.'),
+      h('p.note', 'Lamps, ACs and blinds stay simulated until you link them: pick one on the plan, then choose its device under “Real device”. One home can mix them all.'),
       isNative ? null : h('p.note.bad', 'Connecting works inside the House Control app (this is the browser preview).'),
     ];
   }
@@ -108,7 +108,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
     if (!state.devices) return null;
     if (!list.length) return h('p.note', 'Connected, but no lamps, air conditioners or temperature sensors were found.');
     const used = usedBy();
-    const groups = ['light', 'ac', 'sensor'].map((kind) => [kind, list.filter((d) => d.kind === kind)]).filter(([, l]) => l.length);
+    const groups = ['light', 'ac', 'blind', 'sensor'].map((kind) => [kind, list.filter((d) => d.kind === kind)]).filter(([, l]) => l.length);
     return h('div.devices-list', groups.map(([kind, items]) => [
       h('h3', `${KIND_TITLES[kind]} · ${items.length}`),
       items.map((d) => h('div.device',
@@ -300,7 +300,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
     return homeKit();
   }
 
-  /* ---------- linking a lamp or an AC ---------- */
+  /* ---------- linking a lamp, an AC or a blind ---------- */
 
   function optionLabel(d) {
     return `${d.name}${d.room ? ` — ${d.room}` : ''}${d.online ? '' : ' (offline)'}`;
@@ -329,7 +329,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
 
   const find = (value) => (state.devices || []).find((d) => `${d.service}|${d.id}` === value);
 
-  /** The "Real device" section of a lamp or an AC. `onLinked(device)` adapts the item. */
+  /** The "Real device" section of a lamp, an AC or a blind. `onLinked(device)` adapts the item. */
   function deviceSection(item, kind, { snapshot, changed }) {
     const link = linkOf(item);
     const current = link ? `${link.service}|${link.id}` : '';
@@ -359,6 +359,10 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
         note = device.capabilities.length ? `Matched what it can do: ${device.capabilities.join(', ').replace('temp', 'white temperature').replace('color', 'colour')}` : 'Matched: an on/off switch';
       }
       if (device && kind === 'ac' && device.min != null) { item.min = Math.round(device.min); item.max = Math.round(device.max); }
+      if (device && kind === 'blind' && device.capabilities) {
+        item.capabilities = [...device.capabilities];
+        note = device.capabilities.includes('position') ? 'Matched: it can stop part-way' : 'Matched: it only opens and closes all the way';
+      }
       changed(note);
     });
     const device = find(current);
@@ -396,7 +400,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
   /** "id → plan item name" for every device the plan links, to mark them in the lists. */
   function usedMap(doc) {
     const out = new Map();
-    for (const d of [...doc.lights, ...doc.acs]) {
+    for (const d of [...doc.lights, ...doc.acs, ...(doc.blinds || [])]) {
       const l = linkOf(d);
       if (l) out.set(`${l.service}|${l.id}`, d.name || d.id);
       if (d.sensor?.id) out.set(`${d.sensor.service}|${d.sensor.id}`, `${d.name || d.id} · room`);

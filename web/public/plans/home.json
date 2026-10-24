@@ -83,9 +83,16 @@
     { "id": "bedroom.ac", "name": "Bedroom AC", "room": "bedroom", "wall": "north", "pos": [3.3, 0],  "y": 2.2 }
   ],
 
+  "blinds": [
+    { "id": "living.blind",     "name": "Living blind",     "room": "living",  "from": [0, 7.0], "to": [0, 7.9] },
+    { "id": "bedroom.blackout", "name": "Bedroom blackout", "room": "bedroom", "from": [0, 1.0], "to": [0, 2.6], "style": "blackout" },
+    { "id": "bedroom.sheer",    "name": "Bedroom sheer",    "room": "bedroom", "from": [0, 1.0], "to": [0, 2.6], "style": "sheer" }
+  ],
+
   "scenes": [
     { "id": "bright", "name": "Bright", "icon": "sun",
-      "lights": { "*": { "on": true, "brightness": 1, "temp": 4200 } } },
+      "lights": { "*": { "on": true, "brightness": 1, "temp": 4200 } },
+      "blinds": { "*": { "position": 1 } } },
     { "id": "cozy", "name": "Cozy", "icon": "sofa",
       "lights": {
         "*": { "on": false },
@@ -101,14 +108,16 @@
         "*": { "on": false },
         "living.tv":     { "on": true, "brightness": 0.9, "color": "#6a4cff" },
         "kitchen.strip": { "on": true, "brightness": 0.2, "temp": 2400 }
-      } },
+      },
+      "blinds": { "living.blind": { "position": 0 } } },
     { "id": "night", "name": "Night", "icon": "moon",
       "lights": {
         "*": { "on": false },
         "bedroom.left": { "on": true },
         "bath.mirror":  { "on": true, "brightness": 0.25, "temp": 2300 }
       },
-      "acs": { "bedroom.ac": { "sleep": true } } },
+      "acs": { "bedroom.ac": { "sleep": true } },
+      "blinds": { "bedroom.blackout": { "position": 0 } } },
     { "id": "away", "name": "Away", "icon": "door",
       "lights": { "*": { "on": false } },
       "acs": { "*": { "on": false } } }

@@ -3,6 +3,19 @@
 What changed in each release of House Control. The Mac app is on
 [Releases](https://github.com/0xProbabillity/house-control/releases); the iPhone app is on the App Store and TestFlight.
 
+## Unreleased
+
+### Blinds
+
+- **Blinds and curtains**, linked to Home Assistant `cover` entities (roller blinds, shades, curtains). A blind
+  hangs in a window of the floor plan and rolls up and down in the 3D view; its tile opens, stops and closes it,
+  and its sheet sets how far open it is. Sheers and blackouts in the same window hang one in front of the other.
+- **In the editor:** add a blind to a room's window, drag it to another window, link it to a real cover. Scenes can
+  open or close blinds.
+- **AI Access:** `set_blinds`, the blinds in `get_home`, and `/do/blind/<id>/open|close|stop|position/<n>` links;
+  `edit_floor_plan` adds, changes and removes blinds.
+- Blinds from Philips Hue, Apple Home and Smart Life, and blinds in the widgets and the island, are not there yet.
+
 ## 1.1.0 — 2026-10-22
 
 ### iPhone
