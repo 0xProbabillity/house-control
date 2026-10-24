@@ -71,6 +71,41 @@ export function createStore(config) {
   const COOL_DOWN = { light: 300, ac: 900 };
   const outbox = new Map();
 
+  // What was just sent to each device, until the device's own reading agrees. A slow device
+  // (a Matter plug can take a few seconds to report) would otherwise be read back in its old
+  // state by a poll that another device's change set off, and the panel would flip back —
+  // typically half a scene. A reading that still disagrees after SETTLE is taken as it is.
+  const SETTLE = { light: 6000, ac: 10000 };
+  const expected = new Map(); // id -> { field: { value, until } }
+
+  function expect(kind, id, patch) {
+    const fields = expected.get(id) || {};
+    const until = performance.now() + SETTLE[kind];
+    for (const [k, v] of Object.entries(patch)) fields[k] = { value: v, until };
+    expected.set(id, fields);
+  }
+
+  const same = (a, b) => (typeof a === 'number' && typeof b === 'number'
+    ? Math.abs(a - b) <= Math.max(0.02, Math.abs(a) * 0.02) // brightness and kelvin come back rounded
+    : typeof a === 'string' && typeof b === 'string' ? a.toLowerCase() === b.toLowerCase() : a === b);
+
+  // The fields of a device's reading that may be shown: those that agree with what was sent
+  // (which ends the wait), and those nothing is waiting for.
+  function settled(id, patch) {
+    const fields = expected.get(id);
+    if (!fields) return patch;
+    const now = performance.now();
+    const out = {};
+    for (const [k, v] of Object.entries(patch)) {
+      const e = fields[k];
+      if (e && now < e.until && !same(e.value, v)) continue;
+      delete fields[k];
+      out[k] = v;
+    }
+    if (!Object.keys(fields).length) expected.delete(id);
+    return out;
+  }
+
   function transmit(kind, id, patch) {
     if (!isNative) return Promise.resolve();
     const current = kind === 'light' ? state.lights[id] : state.acs[id];
@@ -80,6 +115,7 @@ export function createStore(config) {
   }
 
   function dispatch(kind, id, patch, before) {
+    expect(kind, id, patch);
     const slot = outbox.get(id);
     if (slot) {
       slot.pending = { ...slot.pending, ...patch };
@@ -104,6 +140,9 @@ export function createStore(config) {
   }
 
   function rollback(kind, id, patch, before, entry, error) {
+    // Refused: nothing to wait for, the next reading is the truth.
+    const waiting = expected.get(id);
+    if (waiting) for (const key of Object.keys(patch)) delete waiting[key];
     const current = kind === 'light' ? state.lights[id] : state.acs[id];
     let any = false;
     for (const key of error.detail?.failed || Object.keys(patch)) {
@@ -238,8 +277,8 @@ export function createStore(config) {
     // State reported by real devices (native provider). Never echoed back as a command.
     applyRemote(update) {
       let any = false;
-      for (const [id, patch] of Object.entries(update.lights || {})) any = writeLight(id, patch, { remote: true }) || any;
-      for (const [id, patch] of Object.entries(update.acs || {})) any = writeAC(id, patch, { remote: true }) || any;
+      for (const [id, patch] of Object.entries(update.lights || {})) any = writeLight(id, settled(id, patch), { remote: true }) || any;
+      for (const [id, patch] of Object.entries(update.acs || {})) any = writeAC(id, settled(id, patch), { remote: true }) || any;
       for (const [id, f] of Object.entries(update.features || {})) {
         if (!state.acs[id] || JSON.stringify(features[id]) === JSON.stringify(f)) continue;
         features[id] = f;
