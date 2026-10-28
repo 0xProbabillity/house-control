@@ -3,6 +3,19 @@
 What changed in each release of House Control. The Mac app is on
 [Releases](https://github.com/0xProbabillity/house-control/releases); the iPhone app is on the App Store and TestFlight.
 
+## 1.2.0 — in TestFlight
+
+### iPhone
+
+- **iPhone Duo.** Open, the app fills the inner display (not a phone-sized column in the middle of it): the home in 3D on one half, scenes, rooms and
+  devices on the other. Half-folded like a book it breaks exactly at the fold; standing like a laptop, the model
+  is on the upper half and the controls on the lower one. Held upright and flat, tiles go three to a row. Opening
+  the phone plays the camera sweep and the lights coming on. See [iPhone Duo](README.md#iphone-duo).
+- **The floor plan editor on a wide screen** keeps the plan on the left and the details of what is picked on the
+  right; **Add** and **Items** open as cards in the middle.
+- **Settings, connections and the welcome screen** keep a readable width on a wide screen. On a short screen (the
+  Duo's outer one) the welcome screen tightens up, and scrolls where even that does not fit.
+
 ## 1.1.0 — 2026-10-22
 
 ### iPhone

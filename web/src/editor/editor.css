@@ -422,6 +422,40 @@ html.ios.mode-editor body { background: var(--bg); }
 .editor.phone .toast { bottom: calc(var(--tools-h) + 14px); font-size: 14px; max-width: calc(100% - 40px); text-align: center; z-index: 9; }
 .editor.phone[data-sheet='peek'] .toast { bottom: calc(var(--peek-h) + var(--tools-h)); }
 
+/* iPhone Duo open, or any wide window: the details dock on the trailing half, beside the
+   plan instead of over it, and the item lists open as cards in the middle. */
+@media (min-width: 720px) and (min-aspect-ratio: 23/20) {
+  .editor.phone {
+    --side-w: min(480px, max(360px, calc(50% - 20px)));
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+  }
+  .p-bar { padding-left: max(10px, var(--safe-left)); padding-right: max(10px, var(--safe-right)); }
+  .editor.phone .canvas { transition: right 320ms var(--ease); }
+  .editor.phone[data-sheet='peek'] .canvas, .editor.phone[data-sheet='full'] .canvas { bottom: var(--tools-h); right: var(--side-w); }
+  .p-sheet, .p-sheet[data-state='peek'], .p-sheet[data-state='full'] {
+    left: auto; right: 0; top: var(--bar-h); bottom: var(--tools-h); z-index: 5; width: var(--side-w); height: auto;
+    border-radius: 0; border-top: 0; border-left: 1px solid var(--line); box-shadow: none;
+  }
+  .p-sheet[data-state='closed'] { transform: translateX(105%); }
+  .p-sheet .inspector { padding-top: 14px; padding-right: max(18px, var(--safe-right)); }
+  .p-grip { display: none; }
+  /* The status bar sits in the top trailing corner of iPhone Duo's open screen, a little
+     wider than its safe area: the header's buttons keep clear of it. */
+  .editor.phone .insp-head { padding-top: 4px; padding-right: 30px; touch-action: auto; }
+  .p-tools { padding-left: max(8px, var(--safe-left)); padding-right: max(8px, var(--safe-right)); }
+  .p-tools .p-tool { max-width: 160px; justify-self: center; width: 100%; }
+  .p-modal {
+    left: 50%; right: auto; bottom: auto; top: 50%; width: min(520px, calc(100% - 40px)); max-height: calc(100% - var(--bar-h) - 40px);
+    padding-bottom: 6px; border-radius: 22px; border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+    opacity: 0; pointer-events: none; transform: translate(-50%, -46%) scale(0.97);
+    transition: transform 300ms var(--ease), opacity 200ms ease;
+  }
+  .p-modal.open { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%); }
+  .editor.phone[data-sheet='peek'] .toast, .editor.phone[data-sheet='full'] .toast { bottom: calc(var(--tools-h) + 14px); left: calc((100% - var(--side-w)) / 2); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .p-sheet, .p-modal, .editor.phone .canvas, .p-scrim { transition-duration: 1ms; }
 }

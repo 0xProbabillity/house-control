@@ -48,8 +48,10 @@ targets:
         LSApplicationCategoryType: public.app-category.lifestyle
         UILaunchScreen:
           UIColorName: LaunchBackground
+        # Portrait on an iPhone. iPhone Duo's inner screen takes any shape regardless, and only
+        # an app that can be resized gets all of it (and a place beside another app) rather
+        # than a phone-sized column in the middle.
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        UIRequiresFullScreen: true
         UIUserInterfaceStyle: Dark
         ITSAppUsesNonExemptEncryption: false
         NSLocalNetworkUsageDescription: House Control finds your Home Assistant and Hue Bridge on this Wi-Fi network, and your Mac or PC, to keep your floor plan the same on both.

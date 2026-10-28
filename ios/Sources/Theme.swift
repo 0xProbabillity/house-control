@@ -16,6 +16,14 @@ enum Theme {
     static let red = Color(red: 1, green: 0.47, blue: 0.43)
 }
 
+extension View {
+    /// Keeps a screen's content at a hand's width, centred, where the screen is wider than a
+    /// phone's (iPhone Duo open): settings rows stretched across 900 points read badly.
+    func readableWidth(_ width: CGFloat = 620) -> some View {
+        frame(maxWidth: width).frame(maxWidth: .infinity)
+    }
+}
+
 /// A rounded glass panel: the container of every settings group.
 struct Card<Content: View>: View {
     var padding: CGFloat = 0

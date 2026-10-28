@@ -73,6 +73,7 @@ struct NewHomeView: View {
                 .padding(.horizontal, 18)
                 .padding(.top, 8)
                 .padding(.bottom, 32)
+                .readableWidth()
             }
             .scrollDismissesKeyboard(.interactively)
             .background(Theme.background)

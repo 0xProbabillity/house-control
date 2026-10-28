@@ -30,6 +30,7 @@ struct HomeAssistantView: View {
             .padding(.horizontal, 18)
             .padding(.top, 8)
             .padding(.bottom, 32)
+            .readableWidth()
             .animation(.spring(response: 0.45, dampingFraction: 0.85), value: model.homeAssistantName)
         }
         .scrollDismissesKeyboard(.interactively)
@@ -236,6 +237,7 @@ struct HueView: View {
             .padding(.horizontal, 18)
             .padding(.top, 8)
             .padding(.bottom, 32)
+            .readableWidth()
             .animation(.spring(response: 0.45, dampingFraction: 0.85), value: model.hueName)
             .animation(.spring(response: 0.45, dampingFraction: 0.85), value: pairing != nil)
         }

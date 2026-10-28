@@ -40,7 +40,8 @@ final class HomeWeb: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     /// ("Invalid parameter not satisfying: targetNode").
     var webView: WKWebView {
         if let view { return view }
-        let webView = WKWebView(frame: .zero, configuration: configuration)
+        let webView = FoldWebView(frame: .zero, configuration: configuration)
+        webView.onFold = { [weak self] _ in self?.sendFold() }
         webView.navigationDelegate = self
         webView.isOpaque = false
         webView.backgroundColor = UIColor(Theme.background)
@@ -110,6 +111,16 @@ final class HomeWeb: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         view?.evaluateJavaScript(WebJSON.call(function, args), completionHandler: nil)
     }
 
+    /// Where an iPhone Duo's screen folds, for the page to lay itself out around (FoldWebView).
+    private func sendFold() {
+        guard ready, mode == "panel" else { return }
+        if let fold = (view as? FoldWebView)?.fold {
+            call("setFold", ["x": fold.minX, "y": fold.minY, "width": fold.width, "height": fold.height])
+        } else {
+            call("setFold", NSNull())
+        }
+    }
+
     func reply(to message: [String: Any], _ result: Any) {
         guard let id = message["callId"] as? Int else { return }
         call("reply", id, result)
@@ -125,6 +136,7 @@ final class HomeWeb: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
             if body["type"] as? String == "ready" {
                 ready = true
                 retries = 0
+                if (view as? FoldWebView)?.fold != nil { sendFold() }
             }
             onMessage?(body)
         }

@@ -316,7 +316,7 @@ html.native .card { width: auto; height: auto; box-shadow:
   color: var(--muted);
   flex: none;
 }
-.list-head .title { flex: 1; }
+.list-head .title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .list-head b { color: var(--text); font-weight: 600; }
 .pill {
   height: 26px; padding: 0 11px; border-radius: 999px;
@@ -701,7 +701,7 @@ html.ios, html.ios body { background: var(--bg); }
 html.ios * { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
 html.ios #app { padding: 0; place-items: stretch; }
 html.ios .card {
-  --stage-h: min(470px, 52%);
+  --stage-h: var(--split-start, min(470px, 52%));
   --safe-top: var(--safe-top-preview, env(safe-area-inset-top, 0px));
   --safe-bottom: var(--safe-bottom-preview, env(safe-area-inset-bottom, 0px));
   width: auto;
@@ -774,6 +774,54 @@ html.ios .menu button:active { background: rgba(255, 255, 255, 0.1); color: var(
 html.ios .panel-toast { bottom: calc(var(--safe-bottom) + 14px); font-size: 13.5px; }
 html.ios .tooltip { display: none; }
 html.ios .fatal { margin: calc(env(safe-area-inset-top, 0px) + 20px) 16px 0; width: auto; }
+
+/* ---------- iPhone Duo and other wide screens ---------- */
+/* ui/layout.js picks the layout. 'split': the 3D stage on the leading side, the controls on
+   the trailing one, broken on the fold when the Duo is half-folded like a book. 'table':
+   half-folded like a laptop, the stage above the fold and the controls below it. A flat
+   Duo held upright stacks them on its crease (--split-start is then the stage's height). */
+
+html.ios .card {
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+html.ios .top { padding-left: max(20px, calc(var(--safe-left) + 8px)); padding-right: max(18px, calc(var(--safe-right) + 8px)); }
+html.ios .panel { container-type: inline-size; }
+
+html.ios.split .stage { inset: 0 auto 0 0; width: var(--split-start); height: auto; }
+html.ios.split .stage canvas {
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 90%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 90%, transparent 100%);
+}
+html.ios.split .panel, html.ios.split .sheet {
+  inset: calc(var(--safe-top) + 64px) 0 0 var(--split-end);
+  padding-right: max(16px, calc(var(--safe-right) + 6px));
+}
+html.ios.split .sheet { padding-left: 20px; padding-right: max(20px, calc(var(--safe-right) + 8px)); }
+html.ios.split .devices { margin-right: min(-16px, calc(-6px - var(--safe-right))); padding-right: max(16px, calc(var(--safe-right) + 6px)); }
+html.ios.split .panel-toast { left: calc(var(--split-end) + 16px); right: max(16px, var(--safe-right)); }
+
+html.ios.table .stage canvas {
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 92%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 92%, transparent 100%);
+}
+html.ios.table .panel, html.ios.table .sheet { top: calc(var(--split-end) + 12px); }
+
+/* Room for a third column of tiles, and scenes that need not squeeze. */
+@container (min-width: 560px) {
+  html.ios .grid { grid-template-columns: repeat(3, 1fr); }
+  html.ios .scene { height: 74px; font-size: 13px; }
+}
+/* A wide sheet keeps its controls at a hand's width, centred. */
+@media (min-width: 600px) {
+  html.ios:not(.split) .sheet > * { width: 100%; max-width: 560px; margin-left: auto; margin-right: auto; }
+}
+
+/* Folding or opening moves the controls; they settle where they now are. */
+html.ios .card.relayout .panel:not(.hidden), html.ios .card.relayout .sheet:not(.hidden) {
+  animation: relayout-in 460ms var(--ease) both;
+}
+@keyframes relayout-in { from { opacity: 0; transform: translateY(10px); } }
 
 /* ---------- boot / error ---------- */
 

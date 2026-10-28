@@ -230,6 +230,37 @@ apps, so it stays out of the App Store edition entirely: its code lives in its o
 that only the Smart Life edition and the Mac app link, and `build-ios.sh` refuses an App Store archive that contains it.
 The two editions are separate apps (bundle id and App Group), so both can sit on one phone.
 
+### iPhone Duo
+
+Closed, the Duo runs the app like any iPhone. Open it and the app spreads across the inner display, one half each,
+so the 3D model and the controls are never on top of each other:
+
+- **Open flat, held sideways:** the home in 3D on the left half, scenes, rooms and devices on the right. A lamp or
+  AC opens its controls on the right half while the model turns to it on the left.
+- **Half-folded like a book:** the same, broken exactly at the fold. Nothing sits across the crease.
+- **Half-folded like a laptop on a table:** the model stands on the upper half, facing you, and the controls lie on
+  the lower half, under your thumb — a small home hub for the desk or the bedside.
+- **Open flat, held upright:** the model above the crease, the controls below it, tiles three to a row.
+- **Opening the phone** plays the camera sweep and the lights coming on, as when the app starts.
+- **The floor plan editor** keeps the plan on the left half and the details of what you picked on the right,
+  instead of in a sheet over the plan. Settings and the connection screens stay at a readable width.
+- **Beside another app** the app can be resized, so it takes the shape it is given; narrower than 720 points, it
+  stacks as on any iPhone.
+
+To try it, run the app on the iPhone Duo simulator (Xcode 27.1 or newer) and fold it with the **Closed**,
+**Partially Open** and **Open** buttons under the device in Device Hub:
+
+```bash
+DEVICE="iPhone Duo" ./scripts/ios-sim.sh
+```
+
+In a browser, `?platform=ios&fold=455,0,41,669` at 951×669 stands in for a Duo half-folded like a book, and
+`fold=0,455,669,41` at 669×951 for one standing like a laptop.
+
+The fold comes from the system's division region (`reservedRegions(kind: .division)`). The iPhone Duo simulator in
+Xcode 27.1 reports none, so where there is none at all and the hinge says half open, the app takes the fold to run
+down the middle of the screen ([FoldWebView.swift](ios/Sources/FoldWebView.swift)).
+
 ### Sync with a Mac or PC
 
 Optional. Pair a Mac or a Windows PC and your floor plan — rooms, furniture, lamps, scenes and the links to real

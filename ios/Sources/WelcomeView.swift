@@ -5,31 +5,49 @@ struct WelcomeView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        // A short screen (iPhone Duo closed) drops the icon and tightens up; one shorter still
+        // (iPhone Duo open in landscape) scrolls what does not fit.
+        ViewThatFits(in: .vertical) {
+            content(compact: false)
+            content(compact: true)
+            ScrollView { content(compact: true) }
+        }
+        .presentationDetents([.large])
+        .presentationBackground(Theme.background)
+        .presentationDragIndicator(.visible)
+        .preferredColorScheme(.dark)
+        .interactiveDismissDisabled(false)
+        .onDisappear { UserDefaults.standard.set(true, forKey: "welcomed") }
+    }
+
+    private func content(compact: Bool) -> some View {
         VStack(spacing: 0) {
-            Image(systemName: "house.fill")
-                .font(.system(size: 34, weight: .semibold))
-                .foregroundStyle(Color(red: 1, green: 0.95, blue: 0.86))
-                .frame(width: 76, height: 76)
-                .background(
-                    LinearGradient(colors: [Color(red: 0.36, green: 0.24, blue: 0.52), Color(red: 0.13, green: 0.16, blue: 0.36), Color(red: 0.05, green: 0.07, blue: 0.16)],
-                                   startPoint: .top, endPoint: .bottom),
-                    in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .shadow(color: Theme.warm.opacity(0.45), radius: 22)
-                .padding(.top, 44)
-                .accessibilityHidden(true)
+            if !compact {
+                Image(systemName: "house.fill")
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(Color(red: 1, green: 0.95, blue: 0.86))
+                    .frame(width: 76, height: 76)
+                    .background(
+                        LinearGradient(colors: [Color(red: 0.36, green: 0.24, blue: 0.52), Color(red: 0.13, green: 0.16, blue: 0.36), Color(red: 0.05, green: 0.07, blue: 0.16)],
+                                       startPoint: .top, endPoint: .bottom),
+                        in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .shadow(color: Theme.warm.opacity(0.45), radius: 22)
+                    .padding(.top, 44)
+                    .accessibilityHidden(true)
+            }
 
             Text("Welcome to House Control")
                 .font(.system(size: 27, weight: .bold))
                 .foregroundStyle(Theme.text)
                 .multilineTextAlignment(.center)
-                .padding(.top, 20)
+                .padding(.top, compact ? 34 : 20)
             Text("Your home as a live 3D model, in your pocket.")
                 .font(.system(size: 16))
                 .foregroundStyle(Theme.muted)
                 .multilineTextAlignment(.center)
                 .padding(.top, 6)
 
-            VStack(alignment: .leading, spacing: 26) {
+            VStack(alignment: .leading, spacing: compact ? 20 : 26) {
                 feature("hand.tap.fill", Theme.warm, "Tap a lamp, drag to dim",
                         "Lights, colours, air conditioners and scenes, right on the floor plan.")
                 feature("pencil.and.ruler.fill", Theme.accent, "Draw it here or on your computer",
@@ -40,6 +58,7 @@ struct WelcomeView: View {
                             : "Home Assistant, Philips Hue and Apple Home. Until you connect one, everything is simulated.")
             }
             .padding(.horizontal, 6)
+            .padding(.vertical, compact ? 20 : 28)
             .frame(maxHeight: .infinity)
 
             Button { model.finishWelcome(.setUpHere) } label: { Label("Set up my home", systemImage: "house.fill") }
@@ -55,12 +74,7 @@ struct WelcomeView: View {
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 10)
-        .presentationDetents([.large])
-        .presentationBackground(Theme.background)
-        .presentationDragIndicator(.visible)
-        .preferredColorScheme(.dark)
-        .interactiveDismissDisabled(false)
-        .onDisappear { UserDefaults.standard.set(true, forKey: "welcomed") }
+        .readableWidth(520)
     }
 
     private func feature(_ symbol: String, _ tint: Color, _ title: String, _ detail: String) -> some View {

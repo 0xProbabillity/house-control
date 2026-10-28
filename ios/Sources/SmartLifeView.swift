@@ -36,6 +36,7 @@ struct SmartLifeView: View {
             .padding(.horizontal, 18)
             .padding(.top, 8)
             .padding(.bottom, 32)
+            .readableWidth()
             .animation(.spring(response: 0.5, dampingFraction: 0.85), value: login)
             .animation(.spring(response: 0.5, dampingFraction: 0.85), value: model.smartLifeConnected)
         }

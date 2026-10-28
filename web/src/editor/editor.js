@@ -959,8 +959,10 @@ export async function bootEditor(root) {
       document.activeElement?.blur?.();
     }
     let gripDrag = null;
+    // Docked beside the plan on a wide screen (editor.css), the details have no height to drag.
+    const docked = matchMedia('(min-width: 720px) and (min-aspect-ratio: 23/20)');
     const startGrip = (ev) => {
-      if (ev.target.closest('button, input, select, textarea, a')) return;
+      if (docked.matches || ev.target.closest('button, input, select, textarea, a')) return;
       gripDrag = { y: ev.clientY, h: sheet.getBoundingClientRect().height, id: ev.pointerId, moved: false };
     };
     grip.addEventListener('pointerdown', startGrip);

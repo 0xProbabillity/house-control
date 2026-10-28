@@ -55,6 +55,7 @@ private struct BannerView: View {
         .background(.ultraThinMaterial, in: Capsule())
         .overlay(Capsule().strokeBorder(Theme.line))
         .shadow(color: .black.opacity(0.45), radius: 18, y: 8)
+        .frame(maxWidth: 520)
         .padding(.horizontal, 20)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isStaticText)

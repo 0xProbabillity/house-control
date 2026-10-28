@@ -4,6 +4,7 @@ import { createWorld } from './three/world.js';
 import { createPanel } from './ui/panel.js';
 import { createAgent } from './agent/tools.js';
 import { h, openMenu } from './ui/dom.js';
+import { phoneLayout, sameLayout } from './ui/layout.js';
 import { icon } from './ui/icons.js';
 import { isNative, isPhone, post, incoming, haptic } from './bridge.js';
 import { publishWidgets, runWidgetAction } from './widgets.js';
@@ -88,8 +89,44 @@ async function boot() {
   }
 
   panel.attach(world);
-  // On a phone the header sits lower (status bar) but is closer to the model.
-  const applyInsets = () => (isPhone ? world.setInsets(50 + safeAreaTop(), 36) : world.setInsets(...STAGE_INSETS));
+
+  // A phone stacks the stage over the controls; a wide or folded one (iPhone Duo) may put
+  // them side by side or break them at the fold (ui/layout.js). The native app reports
+  // the fold whenever the hinge moves.
+  const root = document.documentElement;
+  // ?fold=455,0,40,669 stands in for a half-folded iPhone Duo's fold (x,y,width,height) in a browser.
+  const [fx, fy, fw, fh] = (new URLSearchParams(location.search).get('fold') || '').split(',').map(Number);
+  let fold = window.__HOUSE_BOOT__?.fold || (fh ? { x: fx, y: fy, width: fw, height: fh } : null);
+  let layout = null;
+  let wasWide = innerWidth >= 600;
+  function applyLayout() {
+    if (!isPhone) return;
+    const next = phoneLayout(innerWidth, innerHeight, fold);
+    const wide = innerWidth >= 600;
+    // Opening a Duo replays the sweep the panel plays when it appears.
+    if (layout && wide && !wasWide) world.intro();
+    wasWide = wide;
+    if (sameLayout(layout, next)) return;
+    const moved = layout && layout.kind !== next.kind;
+    layout = next;
+    root.classList.toggle('split', next.kind === 'split');
+    root.classList.toggle('table', next.kind === 'table');
+    for (const [name, px] of [['--split-start', next.start], ['--split-end', next.end]]) {
+      if (px == null) root.style.removeProperty(name);
+      else root.style.setProperty(name, `${Math.round(px)}px`);
+    }
+    if (moved) { panel.relayout(); applyInsets(); }
+  }
+  incoming.setFold = (rect) => { fold = rect || null; applyLayout(); };
+  window.addEventListener('resize', applyLayout);
+  applyLayout();
+
+  // On a phone the header sits lower (status bar) but is closer to the model; with the
+  // stage to itself (beside the controls, or above the fold) nothing covers its foot.
+  function applyInsets() {
+    if (isPhone) world.setInsets(50 + safeAreaTop(), layout?.kind === 'stack' ? 36 : 0);
+    else world.setInsets(...STAGE_INSETS);
+  }
   applyInsets();
   new ResizeObserver(() => (isPhone ? applyInsets() : world.resize())).observe(panel.canvas);
 
@@ -99,9 +136,13 @@ async function boot() {
   incoming.hidden = () => { hide(); panel.closeSheet(); if (panel.room !== 'all') panel.selectRoom('all'); };
   incoming.setNotch = (x) => panel.setNotch(x);
   if (isPhone) {
-    // Swiping in from the left edge goes back from a device sheet, as it does everywhere on iOS.
+    // Swiping in from the left edge goes back from a device sheet, as it does everywhere on iOS
+    // (beside the 3D stage, from the sheet's own left edge).
     let edge = null;
-    window.addEventListener('pointerdown', (ev) => { edge = ev.clientX < 28 ? { x: ev.clientX, y: ev.clientY } : null; }, true);
+    window.addEventListener('pointerdown', (ev) => {
+      const left = layout?.kind === 'split' ? layout.end : 0;
+      edge = ev.clientX >= left && ev.clientX - left < 28 ? { x: ev.clientX, y: ev.clientY } : null;
+    }, true);
     window.addEventListener('pointerup', (ev) => {
       const swiped = edge && ev.clientX - edge.x > 56 && Math.abs(ev.clientY - edge.y) < 80;
       edge = null;

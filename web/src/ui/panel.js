@@ -566,6 +566,14 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     get room() { return ui.room; },
     setNotch(x) { card.style.setProperty('--notch-x', `${x}px`); },
     setAgentLive(live) { aiBadge.hidden = !live; },
+    /** The stage and the controls moved (a Duo folded or opened): the controls settle in place. */
+    relayout() {
+      card.classList.remove('relayout');
+      void card.offsetWidth; // restarts the animation
+      card.classList.add('relayout');
+      clearTimeout(card.relayoutTimer);
+      card.relayoutTimer = setTimeout(() => card.classList.remove('relayout'), 600);
+    },
     /** `ai`: something an AI assistant did (who, what), instead of an error. */
     toast(text, ai = null) {
       toastEl.replaceChildren(...(ai ? [h('span.toast-ai', icon('sparkles', 13, 2.2), ai), h('span', text)] : [text]));
