@@ -112,6 +112,15 @@ html.mode-editor, html.mode-editor body { user-select: none; }
 .p-ac .flow { stroke: #5db2ff; stroke-width: 0.04; stroke-linecap: round; opacity: 0.6; fill: none; pointer-events: none; }
 .p-ac.sel rect { stroke: #fff; stroke-width: 0.07; }
 
+.p-vac { cursor: move; }
+.p-vac .dock { fill: #2b3039; stroke: #9fe3b8; stroke-width: 0.03; }
+.p-vac .robot { fill: #eceef2; stroke: #0a0e1a; stroke-width: 0.04; }
+.p-vac .bumper { fill: none; stroke: #3a3f49; stroke-width: 0.05; stroke-linecap: round; }
+.p-vac .lidar { fill: #2b2f37; }
+.p-vac:hover .robot { fill: #fff; }
+.p-vac.linked .robot { stroke: #6ee7a0; stroke-width: 0.06; }
+.p-vac.sel .robot, .p-vac.sel .dock { stroke: #6aa6ff; stroke-width: 0.07; }
+
 .p-light { cursor: move; }
 .p-light circle, .p-light rect { fill: #ffb46b; stroke: #0a0e1a; stroke-width: 0.04; }
 .p-light .halo { fill: rgba(255, 180, 107, 0.16); stroke: none; }
@@ -327,7 +336,7 @@ html.ios.mode-editor body { background: var(--bg); }
 
 .editor.phone .hit { fill: transparent; stroke: none; }
 .editor.phone .p-hit { stroke: transparent; stroke-width: 0.6; }
-.editor.phone .p-room rect, .editor.phone .p-furn rect, .editor.phone .p-light, .editor.phone .p-ac rect, .editor.phone .p-open { cursor: default; }
+.editor.phone .p-room rect, .editor.phone .p-furn rect, .editor.phone .p-light, .editor.phone .p-vac, .editor.phone .p-ac rect, .editor.phone .p-open { cursor: default; }
 .editor.phone .p-room:hover rect { filter: none; }
 
 .p-tools {

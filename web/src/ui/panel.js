@@ -1,16 +1,18 @@
 // The control panel that lives in the menu bar popover: header, scenes, rooms,
-// device tiles and the detail sheets for a light or an AC.
+// device tiles and the detail sheets for a light, an AC or a robot vacuum.
 import * as THREE from 'three';
 import { h, clamp, createSlider, createColorPad, openMenu } from './dom.js';
 import { icon } from './icons.js';
 import { lightColor } from '../three/lights.js';
 import { MODE_COLORS } from '../three/ac.js';
+import { VACUUM_COLORS } from '../three/vacuum.js';
 import { AC_SWINGS } from '../store.js';
 import { haptic, isPhone } from '../bridge.js';
 
 const MODE_LABEL = { cool: 'Cool', heat: 'Heat', dry: 'Dry', fan: 'Fan', auto: 'Auto' };
 const FAN_LABEL = { auto: 'Auto', low: 'Low', medium: 'Medium', high: 'High', turbo: 'Turbo' };
 const SWING_LABEL = { swing: 'Swing', l1: 'L1', l2: 'L2', l3: 'L3', l4: 'L4', l5: 'L5', off: 'Off' };
+const VACUUM_LABEL = { cleaning: 'Cleaning', docked: 'Docked', returning: 'Returning', paused: 'Paused', idle: 'Idle', error: 'Error', unavailable: 'Unavailable' };
 const SWATCHES = ['#ff5a4f', '#ff9a3c', '#ffd84a', '#5fe08a', '#42d6e8', '#4f8dff', '#8b5cff', '#ff5fc4'];
 
 const TEMP_GRADIENT = 'linear-gradient(90deg, #2f7df6 0%, #58b4f5 34%, #f3e2c0 62%, #f6a54a 82%, #f0762c 100%)';
@@ -24,6 +26,25 @@ const css = (c) => `#${c.getHexString()}`;
 function lightStatus(cfg, s) {
   if (!s.on) return 'Off';
   return cfg.capabilities.includes('brightness') ? `${Math.round(s.brightness * 100)}%` : 'On';
+}
+
+// Docked and not full yet: it is charging.
+const charging = (s) => s.status === 'docked' && Number.isFinite(s.battery) && s.battery < 100;
+const vacuumColor = (s) => VACUUM_COLORS[charging(s) ? 'charging' : s.status] || VACUUM_COLORS.idle;
+const vacuumBusy = (s) => s.status === 'cleaning' || s.status === 'returning' || s.status === 'error';
+
+// Out of reach, its last battery reading is old news: it is not shown.
+const offline = (s) => s.status === 'unavailable';
+
+function vacuumStatus(s) {
+  const what = charging(s) ? 'Charging' : VACUUM_LABEL[s.status] || 'Idle';
+  return Number.isFinite(s.battery) && !offline(s) ? `${what} · ${Math.round(s.battery)}%` : what;
+}
+
+function batteryIcon(s) {
+  if (charging(s)) return 'charging';
+  if (!Number.isFinite(s.battery)) return 'battery';
+  return s.battery >= 75 ? 'battery-full' : s.battery >= 35 ? 'battery-medium' : 'battery-low';
 }
 
 function acTemperatureColor(target, cfg) {
@@ -236,7 +257,27 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     };
   }
 
+  // Opening the sheet is all a tap does: starting a robot by accident would be a surprise.
+  function vacuumTile(cfg) {
+    const sub = h('div.tile-sub');
+    const open = () => openSheet({ kind: 'vacuum', id: cfg.id });
+    const el = h('div.tile.vacuum', { role: 'button', tabindex: 0, 'aria-label': cfg.name, onclick: open },
+      h('div.bubble', icon('vacuum', 19)),
+      h('div.tile-text', h('div.tile-name', cfg.name), sub));
+    el.addEventListener('keydown', (ev) => { if (ev.key === ' ' || ev.key === 'Enter') { ev.preventDefault(); open(); } });
+    return {
+      el, cfg, kind: 'vacuum',
+      update() {
+        const s = state.vacuums[cfg.id];
+        el.classList.toggle('on', vacuumBusy(s));
+        el.style.setProperty('--c', vacuumColor(s));
+        sub.textContent = ui.room === 'all' && !isPhone ? `${vacuumStatus(s)} · ${roomName.get(cfg.room)}` : vacuumStatus(s);
+      },
+    };
+  }
+
   for (const cfg of config.acs) tiles.set(cfg.id, acTile(cfg));
+  for (const cfg of config.vacuums) tiles.set(cfg.id, vacuumTile(cfg));
   for (const cfg of config.lights) tiles.set(cfg.id, lightTile(cfg));
 
   function toggleLight(id) {
@@ -255,6 +296,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
       if (!devices.length) continue;
       if (ui.room === 'all') nodes.push(h('div.group-label', room.name));
       devices.filter((t) => t.kind === 'ac').forEach(add);
+      devices.filter((t) => t.kind === 'vacuum').forEach(add);
       devices.filter((t) => t.kind === 'light').forEach(add);
     }
     if (!nodes.length) nodes.push(h('div.group-label', 'No devices in this room yet'));
@@ -271,7 +313,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
 
   function openSheet(target) {
     ui.sheet = target;
-    sheetView = target.kind === 'ac' ? acSheet(target.id) : lightSheet(target.id);
+    sheetView = target.kind === 'ac' ? acSheet(target.id) : target.kind === 'vacuum' ? vacuumSheet(target.id) : lightSheet(target.id);
     sheet.replaceChildren(...sheetView.nodes);
     panel.classList.add('hidden');
     sheet.classList.remove('hidden');
@@ -279,7 +321,8 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     sheet.inert = false;
     card.classList.add('detail');
     hideTooltip();
-    onFocus(target.kind === 'ac' ? target : { kind: 'room', id: store.lightCfg.get(target.id).room });
+    // A robot can be anywhere in the home: the whole of it stays in view.
+    onFocus(target.kind === 'ac' ? target : target.kind === 'vacuum' ? null : { kind: 'room', id: store.lightCfg.get(target.id).room });
     update();
   }
 
@@ -404,6 +447,74 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     };
   }
 
+  function vacuumSheet(id) {
+    const cfg = store.vacuumCfg.get(id);
+    const s = () => state.vacuums[id];
+    const features = () => store.vacuumFeatures(id);
+    const set = (patch) => { haptic('medium'); store.setVacuum(id, patch); };
+    const sub = h('div.sheet-sub');
+    const status = h('div.vac-status');
+    const battery = h('div.vac-battery');
+
+    // Start / pause on one button, the way the robot's own button works; home on the other.
+    const mainLabel = h('span');
+    let mainIcon = h('span');
+    const main = h('button.vac-action.primary', { onclick: () => set({ status: s().status === 'cleaning' ? 'paused' : 'cleaning' }) },
+      mainIcon, mainLabel);
+    const dockLabel = h('span', 'Dock');
+    const dock = h('button.vac-action', { onclick: () => set({ status: 'returning' }) }, icon('dock', 22, 1.9), dockLabel);
+
+    const fanValue = h('div.option-value');
+    const fan = h('button.option', { onclick: () => {
+      fan.classList.add('open');
+      openMenu(clip, fan, features().fans.map((v) => ({
+        label: v, selected: s().fan === v, icon: s().fan === v ? icon('check', 16, 2.4) : null,
+        action: () => { haptic('light'); store.setVacuum(id, { fan: v }); },
+      })), { onClose: () => fan.classList.remove('open') });
+    } }, icon('fan', 24, 1.6), h('span.corner', icon('down', 15, 2.2)), h('div.option-label', isPhone ? 'Suction' : 'Suction power'), fanValue);
+    const options = h('div.options.vac-options', fan);
+    let shownIcon = null;
+
+    return {
+      nodes: [
+        sheetHead(cfg.name, sub, null),
+        h('div.readout.vac-readout', status, battery),
+        h('div.vac-actions', main, dock),
+        options,
+        h('div.sheet-note', icon('route', 20),
+          'In 3D the robot shows a likely route through the doors of its home: its real position is not reported.'),
+      ],
+      update() {
+        const v = s();
+        const f = features();
+        const cleaning = v.status === 'cleaning';
+        const color = vacuumColor(v);
+        sub.replaceChildren(icon('dock', 14), `Dock in ${roomName.get(cfg.room)}`,
+          h('span.live', { style: { background: vacuumBusy(v) ? color : 'rgba(255,255,255,.25)', boxShadow: vacuumBusy(v) ? `0 0 8px ${color}` : 'none' } }));
+        status.textContent = charging(v) ? 'Charging' : VACUUM_LABEL[v.status] || 'Idle';
+        status.style.setProperty('--c', color);
+        battery.replaceChildren(icon(batteryIcon(v), 18, 1.9), Number.isFinite(v.battery) ? `${Math.round(v.battery)}%` : '—');
+        battery.hidden = !Number.isFinite(v.battery) || offline(v);
+
+        mainLabel.textContent = cleaning ? 'Pause' : v.status === 'paused' ? 'Resume' : 'Start';
+        main.disabled = offline(v) || (cleaning ? !f.canPause : f.canStart === false);
+        main.classList.toggle('on', cleaning);
+        dockLabel.textContent = v.status === 'returning' ? 'Going home' : v.status === 'docked' ? 'On the dock' : 'Dock';
+        dock.disabled = offline(v) || !f.canReturn || v.status === 'docked' || v.status === 'returning';
+        if (cleaning !== shownIcon) {
+          const next = icon(cleaning ? 'pause' : 'play', 22, 1.9);
+          mainIcon.replaceWith(next);
+          mainIcon = next;
+          shownIcon = cleaning;
+        }
+        // A real vacuum without fan speeds has nothing to choose here.
+        options.hidden = !f.fans.length;
+        fan.disabled = offline(v);
+        fanValue.textContent = v.fan || '—';
+      },
+    };
+  }
+
   function lightSheet(id) {
     const cfg = store.lightCfg.get(id);
     const s = () => state.lights[id];
@@ -478,6 +589,9 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
       const cfg = store.lightCfg.get(hit.id);
       const s = state.lights[hit.id];
       name = cfg.name; status = lightStatus(cfg, s); on = s.on; color = css(lightColor(s, tmp));
+    } else if (hit.kind === 'vacuum') {
+      const s = state.vacuums[hit.id];
+      name = store.vacuumCfg.get(hit.id).name; status = vacuumStatus(s); on = vacuumBusy(s); color = vacuumColor(s);
     } else {
       const cfg = store.acCfg.get(hit.id);
       const s = state.acs[hit.id];

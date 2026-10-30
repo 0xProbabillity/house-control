@@ -7,7 +7,15 @@ import {
   Undo2, Activity, KeyRound, ArrowUpRight, Camera, Square,
   HouseWifi, Smartphone, Radar, CircleCheck, CircleAlert, ChevronRight, Unlink, LoaderCircle, Router,
   List, Trash2, Scan, Redo2, Map as MapIcon, DoorClosed, Armchair,
+  Play, Pause, HousePlug, Battery, BatteryLow, BatteryMedium, BatteryFull, BatteryCharging, Route,
 } from 'lucide';
+
+// Lucide has no robot vacuum: a round robot seen from above, its bumper and its lidar.
+const Vacuum = [
+  ['circle', { cx: '12', cy: '12', r: '9' }],
+  ['path', { d: 'M6.5 8.5a7 7 0 0 1 11 0' }],
+  ['circle', { cx: '12', cy: '13.5', r: '2.5' }],
+];
 
 const ICONS = {
   power: Power, sun: Sun, sofa: Sofa, film: Film, moon: Moon, door: DoorOpen,
@@ -23,6 +31,8 @@ const ICONS = {
   homeassistant: HouseWifi, phone: Smartphone, radar: Radar, ok: CircleCheck, alert: CircleAlert,
   next: ChevronRight, unlink: Unlink, spinner: LoaderCircle, bridge: Router, bulb: Lightbulb,
   list: List, trash: Trash2, fit: Scan, redo: Redo2, map: MapIcon, opening: DoorClosed, furniture: Armchair,
+  vacuum: Vacuum, play: Play, pause: Pause, dock: HousePlug, route: Route, charging: BatteryCharging,
+  battery: Battery, 'battery-low': BatteryLow, 'battery-medium': BatteryMedium, 'battery-full': BatteryFull,
 };
 
 export function icon(name, size = 18, stroke = 1.8) {

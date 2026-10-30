@@ -8,6 +8,7 @@ import { buildHouse } from './house.js';
 import { buildFurniture } from './furniture.js';
 import { LightUnit } from './lights.js';
 import { ACUnit } from './ac.js';
+import { VacuumUnit } from './vacuum.js';
 
 export const STAGE_BG = '#0a0e1a';
 
@@ -19,7 +20,9 @@ const EL_MAX = 70;
 const ZOOM_MIN = 0.55;     // closest
 const ZOOM_MAX = 1.2;
 
-export function createWorld(canvas, config, store, { onHover, onPick, background = STAGE_BG }) {
+// `onVacuumDocked(id)`: a robot vacuum has driven back onto its dock (the panel's simulated ones
+// then say "docked").
+export function createWorld(canvas, config, store, { onHover, onPick, onVacuumDocked, background = STAGE_BG }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -87,7 +90,14 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
     acs.set(cfg.id, unit);
     scene.add(unit.group);
   }
-  const hitTargets = [...[...lights.values()].map((u) => u.hit), ...[...acs.values()].map((u) => u.hit), ...house.floors];
+  const vacuums = new Map();
+  for (const cfg of config.vacuums) {
+    const unit = new VacuumUnit(cfg, config, { onDocked: onVacuumDocked });
+    vacuums.set(cfg.id, unit);
+    scene.add(unit.group);
+  }
+  const hitTargets = [...[...lights.values()].map((u) => u.hit), ...[...acs.values()].map((u) => u.hit),
+    ...[...vacuums.values()].flatMap((u) => u.hits), ...house.floors];
 
   // Night-time ambience: enough to read the model with every lamp off.
   scene.add(new THREE.HemisphereLight(0x8ea6ff, 0x0b0e17, 0.42));
@@ -204,6 +214,8 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
       unit.apply(store.state.lights[id], { ...opts, delay: opts.stagger ? 0.25 + i++ * 0.06 : 0 });
     }
     for (const [id, unit] of acs) unit.apply(store.state.acs[id], opts);
+    // A robot keeps its place: no `instant` for it, it carries on from where it is.
+    for (const [id, unit] of vacuums) unit.apply(store.state.vacuums?.[id]);
     wake();
   }
 
@@ -211,6 +223,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
     if (change.type === 'tick') return;
     if (change.type === 'light') lights.get(change.id).apply(store.state.lights[change.id]);
     else if (change.type === 'ac') acs.get(change.id).apply(store.state.acs[change.id]);
+    else if (change.type === 'vacuum') vacuums.get(change.id)?.apply(store.state.vacuums[change.id]);
     else syncAll();
     wake();
   });
@@ -234,7 +247,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
   }
 
   function unitOf(t) {
-    return t?.kind === 'light' ? lights.get(t.id) : t?.kind === 'ac' ? acs.get(t.id) : null;
+    return t?.kind === 'light' ? lights.get(t.id) : t?.kind === 'ac' ? acs.get(t.id) : t?.kind === 'vacuum' ? vacuums.get(t.id) : null;
   }
 
   function screenAnchor(t) {
@@ -350,6 +363,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
     let active = updateRig(dt);
     for (const unit of lights.values()) active = unit.update(dt) || active;
     for (const unit of acs.values()) active = unit.update(dt) || active;
+    for (const unit of vacuums.values()) active = unit.update(dt) || active;
     if (shadowFrames > 0) { renderer.shadowMap.needsUpdate = true; shadowFrames--; active = true; }
     if (active || awake > 0) {
       composer.render(dt);
@@ -380,6 +394,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
   const world = {
     lights,
     acs,
+    vacuums,
 
     setInsets(top, bottom) { topInset = top; bottomInset = bottom; resize(); },
     resize,
@@ -430,6 +445,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
         updateRig(0.05);
         for (const unit of lights.values()) unit.update(0.05);
         for (const unit of acs.values()) unit.update(0.05);
+        for (const unit of vacuums.values()) unit.update(0.05);
       }
       renderer.shadowMap.needsUpdate = true;
       composer.render(0);

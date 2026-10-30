@@ -50,8 +50,9 @@ Press **Copy for a chat** and paste it into ChatGPT, Claude, Gemini, Perplexity 
 > Dim the living room to 30% and cool the bedroom to 22°.
 
 The link opens a guide written for AI assistants: the rules, the state of every device, and a ready-made **action link**
-for each thing it can do (`…/do/light/living.main/brightness/30`). Opening an action link performs it and answers
-with the new state, so even an assistant that can only browse can run the home.
+for each thing it can do (`…/do/light/living.main/brightness/30`, `…/do/vacuum/living.vacuum/start`, `/pause`,
+`/dock`). Opening an action link performs it and answers with the new state, so even an assistant that can only
+browse can run the home — and start a robot vacuum: keep the link private.
 
 Changing the 3D model needs more than opening links. For that, connect House Control as a connector:
 
@@ -98,12 +99,13 @@ curl -X POST https://….trycloudflare.com/<key>/api/set_lights -d '{"lights": [
 
 | Tool | Does |
 | --- | --- |
-| `get_home` | Every room with its lights and ACs, what each can do and what it is doing, and the scenes |
+| `get_home` | Every room with its lights, ACs and robot vacuums, what each can do and what it is doing, and the scenes |
 | `set_lights` | On, off, toggle, brightness (%), white temperature (K), colour — for ids, whole rooms, names or `all` |
 | `set_air_conditioners` | On, off, target temperature, mode, fan speed |
+| `control_vacuums` | Start a robot vacuum, pause it or send it to its dock; its suction level |
 | `activate_scene` | Runs a scene |
 | `get_floor_plan` | The plan behind the 3D model, the coordinate rules and the furniture catalogue |
-| `edit_floor_plan` | A list of operations applied together: `furnish_room` (replace everything in a room — the photo case), add / update / remove rooms, furniture, doors and windows, lights, ACs and scenes |
+| `edit_floor_plan` | A list of operations applied together: `furnish_room` (replace everything in a room — the photo case), add / update / remove rooms, furniture, doors and windows, lights, ACs, robot vacuums and scenes |
 | `replace_floor_plan` | A whole new plan, e.g. drawn from a sketch |
 | `undo_floor_plan_edit` | Puts back the plan as it was before the last change |
 | `render_home` | A picture of the 3D model, whole or one room, so the assistant can check its work |
@@ -116,7 +118,7 @@ a reason the assistant can act on). The model on your screen updates at once, pa
 
 The **What it may do** switches take effect immediately, even while the link is live:
 
-- **Lights, climate and scenes** — off makes the link read-only for devices.
+- **Lights, climate and scenes** (and robot vacuums) — off makes the link read-only for devices.
 - **Your 3D home** — off hides the editing tools.
 - **Stop the link automatically** after 1 hour, 8 hours (the default) or never.
 

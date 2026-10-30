@@ -1,7 +1,7 @@
 import Foundation
 
-/// What the widgets and controls know about the home: the plan's rooms, lamps, ACs and
-/// scenes with the state each device was last in. The panel page writes it
+/// What the widgets and controls know about the home: the plan's rooms, lamps, ACs, robot
+/// vacuums and scenes with the state each device was last in. The panel page writes it
 /// (`web/src/widgets.js`) whenever something changes; a widget that changes something
 /// applies the change here first, so it can show the result at once.
 public struct HomeSnapshot: Codable, Equatable, Sendable {
@@ -53,6 +53,22 @@ public struct HomeSnapshot: Codable, Equatable, Sendable {
         public var links: [String: JSONValue]?
     }
 
+    /// A robot vacuum; `x`, `z` is where its dock stands.
+    public struct Vacuum: Codable, Equatable, Sendable, Identifiable {
+        public var id: String
+        public var name: String
+        public var room: String
+        public var x: Double, z: Double
+        /// "cleaning", "docked", "returning", "paused", "idle", "error" or "unavailable".
+        public var status: String
+        /// 0…100, when the vacuum reports it.
+        public var battery: Double?
+        /// The vacuum's own name for its fan speed ("Turbo"…), when it has any.
+        public var fan: String?
+        public var service: String?
+        public var links: [String: JSONValue]?
+    }
+
     public struct Scene: Codable, Equatable, Sendable, Identifiable {
         public var id: String
         public var name: String
@@ -79,6 +95,8 @@ public struct HomeSnapshot: Codable, Equatable, Sendable {
     public var rooms: [Room]
     public var lights: [Light]
     public var acs: [AC]
+    /// Missing from snapshots written before robot vacuums existed.
+    public var vacuums: [Vacuum]?
     public var furniture: [Furniture]?
     public var scenes: [Scene]
     /// The scene the home is in, until something is changed by hand.
@@ -104,11 +122,15 @@ public struct HomeSnapshot: Codable, Equatable, Sendable {
     public var identity: String { "\(plan):\(name)" }
     public var acsOn: [AC] { acs.filter(\.on) }
     /// True when no device is linked to a real one.
-    public var isSimulated: Bool { lights.allSatisfy { $0.service == nil } && acs.allSatisfy { $0.service == nil } }
+    public var isSimulated: Bool {
+        lights.allSatisfy { $0.service == nil } && acs.allSatisfy { $0.service == nil }
+            && (vacuums ?? []).allSatisfy { $0.service == nil }
+    }
 
     public func room(_ id: String) -> Room? { rooms.first { $0.id == id } }
     public func light(_ id: String) -> Light? { lights.first { $0.id == id } }
     public func ac(_ id: String) -> AC? { acs.first { $0.id == id } }
+    public func vacuum(_ id: String) -> Vacuum? { vacuums?.first { $0.id == id } }
     public func lights(in room: String) -> [Light] { lights.filter { $0.room == room } }
 
     /// The plan fragment `DeviceHub.setLinks` reads: each device with its links.
@@ -118,7 +140,8 @@ public struct HomeSnapshot: Codable, Equatable, Sendable {
             for (key, value) in links ?? [:] { out[key] = value.any }
             return out
         }
-        return ["lights": lights.map { entry($0.id, $0.links) }, "acs": acs.map { entry($0.id, $0.links) }]
+        return ["lights": lights.map { entry($0.id, $0.links) }, "acs": acs.map { entry($0.id, $0.links) },
+                "vacuums": (vacuums ?? []).map { entry($0.id, $0.links) }]
     }
 }
 

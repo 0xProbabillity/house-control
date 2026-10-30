@@ -37,6 +37,7 @@ Tuya — so connecting it brings all of them in at once.
 | `light.*` | A lamp: on/off, brightness, white temperature and colour as its colour modes allow |
 | `switch.*` | A lamp on a plug: on/off |
 | `climate.*` | An air conditioner: power, target, the modes it has (`cool`, `heat`, `dry`, `fan_only`, `auto`/`heat_cool`), its fan speeds, swing, `eco` and `sleep` presets |
+| `vacuum.*` | A robot vacuum: its status (cleaning, docked, returning, paused, idle, error, or unavailable when Home Assistant cannot reach it), its battery (the `battery` sensor of the same device, or the older `battery_level` attribute), start, pause (or stop, for robots that cannot pause), return to base, and its own fan speeds as the suction level |
 | `sensor.*` with `device_class: temperature` | A thermometer for an AC's room |
 
 Areas become the room shown next to each device. House Control subscribes to Home Assistant's events, so a

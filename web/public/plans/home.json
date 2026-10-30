@@ -83,6 +83,10 @@
     { "id": "bedroom.ac", "name": "Bedroom AC", "room": "bedroom", "wall": "north", "pos": [3.3, 0],  "y": 2.2 }
   ],
 
+  "vacuums": [
+    { "id": "living.vacuum", "name": "Robot vacuum", "room": "living", "pos": [3.0, 8.1] }
+  ],
+
   "scenes": [
     { "id": "bright", "name": "Bright", "icon": "sun",
       "lights": { "*": { "on": true, "brightness": 1, "temp": 4200 } } },

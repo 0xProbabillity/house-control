@@ -97,6 +97,37 @@ final class PlanEditorTests: XCTestCase {
         XCTAssertEqual(Array(rules.keys), ["*"])
     }
 
+    func testVacuumsAreLinkedAndAddedLikeTheOthers() throws {
+        var plan = sample()
+        plan["vacuums"] = [["id": "living.vacuum", "name": "Robot", "room": "living", "pos": [0.5, 0.3]]]
+        var editor = PlanEditor(plan: plan)
+        XCTAssertEqual(editor.items.map(\.id), ["living.light", "living.ac", "living.vacuum"])
+        XCTAssertEqual(editor.items[2].kind, .vacuum)
+
+        // A vacuum is neither a lamp nor an AC: it takes no capabilities and no range.
+        editor.link("living.vacuum", to: ["service": "homeassistant", "id": "vacuum.robo", "kind": "vacuum",
+                                          "capabilities": [], "min": 1.0, "max": 2.0])
+        let vacuum = (editor.plan["vacuums"] as! [[String: Any]])[0]
+        XCTAssertEqual(vacuum["link"] as? [String: String], ["service": "homeassistant", "id": "vacuum.robo"])
+        XCTAssertNil(vacuum["capabilities"])
+        XCTAssertNil(vacuum["min"])
+        XCTAssertEqual(editor.usedDevices[.init(service: "homeassistant", id: "vacuum.robo")], "Robot")
+
+        let added = editor.add([["service": "homeassistant", "id": "vacuum.second", "kind": "vacuum", "name": "Upstairs"]], to: "living")
+        XCTAssertEqual(added, ["living.vacuum2"])
+        let second = (editor.plan["vacuums"] as! [[String: Any]])[1]
+        XCTAssertEqual(second["pos"] as? [Double], [1.1, 0.3]) // beside the first dock
+        XCTAssertEqual(second["link"] as? [String: String], ["service": "homeassistant", "id": "vacuum.second"])
+        _ = try PlanStore.validate(PlanStore.encode(editor.plan))
+
+        editor.remove("living.vacuum")
+        XCTAssertEqual(editor.items.map(\.id), ["living.light", "living.ac", "living.vacuum2"])
+        // A plan without vacuums gets no empty list from adding lamps.
+        var lamps = PlanEditor(plan: sample())
+        lamps.add([["service": "hue", "id": "h9", "kind": "light", "name": "Lamp"]], to: "living")
+        XCTAssertNil(lamps.plan["vacuums"])
+    }
+
     func testFixtureGuess() {
         XCTAssertEqual(PlanEditor.fixture(for: "Bedside Lamp"), "table")
         XCTAssertEqual(PlanEditor.fixture(for: "Hue color lamp"), "ceiling")
