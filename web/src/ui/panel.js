@@ -33,9 +33,11 @@ function acTemperatureColor(target, cfg) {
 
 export function createPanel(root, config, store, { onFocus, onMenu }) {
   const { state } = store;
-  const ui = { room: 'all', sheet: null };
+  const ui = { room: 'all', sheet: null, level: config.levels[0].id };
   let world = null;
   const roomName = new Map(config.rooms.map((r) => [r.id, r.name]));
+  const roomLevel = new Map(config.rooms.map((r) => [r.id, r.level]));
+  const multiLevel = config.levels.length > 1;
 
   /* ---------- skeleton ---------- */
 
@@ -62,8 +64,18 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   sheet.inert = true;
   const toastEl = h('div.panel-toast');
 
+  // A home on several floors: one button per floor under the 3D model, lowest first.
+  const floorButtons = new Map();
+  const floors = h('div.floors', { role: 'group', 'aria-label': 'Floors', hidden: !multiLevel },
+    config.levels.map((l) => {
+      const count = h('span.count.zero', '0');
+      const b = h('button.floor', { 'aria-label': l.name, onclick: () => { haptic('tick'); showLevel(l.id); } }, h('span', l.name), count);
+      floorButtons.set(l.id, { b, count });
+      return b;
+    }));
+
   const clip = h('div.card-clip',
-    h('div.stage', canvas),
+    h('div.stage', canvas, floors),
     h('div.tint'),
     h('header.top',
       h('div.home', h('div.home-badge', icon('home', 17)),
@@ -100,6 +112,20 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     update();
     roomButtons.get(id).b.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     onFocus(id === 'all' ? null : { kind: 'room', id });
+  }
+
+  // The model shows another floor; a room on a different one is let go.
+  function showLevel(id) {
+    if (ui.room !== 'all' && roomLevel.get(ui.room) !== id) { ui.room = 'all'; layoutTiles(); }
+    world?.setLevel(id);
+    levelShown(id);
+  }
+
+  function levelShown(id) {
+    if (ui.level === id) return;
+    ui.level = id;
+    if (multiLevel && ui.room === 'all') layoutTiles();
+    update();
   }
 
   function inScope(cfg) {
@@ -249,13 +275,19 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     const nodes = [];
     let i = 0;
     const add = (t) => { t.el.style.setProperty('--i', i++); nodes.push(t.el); };
-    for (const room of config.rooms) {
-      if (ui.room !== 'all' && room.id !== ui.room) continue;
-      const devices = [...tiles.values()].filter((t) => t.cfg.room === room.id);
-      if (!devices.length) continue;
-      if (ui.room === 'all') nodes.push(h('div.group-label', room.name));
-      devices.filter((t) => t.kind === 'ac').forEach(add);
-      devices.filter((t) => t.kind === 'light').forEach(add);
+    // On several floors the one on show comes first, each under its own heading.
+    const levels = [...config.levels].sort((a, b) => (b.id === ui.level) - (a.id === ui.level));
+    for (const level of levels) {
+      const before = nodes.length;
+      for (const room of config.rooms) {
+        if (room.level !== level.id || (ui.room !== 'all' && room.id !== ui.room)) continue;
+        const devices = [...tiles.values()].filter((t) => t.cfg.room === room.id);
+        if (!devices.length) continue;
+        if (ui.room === 'all') nodes.push(h('div.group-label', room.name));
+        devices.filter((t) => t.kind === 'ac').forEach(add);
+        devices.filter((t) => t.kind === 'light').forEach(add);
+      }
+      if (multiLevel && ui.room === 'all' && nodes.length > before) nodes.splice(before, 0, h('div.level-label', level.name));
     }
     if (!nodes.length) nodes.push(h('div.group-label', 'No devices in this room yet'));
     else if (isPhone && config.lights.some((l) => l.capabilities.length && inScope(l))) {
@@ -535,6 +567,13 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
       count.textContent = n;
       count.classList.toggle('zero', n === 0 || id === 'all');
     }
+    for (const [id, { b, count }] of floorButtons) {
+      b.classList.toggle('active', ui.level === id);
+      b.setAttribute('aria-pressed', String(ui.level === id));
+      const n = config.lights.filter((l) => l.level === id && state.lights[l.id].on).length;
+      count.textContent = n;
+      count.classList.toggle('zero', n === 0);
+    }
 
     const scoped = config.lights.filter(inScope);
     const scopedOn = scoped.filter((l) => state.lights[l.id].on).length;
@@ -557,7 +596,9 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   return {
     canvas,
     card,
-    attach(w) { world = w; card.classList.remove('booting'); },
+    attach(w) { world = w; card.classList.remove('booting'); levelShown(w.level); },
+    /** The model went to another floor by itself (a room or a device on it was picked). */
+    levelShown,
     showTooltip,
     openSheet,
     closeSheet,

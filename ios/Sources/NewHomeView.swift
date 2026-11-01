@@ -13,6 +13,7 @@ struct NewHomeView: View {
         (nil, "One room", "Draw the rest yourself, or add your devices to it", "square.dashed"),
         ("studio", "Studio layout", "3 rooms with furniture, to adapt", "square.split.bottomrightquarter.fill"),
         ("home", "Apartment layout", "5 rooms with furniture, to adapt", "building.2.fill"),
+        ("house", "House on two floors", "10 rooms and stairs, to adapt", "stairs"),
     ]
 
     var body: some View {

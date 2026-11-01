@@ -85,12 +85,22 @@ private struct Wall: Identifiable {
 /// The home as a small 3D model: floors, walls, every lamp glowing in its colour on the
 /// floor of its room, the ACs on their walls. With `interactive`, each lamp is a button.
 struct HouseModel: View {
+    /// The floor drawn: on a home with several, the one with the most lamps on.
     let home: HomeSnapshot
     var padding: CGFloat = 8
     var interactive = false
     /// Larger dots and glows for a small widget, where the model is tiny.
     var boost: Double = 1
     private let look = WidgetLook()
+    private let summary: String
+
+    init(home: HomeSnapshot, padding: CGFloat = 8, interactive: Bool = false, boost: Double = 1) {
+        self.home = home.shownFloor
+        self.padding = padding
+        self.interactive = interactive
+        self.boost = boost
+        summary = "\(home.name): \(home.lightsLine)"
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -106,7 +116,7 @@ struct HouseModel: View {
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
         }
         .accessibilityElement(children: interactive ? .contain : .ignore)
-        .accessibilityLabel("\(home.name): \(home.lightsLine)")
+        .accessibilityLabel(summary)
     }
 
     private func roomCorners(_ r: HomeSnapshot.Room, _ iso: IsoProjection, inset: Double = 0) -> [CGPoint] {

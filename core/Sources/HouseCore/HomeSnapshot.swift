@@ -11,6 +11,14 @@ public struct HomeSnapshot: Codable, Equatable, Sendable {
         /// The room's rectangle on the floor plan, in metres.
         public var x: Double, z: Double, w: Double, d: Double
         public var floor: String?
+        /// The floor (storey) it is on, on a home with several; nil on a home with one.
+        public var level: String?
+    }
+
+    /// A floor of a home on several, lowest first.
+    public struct Level: Codable, Equatable, Sendable, Identifiable {
+        public var id: String
+        public var name: String
     }
 
     public struct Light: Codable, Equatable, Sendable, Identifiable {
@@ -69,13 +77,18 @@ public struct HomeSnapshot: Codable, Equatable, Sendable {
         public var x: Double, z: Double, w: Double, d: Double
         public var rot: Double
         public var color: String?
+        public var level: String?
     }
 
     public var version = 1
     public var name: String
-    /// "home" / "studio" for the bundled demos, "custom" for the user's own plan.
+    /// "home" / "studio" / "house" for the bundled demos, "custom" for the user's own plan.
     public var plan: String
     public var outdoorTemp: Double?
+    /// The floors of a home on several; nil on a home with one.
+    public var levels: [Level]?
+    /// The floor the widgets draw: the one with the most lamps on (the panel picks it).
+    public var shownLevel: String?
     public var rooms: [Room]
     public var lights: [Light]
     public var acs: [AC]
@@ -107,6 +120,20 @@ public struct HomeSnapshot: Codable, Equatable, Sendable {
     public var isSimulated: Bool { lights.allSatisfy { $0.service == nil } && acs.allSatisfy { $0.service == nil } }
 
     public func room(_ id: String) -> Room? { rooms.first { $0.id == id } }
+
+    /// On a home with several floors, the one the widgets draw (`shownLevel`): its rooms, their
+    /// lamps and ACs and its furniture. A home on one floor comes back as it is.
+    public var shownFloor: HomeSnapshot {
+        guard let level = shownLevel, let first = levels?.first?.id, (levels?.count ?? 0) > 1 else { return self }
+        var copy = self
+        copy.rooms = rooms.filter { ($0.level ?? first) == level }
+        let ids = Set(copy.rooms.map(\.id))
+        copy.lights = lights.filter { ids.contains($0.room) }
+        copy.acs = acs.filter { ids.contains($0.room) }
+        copy.furniture = furniture?.filter { ($0.level ?? first) == level }
+        copy.shownLevel = nil
+        return copy
+    }
     public func light(_ id: String) -> Light? { lights.first { $0.id == id } }
     public func ac(_ id: String) -> AC? { acs.first { $0.id == id } }
     public func lights(in room: String) -> [Light] { lights.filter { $0.room == room } }

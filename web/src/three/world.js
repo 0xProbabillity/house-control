@@ -19,7 +19,7 @@ const EL_MAX = 70;
 const ZOOM_MIN = 0.55;     // closest
 const ZOOM_MAX = 1.2;
 
-export function createWorld(canvas, config, store, { onHover, onPick, background = STAGE_BG }) {
+export function createWorld(canvas, config, store, { onHover, onPick, onLevel = () => {}, level: firstLevel, background = STAGE_BG }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -34,24 +34,33 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
   const camera = new THREE.PerspectiveCamera(24, 1, 0.5, 120);
 
   const { minX, minZ, maxX, maxZ } = config.bounds;
-  const H = config.wallHeight;
   const center = new THREE.Vector3((minX + maxX) / 2, 0, (minZ + maxZ) / 2);
   const span = Math.max(maxX - minX, maxZ - minZ);
+  // A home on several floors shows one at a time, with the floors under it: `level` is it.
+  const levelById = new Map(config.levels.map((l) => [l.id, l]));
+  let level = levelById.get(firstLevel) || config.levels[0];
 
   const baseAz = config.camera.azimuth;
   const camDir = new THREE.Vector3(Math.sin(rad(baseAz)), 0, Math.cos(rad(baseAz)));
 
   /* ---------- content ---------- */
 
-  const house = buildHouse(config, camDir);
-  scene.add(house.group);
-  scene.add(buildFurniture(config.furniture));
+  let shadowFrames = 3; // shadow maps are rendered again for this many frames
+  const floors = new Map(); // level id -> { group, house }
+  for (const l of config.levels) {
+    const group = new THREE.Group();
+    group.position.y = l.elevation;
+    const house = buildHouse(config, camDir, l);
+    group.add(house.group, buildFurniture(config.furniture.filter((f) => f.level === l.id)));
+    scene.add(group);
+    floors.set(l.id, { group, house });
+  }
 
   const lights = new Map();
   for (const cfg of config.lights) {
-    const unit = new LightUnit(cfg, H);
+    const unit = new LightUnit(cfg, levelById.get(cfg.level).wallHeight);
     lights.set(cfg.id, unit);
-    scene.add(unit.group);
+    floors.get(cfg.level).group.add(unit.group);
   }
 
   // Every shadow-casting lamp costs the shader a texture sampler, and WebGL caps how many
@@ -63,38 +72,54 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
   const SHADOW_PRIORITY = { ceiling: 0, pendant: 1, floor: 2, spots: 3, table: 4, strip: 9 };
   const canShadow = (unit) => unit.lights.some((l) => l.userData.canShadow);
   const shadowCap = Math.max(1, Math.min(8, renderer.capabilities.maxTextures - 6));
-  const ranked = [...lights.values()].sort((a, b) =>
-    (SHADOW_PRIORITY[a.cfg.type] ?? 9) - (SHADOW_PRIORITY[b.cfg.type] ?? 9));
-  // One lamp per room first, so every room keeps some depth, then fill up to the cap.
-  const shadowOrder = [];
-  const seenRooms = new Set();
-  for (const unit of ranked) {
-    if (shadowOrder.length >= shadowCap) break;
-    if (canShadow(unit) && !seenRooms.has(unit.cfg.room)) { shadowOrder.push(unit); seenRooms.add(unit.cfg.room); }
-  }
-  for (const unit of ranked) {
-    if (shadowOrder.length >= shadowCap) break;
-    if (canShadow(unit) && !shadowOrder.includes(unit)) shadowOrder.push(unit);
-  }
-  for (const unit of lights.values()) {
-    const keep = shadowOrder.includes(unit);
-    for (const l of unit.lights) if (l.userData.canShadow) l.castShadow = keep;
+  // Only the floor on show lights its rooms, so the slots go to its lamps.
+  function assignShadows() {
+    const ranked = [...lights.values()].filter((u) => u.cfg.level === level.id).sort((a, b) =>
+      (SHADOW_PRIORITY[a.cfg.type] ?? 9) - (SHADOW_PRIORITY[b.cfg.type] ?? 9));
+    // One lamp per room first, so every room keeps some depth, then fill up to the cap.
+    const shadowOrder = [];
+    const seenRooms = new Set();
+    for (const unit of ranked) {
+      if (shadowOrder.length >= shadowCap) break;
+      if (canShadow(unit) && !seenRooms.has(unit.cfg.room)) { shadowOrder.push(unit); seenRooms.add(unit.cfg.room); }
+    }
+    for (const unit of ranked) {
+      if (shadowOrder.length >= shadowCap) break;
+      if (canShadow(unit) && !shadowOrder.includes(unit)) shadowOrder.push(unit);
+    }
+    for (const unit of lights.values()) {
+      const keep = shadowOrder.includes(unit);
+      for (const l of unit.lights) if (l.userData.canShadow) l.castShadow = keep;
+    }
   }
 
   const acs = new Map();
   for (const cfg of config.acs) {
     const unit = new ACUnit(cfg);
     acs.set(cfg.id, unit);
-    scene.add(unit.group);
+    floors.get(cfg.level).group.add(unit.group);
   }
-  const hitTargets = [...[...lights.values()].map((u) => u.hit), ...[...acs.values()].map((u) => u.hit), ...house.floors];
+  let hitTargets = [];
+
+  // The floors above the one on show are lifted off; the ones under it stay, unlit, as its base.
+  function showLevel() {
+    for (const [id, { group }] of floors) group.visible = levelById.get(id).elevation <= level.elevation;
+    for (const unit of [...lights.values(), ...acs.values()]) unit.group.visible = unit.cfg.level === level.id;
+    hitTargets = [
+      ...[...lights.values()].filter((u) => u.group.visible).map((u) => u.hit),
+      ...[...acs.values()].filter((u) => u.group.visible).map((u) => u.hit),
+      ...floors.get(level.id).house.floors,
+    ];
+    assignShadows();
+    moon.position.set(center.x + camDir.x * 3.2 + 1.5, level.elevation + 10, center.z + camDir.z * 3.2 - 1.5);
+    moon.target.position.set(center.x, level.elevation, center.z);
+    shadowFrames = 3;
+  }
 
   // Night-time ambience: enough to read the model with every lamp off.
   scene.add(new THREE.HemisphereLight(0x8ea6ff, 0x0b0e17, 0.42));
   const moon = new THREE.DirectionalLight(0xa9c0ff, 0.6);
   // Steep and coming from the viewer's side, so the faces we look at stay readable.
-  moon.position.copy(center).add(new THREE.Vector3(camDir.x * 3.2 + 1.5, 10, camDir.z * 3.2 - 1.5));
-  moon.target.position.copy(center);
   moon.castShadow = true;
   moon.shadow.mapSize.set(2048, 2048);
   const sc = moon.shadow.camera;
@@ -102,6 +127,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
   sc.right = sc.top = span * 0.85;
   sc.near = 1;
   sc.far = 30;
+  showLevel();
   moon.shadow.bias = -0.0008;
   moon.shadow.normalBias = 0.04;
   moon.shadow.radius = 4;
@@ -161,19 +187,22 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
     const f = rig.focus;
     let box;
     let fill = 0.96;
+    const y = level.elevation;
+    const H = level.wallHeight;
     if (f?.kind === 'room') {
       const r = config.rooms.find((x) => x.id === f.id);
-      box = new THREE.Box3(new THREE.Vector3(r.x, 0, r.z), new THREE.Vector3(r.x + r.w, H * 0.75, r.z + r.d));
+      box = new THREE.Box3(new THREE.Vector3(r.x, y, r.z), new THREE.Vector3(r.x + r.w, y + H * 0.75, r.z + r.d));
       fill = 0.84;
     } else if (f?.kind === 'ac') {
       const unit = acs.get(f.id);
-      const p = unit.group.position;
+      const p = unit.group.getWorldPosition(new THREE.Vector3());
       const out = new THREE.Vector3(0, 0, 1).applyQuaternion(unit.group.quaternion);
       box = new THREE.Box3().setFromCenterAndSize(
-        new THREE.Vector3(p.x + out.x * 1.3, 1.25, p.z + out.z * 1.3), new THREE.Vector3(3.6, 2.6, 3.6));
+        new THREE.Vector3(p.x + out.x * 1.3, y + 1.25, p.z + out.z * 1.3), new THREE.Vector3(3.6, 2.6, 3.6));
       fill = 0.92;
     } else {
-      box = new THREE.Box3(new THREE.Vector3(minX, 0, minZ), new THREE.Vector3(maxX, H * 0.8, maxZ));
+      const b = level.bounds;
+      box = new THREE.Box3(new THREE.Vector3(b.minX, y, b.minZ), new THREE.Vector3(b.maxX, y + H * 0.8, b.maxZ));
     }
     const { dist, center: c } = fitDistance(box, rig.goal.az, rig.goal.el, fill);
     rig.goal.dist = dist * rig.zoom;
@@ -336,7 +365,6 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
   let last = 0;
   let awake = 0;       // frames still owed after the last change
   let running = false;
-  let shadowFrames = 3;
 
   function wake(frames = 2) {
     awake = Math.max(awake, frames);
@@ -384,7 +412,23 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
     setInsets(top, bottom) { topInset = top; bottomInset = bottom; resize(); },
     resize,
 
+    get level() { return level.id; },
+
+    // Shows another floor of the home (and the ones under it).
+    setLevel(id) {
+      const next = levelById.get(id);
+      if (!next || next === level) return;
+      level = next;
+      showLevel();
+      if (rig.focus && levelOf(rig.focus) !== level.id) rig.focus = null;
+      frameGoal();
+      wake(4);
+      onLevel(level.id);
+    },
+
     focus(next) {
+      const on = next && levelOf(next);
+      if (on && on !== level.id) world.setLevel(on);
       rig.focus = next;
       rig.zoom = 1;
       rig.goal.az = baseAz + (next?.kind === 'ac' ? (WALL_SIDE[acs.get(next.id).cfg.wall] ?? 0) : 0);
@@ -435,6 +479,12 @@ export function createWorld(canvas, config, store, { onHover, onPick, background
       composer.render(0);
     },
   };
+
+  // The floor a room, a lamp or an AC is on.
+  function levelOf(t) {
+    if (t.kind === 'room') return config.rooms.find((r) => r.id === t.id)?.level;
+    return (t.kind === 'ac' ? acs : lights).get(t.id)?.cfg.level;
+  }
 
   syncAll({ instant: true });
   resize();

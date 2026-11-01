@@ -307,6 +307,60 @@ html.native .card { width: auto; height: auto; box-shadow:
 }
 .room .count.zero { transform: scale(0); opacity: 0; min-width: 0; width: 0; padding: 0; margin-left: -7px; }
 
+/* Floors of a home on several: a row of buttons under the model, the panel just below it. */
+.floors {
+  position: absolute;
+  bottom: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  max-width: calc(100% - 28px);
+  display: flex;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 18px;
+  background: rgba(16, 21, 36, 0.55);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+}
+.floors[hidden] { display: none; }
+.floor {
+  height: 30px;
+  min-width: 0;
+  max-width: 160px;
+  padding: 0 11px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  border: 1px solid transparent;
+  transition: background 220ms, color 220ms, border-color 220ms, transform 260ms var(--spring);
+}
+.floor span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (hover: hover) { .floor:hover { color: var(--text); background: var(--glass); } }
+.floor:active { transform: scale(0.95); }
+.floor.active { color: var(--text); background: var(--accent); box-shadow: 0 4px 14px -4px var(--accent); }
+.floor .count {
+  min-width: 17px; height: 17px; padding: 0 5px; border-radius: 9px;
+  display: grid; place-items: center;
+  font-size: 10.5px; font-weight: 700;
+  color: #2a1a05; background: var(--warm);
+  transition: transform 260ms var(--spring), opacity 200ms;
+}
+.floor .count.zero { transform: scale(0); opacity: 0; min-width: 0; width: 0; padding: 0; margin-left: -7px; }
+.level-label {
+  grid-column: 1 / -1;
+  margin: 14px 2px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.level-label:first-child { margin-top: 0; }
+
 .list-head {
   display: flex;
   align-items: center;
@@ -773,6 +827,9 @@ html.ios .menu button { height: 46px; font-size: 15px; border-radius: 14px; }
 html.ios .menu button:active { background: rgba(255, 255, 255, 0.1); color: var(--text); }
 html.ios .panel-toast { bottom: calc(var(--safe-bottom) + 14px); font-size: 13.5px; }
 html.ios .tooltip { display: none; }
+html.ios .floor { height: 34px; font-size: 13px; padding: 0 13px; }
+html.ios.split .floors { bottom: calc(var(--safe-bottom) + 16px); }
+html.ios.table .floors { bottom: 12px; }
 html.ios .fatal { margin: calc(env(safe-area-inset-top, 0px) + 20px) 16px 0; width: auto; }
 
 /* ---------- iPhone Duo and other wide screens ---------- */

@@ -1,11 +1,11 @@
 // Edits to the floor plan an AI asks for: small, checked operations on the plan as it is
 // written on disk. Nothing here touches the page, so it runs (and is tested) under Node too.
-import { normalize, LIGHT_KINDS, FLOOR_KINDS, LINK_FIELDS, isLinked } from '../config.js';
+import { normalize, LIGHT_KINDS, FLOOR_KINDS, LINK_FIELDS, isLinked, levelsOf } from '../config.js';
 import { FURNITURE_TYPES, footprint } from '../three/furniture.js';
 
 export const SCENE_ICONS = ['sun', 'sofa', 'film', 'moon', 'door', 'bed', 'tv', 'sparkles'];
 export const WALLS = ['north', 'south', 'east', 'west'];
-const FURNITURE_KEYS = ['type', 'pos', 'rot', 'width', 'height', 'size', 'color', 'chairs', 'stools', 'upper'];
+const FURNITURE_KEYS = ['type', 'pos', 'rot', 'width', 'height', 'depth', 'size', 'color', 'chairs', 'stools', 'upper', 'level'];
 const LIGHT_KEYS = ['id', 'name', 'room', 'type', 'pos', 'y', 'rot', 'length', 'capabilities', 'color'];
 const AC_KEYS = ['id', 'name', 'room', 'wall', 'pos', 'y', 'min', 'max'];
 
@@ -51,7 +51,7 @@ function cleanFurniture(item, where) {
   const out = pick(item, FURNITURE_KEYS);
   out.pos = out.pos.map(round);
   if (out.rot != null) { if (!isNum(out.rot)) fail(`${where}: "rot" must be a number of degrees`); out.rot = Math.round(out.rot); }
-  for (const k of ['width', 'height']) {
+  for (const k of ['width', 'height', 'depth']) {
     if (out[k] != null && !(isNum(out[k]) && out[k] > 0.1 && out[k] < 12)) fail(`${where}: "${k}" must be metres between 0.1 and 12`);
   }
   if (out.size != null && !(isPoint(out.size) && out.size.every((v) => v > 0.1 && v < 15))) fail(`${where}: "size" must be [width, depth] in metres`);
@@ -64,10 +64,17 @@ function cleanFurniture(item, where) {
   return out;
 }
 
-function roomAt(plan, [x, z]) {
-  return (plan.rooms || []).find((r) => x >= r.rect[0] - 0.01 && x <= r.rect[0] + r.rect[2] + 0.01
+// The room at a point; on a home with floors, only a room on `level` (when given) counts.
+function roomAt(plan, [x, z], level) {
+  const first = levelsOf(plan)[0].id;
+  return (plan.rooms || []).find((r) => (level == null || (r.level ?? first) === level)
+    && x >= r.rect[0] - 0.01 && x <= r.rect[0] + r.rect[2] + 0.01
     && z >= r.rect[1] - 0.01 && z <= r.rect[1] + r.rect[3] + 0.01);
 }
+
+// The floor something is on: its own "level", else the first floor.
+const levelOf = (plan, item) => item?.level ?? levelsOf(plan)[0].id;
+const sameLevel = (plan, a, b) => levelOf(plan, a) === levelOf(plan, b);
 
 function findById(list, id, what) {
   const i = list.findIndex((d) => d.id === id);
@@ -124,8 +131,34 @@ export function applyOperations(raw, operations) {
         if (typeof op.id !== 'string' || !/^[a-z0-9_.-]+$/i.test(op.id)) fail(`${where}: "id" must be a short word like "office"`);
         if (plan.rooms.some((r) => r.id === op.id)) fail(`${where}: a room "${op.id}" already exists`);
         if (op.floor != null && !FLOOR_KINDS.includes(op.floor)) fail(`${where}: "floor" must be one of ${FLOOR_KINDS.join(', ')}`);
-        plan.rooms.push({ id: op.id, name: String(op.name || op.id), rect: checkRect(op.rect, where), floor: op.floor || 'oak' });
+        const room = { id: op.id, name: String(op.name || op.id), rect: checkRect(op.rect, where), floor: op.floor || 'oak' };
+        if (op.level != null) room.level = String(op.level);
+        plan.rooms.push(room);
         changes.push(`added room ${op.name || op.id}`);
+        break;
+      }
+      case 'add_floor':
+      case 'update_floor': {
+        // A home on several floors: "levels", lowest first. Everything without "level" is on the first.
+        const adding = op.op === 'add_floor';
+        if (typeof op.id !== 'string' || !/^[a-z0-9_.-]+$/i.test(op.id)) fail(`${where}: "id" must be a short word like "upstairs"`);
+        if (!Array.isArray(plan.levels) || !plan.levels.length) {
+          plan.levels = [{ id: 'ground', name: 'Ground floor' }];
+          for (const key of ['rooms', 'furniture', 'openings']) for (const item of plan[key]) item.level ??= 'ground';
+        }
+        let floor = plan.levels.find((l) => l.id === op.id);
+        if (adding && floor) fail(`${where}: a floor "${op.id}" already exists`);
+        if (!adding && !floor) fail(`${where}: there is no floor "${op.id}". Floors: ${plan.levels.map((l) => l.id).join(', ')}`);
+        if (adding) {
+          floor = { id: op.id, name: String(op.name || op.id) };
+          if (op.below) plan.levels.unshift(floor); else plan.levels.push(floor);
+        }
+        if (op.name != null) floor.name = String(op.name).slice(0, 40);
+        if (op.wallHeight != null) {
+          if (!(isNum(op.wallHeight) && op.wallHeight > 1.8 && op.wallHeight < 6)) fail(`${where}: wallHeight must be 1.8–6 m`);
+          floor.wallHeight = op.wallHeight;
+        }
+        changes.push(`${adding ? 'added' : 'changed'} floor ${floor.name}`);
         break;
       }
       case 'update_room': {
@@ -137,7 +170,7 @@ export function applyOperations(raw, operations) {
           const [dx, dz] = [rect[0] - room.rect[0], rect[1] - room.rect[1]];
           if (op.moveContents !== false && (dx || dz)) {
             const inside = (p) => roomAt({ rooms: [room] }, p);
-            for (const f of plan.furniture) if (inside(f.pos)) f.pos = [round(f.pos[0] + dx), round(f.pos[1] + dz)];
+            for (const f of plan.furniture) if (sameLevel(plan, f, room) && inside(f.pos)) f.pos = [round(f.pos[0] + dx), round(f.pos[1] + dz)];
             for (const d of [...plan.lights, ...plan.acs]) if (d.room === room.id) d.pos = [round(d.pos[0] + dx), round(d.pos[1] + dz)];
           }
           room.rect = rect;
@@ -154,7 +187,7 @@ export function applyOperations(raw, operations) {
         const devices = [...plan.lights, ...plan.acs].filter((d) => d.room === op.id);
         if (devices.some(isLinked)) fail(`${where}: this room has devices linked to real hardware; unlink them in the editor first`);
         const room = plan.rooms[i];
-        plan.furniture.forEach((f, k) => { if (k < originalFurniture && roomAt({ rooms: [room] }, f.pos)) dropFurniture.add(k); });
+        plan.furniture.forEach((f, k) => { if (k < originalFurniture && sameLevel(plan, f, room) && roomAt({ rooms: [room] }, f.pos)) dropFurniture.add(k); });
         plan.lights = plan.lights.filter((d) => d.room !== op.id);
         plan.acs = plan.acs.filter((d) => d.room !== op.id);
         plan.rooms.splice(i, 1);
@@ -166,9 +199,10 @@ export function applyOperations(raw, operations) {
         const room = plan.rooms[findById(plan.rooms, op.room, 'room')];
         if (!Array.isArray(op.items)) fail(`${where}: "items" must be a list of furniture`);
         plan.furniture.forEach((f, k) => {
-          if (k < originalFurniture && Array.isArray(f.pos) && roomAt({ rooms: [room] }, f.pos)?.id === room.id) dropFurniture.add(k);
+          if (k < originalFurniture && Array.isArray(f.pos) && sameLevel(plan, f, room) && roomAt({ rooms: [room] }, f.pos)?.id === room.id) dropFurniture.add(k);
         });
-        op.items.forEach((item, k) => addFurniture.push(cleanFurniture(item, `${where}, item ${k + 1}`)));
+        // The new pieces stand on the room's floor.
+        op.items.forEach((item, k) => addFurniture.push(cleanFurniture(room.level && !item?.level ? { ...item, level: room.level } : item, `${where}, item ${k + 1}`)));
         changes.push(`refurnished ${room.name} (${op.items.length} pieces)`);
         break;
       }
@@ -196,6 +230,7 @@ export function applyOperations(raw, operations) {
         if (!isPoint(op.from) || !isPoint(op.to)) fail(`${where}: "from" and "to" must be [x, z] points on a wall`);
         if (op.from[0] !== op.to[0] && op.from[1] !== op.to[1]) fail(`${where}: an opening must be horizontal or vertical`);
         const o = { type, from: op.from.map(round), to: op.to.map(round) };
+        if (op.level != null) o.level = String(op.level);
         if (type === 'window') { if (isNum(op.sill)) o.sill = op.sill; if (isNum(op.head)) o.head = op.head; }
         plan.openings.push(o);
         changes.push(`added a ${type}`);
@@ -268,7 +303,7 @@ export function applyOperations(raw, operations) {
         break;
       }
       default:
-        fail(`${where}: unknown operation. Use one of: set_home, add_room, update_room, remove_room, furnish_room, `
+        fail(`${where}: unknown operation. Use one of: set_home, add_floor, update_floor, add_room, update_room, remove_room, furnish_room, `
           + 'add_furniture, update_furniture, remove_furniture, add_opening, remove_opening, add_light, update_light, '
           + 'remove_light, add_ac, update_ac, remove_ac, add_scene, update_scene, remove_scene');
     }
@@ -289,7 +324,7 @@ export function check(plan) {
   const warnings = [];
   plan.furniture.forEach((f, i) => {
     if (!FURNITURE_TYPES.includes(f.type)) fail(`Furniture #${i} has unknown type "${f.type}"`);
-    if (!roomAt(plan, f.pos)) warnings.push(`furniture #${i} (${f.type}) stands outside every room`);
+    if (!roomAt(plan, f.pos, levelOf(plan, f))) warnings.push(`furniture #${i} (${f.type}) stands outside every room of its floor`);
   });
   for (const d of [...plan.lights, ...plan.acs]) {
     const room = plan.rooms.find((r) => r.id === d.room);
@@ -334,6 +369,7 @@ export const FURNITURE_GUIDE = {
   desk: 'desk; option width',
   wardrobe: 'wardrobe; options width, height',
   bookshelf: 'open bookshelf with books; options width, height',
+  stairs: 'straight stairs up to the floor above, climbing towards the back (north at rot 0); options width, depth (its length)',
 };
 
 export function furnitureCatalog() {

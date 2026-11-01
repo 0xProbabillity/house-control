@@ -1,8 +1,10 @@
 html.mode-editor body { background: var(--bg); overflow: hidden; }
-html.mode-editor #app { padding: 0; display: block; }
+/* place-items from the panel's #app would shrink the editor where block layout honours it (Chrome, Android). */
+html.mode-editor #app { padding: 0; display: block; place-items: normal; }
 html.mode-editor, html.mode-editor body { user-select: none; }
 
 .editor {
+  width: 100%;
   height: 100%;
   display: grid;
   grid-template-columns: 268px minmax(0, 1fr) 340px;
@@ -120,7 +122,95 @@ html.mode-editor, html.mode-editor body { user-select: none; }
 .p-light.sel circle:not(.halo), .p-light.sel rect { stroke: #fff; stroke-width: 0.08; }
 .p-light.sel .halo { fill: rgba(255, 255, 255, 0.2); }
 
-.p-handle { fill: #6aa6ff; stroke: #fff; stroke-width: 0.05; cursor: nwse-resize; }
+.p-handle { fill: #6aa6ff; stroke: #fff; vector-effect: non-scaling-stroke; stroke-width: 1.5px; }
+.p-handle.nw, .p-handle.se, .grab.nw, .grab.se { cursor: nwse-resize; }
+.p-handle.ne, .p-handle.sw, .grab.ne, .grab.sw { cursor: nesw-resize; }
+.p-handle.n, .p-handle.s, .grab.n, .grab.s { cursor: ns-resize; }
+.p-handle.e, .p-handle.w, .grab.e, .grab.w { cursor: ew-resize; }
+.hit.grab { fill: transparent; stroke: none; }
+.p-guide { stroke: #ff6ad5; stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-dasharray: 5 4; pointer-events: none; }
+
+/* the floor under the one being edited */
+.p-ghost { pointer-events: none; }
+.p-ghost rect { fill: rgba(255, 255, 255, 0.025); stroke: rgba(160, 190, 255, 0.4); stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-dasharray: 6 5; }
+.p-ghost-label { text-anchor: middle; font: 600 0.22px -apple-system, system-ui, sans-serif; fill: rgba(160, 190, 255, 0.38); }
+.p-ghost .p-ghost-stairs { fill: rgba(160, 190, 255, 0.12); stroke-dasharray: none; }
+.p-ghost-step, .p-ghost-arrow { stroke: rgba(160, 190, 255, 0.5); stroke-width: 1px; vector-effect: non-scaling-stroke; fill: none; }
+
+.p-furn.stairs rect { fill: rgba(217, 212, 203, 0.16); stroke: rgba(255, 255, 255, 0.5); }
+.p-stairs-step { stroke: rgba(255, 255, 255, 0.35); stroke-width: 0.02; pointer-events: none; }
+.p-stairs-arrow { stroke: #ffd38a; stroke-width: 0.05; stroke-linecap: round; stroke-linejoin: round; fill: none; pointer-events: none; }
+.p-furn.stairs.sel rect { fill: rgba(90, 150, 255, 0.28); }
+
+.plan.can-pan, .plan.can-pan * { cursor: grab !important; }
+.plan.panning, .plan.panning * { cursor: grabbing !important; }
+
+/* ---------- floors, zoom and the add bar, over the plan ---------- */
+
+.levels {
+  position: absolute; left: 12px; top: 12px; z-index: 3; max-width: calc(100% - 24px);
+  display: flex; gap: 3px; padding: 3px; border-radius: 13px; overflow-x: auto; scrollbar-width: none;
+  background: rgba(16, 21, 36, 0.82); border: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+}
+.levels::-webkit-scrollbar { display: none; }
+.level-tab, .level-add {
+  flex: none; height: 30px; padding: 0 11px; border-radius: 10px; display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12.5px; font-weight: 600; color: var(--muted); white-space: nowrap;
+  transition: background 160ms, color 160ms, transform 200ms var(--spring);
+}
+.level-tab:hover, .level-add:hover { background: var(--glass-hi); color: var(--text); }
+.level-tab:active, .level-add:active { transform: scale(0.95); }
+.level-tab .n { font-size: 10.5px; font-weight: 700; color: var(--faint); }
+.level-tab.active { color: #fff; background: rgba(70, 130, 255, 0.5); }
+.level-tab.active .n { color: rgba(255, 255, 255, 0.7); }
+.level-add { color: #8fbaff; padding: 0 10px; }
+
+.zoom {
+  position: absolute; right: 12px; bottom: 12px; z-index: 3; display: flex; flex-direction: column; gap: 2px; padding: 3px;
+  border-radius: 12px; background: rgba(16, 21, 36, 0.82); border: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+}
+.zoom button { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: var(--muted); }
+.zoom button:hover { background: var(--glass-hi); color: var(--text); }
+
+.add-bar {
+  position: absolute; left: 50%; bottom: 12px; z-index: 3; transform: translateX(-50%); max-width: calc(100% - 124px);
+  display: flex; gap: 2px; padding: 4px; border-radius: 15px; overflow-x: auto; scrollbar-width: none;
+  background: rgba(16, 21, 36, 0.86); border: 1px solid var(--line); box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+}
+.add-bar::-webkit-scrollbar { display: none; }
+.add-bar button {
+  flex: none; min-width: 56px; height: 50px; padding: 0 8px; border-radius: 11px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  font-size: 10.5px; font-weight: 600; color: var(--muted);
+  transition: background 140ms, color 140ms, transform 200ms var(--spring);
+}
+.add-bar button:hover { background: rgba(70, 130, 255, 0.25); color: #fff; }
+.add-bar button:active { transform: scale(0.94); }
+
+.empty-card {
+  position: absolute; left: 50%; top: 50%; z-index: 3; transform: translate(-50%, -50%); width: min(340px, calc(100% - 32px));
+  padding: 18px; border-radius: 18px; text-align: center;
+  background: rgba(16, 21, 36, 0.9); border: 1px solid var(--line); box-shadow: 0 16px 40px -14px rgba(0, 0, 0, 0.7);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
+.empty-card[hidden] { display: none; }
+.empty-card b { font-size: 14px; }
+.empty-card p { margin: 6px 0 14px; color: var(--muted); line-height: 1.45; }
+.empty-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+
+.level-row .icon { flex: none; color: var(--faint); }
+.level-row.current .icon { color: #8fbaff; }
+.level-row.current .row-name { color: var(--text); }
+
+dl.keys { margin: 0; font-size: 12px; line-height: 1.4; }
+dl.keys dt { color: var(--text); font-weight: 600; margin-top: 7px; }
+dl.keys dt:first-child { margin-top: 0; }
+dl.keys dd { margin: 0; color: var(--muted); }
+.btn.danger { color: #ff9a90; }
+.btn.danger[data-armed] { color: #fff; background: rgba(220, 60, 50, 0.7); border-color: rgba(255, 120, 110, 0.6); }
 
 /* ---------- right column ---------- */
 
@@ -319,8 +409,14 @@ html.ios.mode-editor body { background: var(--bg); }
   -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
 }
 .p-float:active { color: var(--text); transform: scale(0.94); }
+.editor.phone .levels { right: auto; max-width: calc(100% - 76px); padding: 3px; border-radius: 14px; }
+.editor.phone .level-tab, .editor.phone .level-add { height: 34px; font-size: 13.5px; border-radius: 11px; }
+.editor.phone .empty-card { font-size: 14px; }
+.editor.phone .empty-actions .btn { height: 40px; font-size: 14px; }
+.canvas.show-3d .empty-card { visibility: hidden; }
+.canvas.show-3d .levels { z-index: 4; }
 .p-issue {
-  position: absolute; left: 12px; right: 60px; top: 12px; display: none; padding: 9px 12px; border-radius: 12px;
+  position: absolute; left: 12px; right: 60px; top: 60px; display: none; padding: 9px 12px; border-radius: 12px;
   font-size: 13px; line-height: 1.35; color: #ffd2cc; background: rgba(80, 22, 22, 0.88); border: 1px solid rgba(255, 120, 110, 0.5);
 }
 .p-issue.show { display: block; }
@@ -395,9 +491,9 @@ html.ios.mode-editor body { background: var(--bg); }
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 8; max-height: calc(100% - var(--safe-top) - 40px);
   display: flex; flex-direction: column; padding: 0 0 var(--safe-bottom);
   background: #141a2b; border-radius: 22px 22px 0 0; border-top: 1px solid rgba(255, 255, 255, 0.12);
-  transform: translateY(105%); transition: transform 340ms var(--ease);
+  transform: translateY(105%); transition: transform 340ms var(--ease); pointer-events: none;
 }
-.p-modal.open { transform: none; }
+.p-modal.open { transform: none; pointer-events: auto; }
 .p-modal-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 8px; }
 .p-modal-head b { font-size: 17px; font-weight: 650; }
 .p-text { font-size: 16px; font-weight: 600; color: #7fb2ff; padding: 6px 2px; }

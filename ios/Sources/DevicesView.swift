@@ -140,7 +140,7 @@ struct DevicesView: View {
 
     private func roomSection(_ room: PlanEditor.Room, _ items: [PlanEditor.Item]) -> some View {
         VStack(spacing: 10) {
-            SectionTitle(room.name)
+            SectionTitle(room.title)
             Card {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                     if index > 0 { RowDivider() }
@@ -314,7 +314,7 @@ struct AddDevicesView: View {
             List {
                 Section {
                     Picker("Room", selection: $room) {
-                        ForEach(rooms) { Text($0.name).tag($0.id) }
+                        ForEach(rooms) { Text($0.title).tag($0.id) }
                         Text("New room…").tag(Self.newRoomTag)
                     }
                     .tint(Theme.accent)

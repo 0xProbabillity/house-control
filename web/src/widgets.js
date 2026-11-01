@@ -13,8 +13,16 @@ function links(device) {
   return Object.keys(out).length ? out : null;
 }
 
+// On a home with several floors the widgets draw one: the one with the most lamps on, or the first.
+function shownLevel(config, state) {
+  if (config.levels.length < 2) return null;
+  const on = (id) => config.lights.filter((l) => l.level === id && state.lights[l.id].on).length;
+  return config.levels.reduce((best, l) => (on(l.id) > on(best.id) ? l : best), config.levels[0]).id;
+}
+
 export function widgetSnapshot(config, store, plan) {
   const { state } = store;
+  const multi = config.levels.length > 1;
   return {
     version: 1,
     name: config.name,
@@ -22,7 +30,9 @@ export function widgetSnapshot(config, store, plan) {
     outdoorTemp: config.outdoorTemp,
     updated: Date.now() / 1000,
     scene: state.scene || null,
-    rooms: config.rooms.map((r) => ({ id: r.id, name: r.name, x: r.x, z: r.z, w: r.w, d: r.d, floor: r.floor })),
+    levels: multi ? config.levels.map((l) => ({ id: l.id, name: l.name })) : undefined,
+    shownLevel: shownLevel(config, state) ?? undefined,
+    rooms: config.rooms.map((r) => ({ id: r.id, name: r.name, x: r.x, z: r.z, w: r.w, d: r.d, floor: r.floor, level: multi ? r.level : undefined })),
     lights: config.lights.map((l) => {
       const s = state.lights[l.id];
       return {
@@ -41,7 +51,7 @@ export function widgetSnapshot(config, store, plan) {
     }),
     furniture: config.furniture.filter((f) => Array.isArray(f.pos)).map((f) => {
       const [w, d] = footprint(f);
-      return { type: f.type, x: f.pos[0], z: f.pos[1], w, d, rot: f.rot || 0, color: f.color || null };
+      return { type: f.type, x: f.pos[0], z: f.pos[1], w, d, rot: f.rot || 0, color: f.color || null, level: multi ? f.level : undefined };
     }),
     scenes: config.scenes.map((s) => ({ id: s.id, name: s.name, icon: s.icon, lights: s.lights, acs: s.acs })),
   };

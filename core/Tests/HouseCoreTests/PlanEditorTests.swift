@@ -97,6 +97,24 @@ final class PlanEditorTests: XCTestCase {
         XCTAssertEqual(Array(rules.keys), ["*"])
     }
 
+    func testRoomsOnSeveralFloors() {
+        var plan = sample()
+        XCTAssertTrue(PlanEditor(plan: plan).levels.isEmpty)
+        XCTAssertEqual(PlanEditor(plan: plan).rooms.map(\.title), ["Living room"])
+        plan["levels"] = [["id": "ground", "name": "Ground floor"], ["id": "up", "name": "First floor"]]
+        var rooms = plan["rooms"] as! [[String: Any]]
+        rooms.append(["id": "loft", "name": "Loft", "rect": [0, 0, 9, 6], "floor": "oak", "level": "up"])
+        plan["rooms"] = rooms
+        var editor = PlanEditor(plan: plan)
+        XCTAssertEqual(editor.rooms.map(\.title), ["Living room · Ground floor", "Loft · First floor"])
+        XCTAssertEqual(editor.items.first?.roomName, "Living room · Ground floor")
+        // A new room goes on the ground floor, east of the rooms there (not of the wider loft above).
+        let id = editor.addRoom(named: "Study")
+        let study = (editor.plan["rooms"] as! [[String: Any]]).first { $0["id"] as? String == id }!
+        XCTAssertEqual(study["level"] as? String, "ground")
+        XCTAssertEqual((study["rect"] as! [NSNumber])[0].doubleValue, 5)
+    }
+
     func testFixtureGuess() {
         XCTAssertEqual(PlanEditor.fixture(for: "Bedside Lamp"), "table")
         XCTAssertEqual(PlanEditor.fixture(for: "Hue color lamp"), "ceiling")

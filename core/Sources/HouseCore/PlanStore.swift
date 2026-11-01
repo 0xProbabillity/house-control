@@ -4,13 +4,13 @@ import CryptoKit
 /// Persists which floor plan is active and the user's own plan file.
 /// Everything lives in ~/Library/Application Support/HouseControl (or HOUSE_DATA_DIR).
 public final class PlanStore {
-    public static let bundled = ["home", "studio"]
+    public static let bundled = ["home", "studio", "house"]
 
     public let directory: URL
     public var customPlanURL: URL { directory.appendingPathComponent("plan.json") }
     private var settingsURL: URL { directory.appendingPathComponent("settings.json") }
 
-    /// "home" / "studio" for the bundled demos, or "custom" for plan.json.
+    /// "home" / "studio" / "house" for the bundled demos, or "custom" for plan.json.
     public private(set) var activePlan = "home"
 
     public init() {

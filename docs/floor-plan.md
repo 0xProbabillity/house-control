@@ -4,8 +4,8 @@ A home is one JSON document. The 3D scene, the panel and the editor are all buil
 file swaps the home.
 
 - Your plan: `~/Library/Application Support/HouseControl/plan.json`
-- Bundled demos: [`web/public/plans/home.json`](../web/public/plans/home.json) and
-  [`studio.json`](../web/public/plans/studio.json)
+- Bundled demos: [`web/public/plans/home.json`](../web/public/plans/home.json),
+  [`studio.json`](../web/public/plans/studio.json) and, on two floors, [`house.json`](../web/public/plans/house.json)
 
 You rarely need to write it by hand — **Edit Home…** does it for you — but it is plain, stable and easy to
 generate or version. Load a file with **Load Floor Plan…** in the menu bar icon's right-click menu, or with
@@ -74,6 +74,31 @@ Heights (`y`, `sill`, `head`) are metres above the floor. Angles are degrees.
 | `interiorWallHeight` | `1.25` | How much of the inner walls is drawn, so they do not hide the rooms |
 | `outdoorTemp` | `27` | Used to estimate the room temperature of an AC that has no sensor |
 | `camera.azimuth`, `camera.elevation` | `34`, `47` | Default view. Walls facing the camera are cut away, so the azimuth decides which side is open |
+| `levels` | one floor | The floors of a home on several, lowest first. See [Floors](#levels-floors) |
+
+## `levels`: floors
+
+A home on one floor needs nothing here. A house on several lists its floors, lowest first:
+
+```jsonc
+"levels": [
+  { "id": "ground", "name": "Ground floor" },
+  { "id": "upper",  "name": "First floor", "wallHeight": 2.5 }
+]
+```
+
+| Field | Meaning |
+| --- | --- |
+| `id` | Unique. Rooms, furniture and openings refer to it with `"level"` |
+| `name` | Shown on the floor buttons of the panel and the editor |
+| `wallHeight` | Optional: this floor's own wall height (the home's `wallHeight` otherwise) |
+
+Every room, piece of furniture and opening then says which floor it is on with `"level": "<id>"`; without it, it
+is on the first. Lamps and ACs are on their room's floor. All floors share one grid, so a room upstairs at
+`[0, 0, 4, 3]` sits right above the room at `[0, 0, 4, 3]` downstairs. Each floor stands on the one under it
+(its walls plus a 30 cm slab); the 3D view shows one floor at a time, with the floors under it, and the editor
+draws the floor below faintly so walls and stairs line up. Stairs are furniture on the lower floor
+(`"type": "stairs"`).
 
 ## `rooms`
 
@@ -83,6 +108,7 @@ Heights (`y`, `sill`, `head`) are metres above the floor. Angles are degrees.
 | `name` | Shown in the room filter |
 | `rect` | `[x, z, width, depth]` |
 | `floor` | `oak`, `walnut`, `tile` or `stone` |
+| `level` | The floor (storey) it is on, on a home with [several](#levels-floors) |
 
 Rooms are rectangles. Where two of them touch, an inner wall appears on its own; make an L-shaped room out of two.
 
@@ -95,10 +121,12 @@ A gap in a wall, given by its two end points on that wall. It must be horizontal
 | `type` | `door`, `window`, or `open` (a doorway without a door, or a missing piece of wall) |
 | `from`, `to` | `[x, z]` end points |
 | `sill`, `head` | Bottom and top of a window. Defaults `0.85` and `2.1` |
+| `level` | Its floor, on a home with [several](#levels-floors) |
 
 ## `furniture`
 
-Decoration only. Every piece has `type`, `pos` (`[x, z]` of its centre) and an optional `rot`.
+Decoration only. Every piece has `type`, `pos` (`[x, z]` of its centre), an optional `rot` and, on a home with
+[several floors](#levels-floors), its `level`.
 
 | `type` | Extra options |
 | --- | --- |
@@ -113,6 +141,7 @@ Decoration only. Every piece has `type`, `pos` (`[x, z]` of its centre) and an o
 | `bed` | `width`, `color` |
 | `wardrobe`, `bookshelf` | `width`, `height` |
 | `plant` | `height` |
+| `stairs` | `width`, `depth` (its length), `height` (up to the floor above by default). They climb away from the front |
 | `fridge`, `nightstand`, `bathtub`, `toilet` | — |
 
 ## `lights`

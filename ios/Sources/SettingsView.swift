@@ -81,6 +81,8 @@ struct SettingsView: View {
                 planRow("home", name: "Apartment", detail: "Demo · 5 rooms, simulated devices", symbol: "building.2.fill", tint: Theme.accent)
                 RowDivider()
                 planRow("studio", name: "Studio", detail: "Demo · 3 rooms, simulated devices", symbol: "square.split.bottomrightquarter.fill", tint: Theme.accent)
+                RowDivider()
+                planRow("house", name: "House", detail: "Demo · 2 floors, 10 rooms, simulated devices", symbol: "stairs", tint: Theme.accent)
             }
             Card {
                 Button { model.openEditor() } label: {

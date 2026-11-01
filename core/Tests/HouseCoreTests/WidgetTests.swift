@@ -22,6 +22,27 @@ final class WidgetTests: XCTestCase {
                             acs: [ac], scenes: [cozy])
     }
 
+    func testWidgetsDrawTheShownFloorOfAHomeOnSeveral() {
+        var h = home()
+        XCTAssertEqual(h.shownFloor, h, "a home on one floor is drawn whole")
+        h.levels = [.init(id: "ground", name: "Ground floor"), .init(id: "up", name: "First floor")]
+        h.rooms[0].level = "ground"
+        h.rooms.append(.init(id: "bed", name: "Bedroom", x: 0, z: 0, w: 4, d: 3, floor: "walnut", level: "up"))
+        h.lights.append(.init(id: "bedside", name: "Bedside", room: "bed", type: "table", x: 1, z: 1, capabilities: [],
+                              on: true, brightness: 1, temp: 2700, color: nil, service: nil, links: nil))
+        h.furniture = [.init(type: "bed", x: 2, z: 1.5, w: 1.7, d: 2.1, rot: 0, color: nil, level: "up"),
+                       .init(type: "sofa", x: 2, z: 1.5, w: 2.2, d: 0.9, rot: 0, color: nil, level: "ground")]
+        h.shownLevel = "up"
+        let up = h.shownFloor
+        XCTAssertEqual(up.rooms.map(\.id), ["bed"])
+        XCTAssertEqual(up.lights.map(\.id), ["bedside"])
+        XCTAssertTrue(up.acs.isEmpty)
+        XCTAssertEqual(up.furniture?.map(\.type), ["bed"])
+        h.shownLevel = "ground"
+        XCTAssertEqual(h.shownFloor.rooms.map(\.id), ["living"])
+        XCTAssertEqual(h.shownFloor.lights.count, 3)
+    }
+
     func testToggleIsResolved() {
         var h = home()
         let (resolved, changes) = h.apply(.light("main"))

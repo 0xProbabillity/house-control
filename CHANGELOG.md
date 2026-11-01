@@ -3,7 +3,40 @@
 What changed in each release of House Control. The Mac app is on
 [Releases](https://github.com/0xProbabillity/house-control/releases); the iPhone app is on the App Store and TestFlight.
 
-## 1.2.0 — in TestFlight
+## 1.3.0 — in TestFlight
+
+### Homes on several floors
+
+- **Floors.** A house can have as many floors as it needs, each with its own name and ceiling height (a basement
+  too). The 3D model shows one floor at a time, standing on the floors under it; buttons under the model switch
+  floors, and picking a room, a lamp or an AC goes to its floor by itself. The panel lists devices floor by floor,
+  starting with the one on show, and remembers which floor you last looked at.
+- **Stairs**, as a piece of furniture that climbs to the floor above.
+- A new demo, **House**, on two floors, in the plan menu, the iPhone's Settings and **New home**.
+- Widgets draw the floor with the most lamps on. The phone's Devices screen names each room's floor.
+- AI Access can read and build homes on several floors (`add_floor`, `"level"` on rooms, furniture and openings).
+- A home on one floor looks and works as before; its plan file does not change.
+
+### The floor plan editor
+
+- **Floor tabs over the plan**, with **+ Floor**. A new floor copies the rooms of the one below (its windows and
+  inner doors too), or starts as one room as big as it; the floor below shows faintly under the one being edited,
+  with its stairs, so walls and landings line up. A floor's settings: name, ceiling height, order, remove.
+- **Resize a room from any corner or side**, not only the bottom-right corner. Edges snap to the walls of the
+  rooms around them (and of the floor below), with a guide line; hold ⌥ not to.
+- **Doors and windows slide along the walls** and jump to the nearest one; drag the dots at their ends to make
+  them wider. A new window goes on a far wall, where the 3D model shows it.
+- **Split in two** divides a room, moves its lamps and ACs to the half they stand in and puts a door between.
+- **Duplicate** (⌘D) and **turn** (R, ⇧R) on the Mac; buttons for both on the phone.
+- **Zoom and move around on the Mac:** scroll, pinch or ⌘-scroll, drag the empty plan or hold Space; zoom
+  buttons and ⌘0 to see the whole floor.
+- **An add bar under the plan** (Mac): room, lamp, AC, door, window, stairs, furniture. On the phone, **Add** has
+  windows, stairs and floors too.
+- A list of shortcuts under Home settings.
+- **Fixed:** in Chrome-based web views (Android) the editor did not fill its window.
+- **Fixed (phone):** a sheet sliding away could still catch a tap.
+
+## 1.2.0 — 2026-10-28
 
 ### iPhone
 

@@ -248,6 +248,8 @@ export function createAgent({ store, config, raw, render, onAction }) {
       size: { type: 'array', items: { type: 'number' }, description: 'rug only: [width, depth]' },
       color: { type: 'string', description: '#rrggbb (sofa, armchair, rug, bed)' },
       chairs: { type: 'integer' }, stools: { type: 'integer' }, upper: { type: 'boolean' },
+      depth: { type: 'number', description: 'stairs only: their length, metres' },
+      level: { type: 'string', description: 'on a home with floors: the id of the floor it stands on' },
     },
   };
 
@@ -343,9 +345,10 @@ export function createAgent({ store, config, raw, render, onAction }) {
       title: 'Change the 3D floor plan',
       description: 'Change the home\'s 3D model with a list of operations, applied together (all or nothing). The model on the user\'s screen updates at once, '
         + 'and the change can be undone with undo_floor_plan_edit. To rebuild a room from photos use one "furnish_room" operation with every piece you see. '
-        + 'Operations: set_home{name,outdoorTemp,wallHeight}, add_room{id,name,rect,floor}, update_room{id,name,rect,floor}, remove_room{id}, '
+        + 'Operations: set_home{name,outdoorTemp,wallHeight}, add_floor{id,name,wallHeight,below}, update_floor{id,name,wallHeight}, '
+        + 'add_room{id,name,rect,floor,level}, update_room{id,name,rect,floor}, remove_room{id}, '
         + 'furnish_room{room,items[]}, add_furniture{item|items[]}, update_furniture{index,set{}}, remove_furniture{index}, '
-        + 'add_opening{type,from,to,sill,head}, remove_opening{index}, add_light{id,name,room,type,pos,capabilities,y,rot,length,color}, '
+        + 'add_opening{type,from,to,sill,head,level}, remove_opening{index}, add_light{id,name,room,type,pos,capabilities,y,rot,length,color}, '
         + 'update_light{id,set{}}, remove_light{id}, add_ac{id,name,room,wall,pos,y,min,max}, update_ac{id,set{}}, remove_ac{id}, '
         + 'add_scene{id,name,icon,lights{},acs{}}, update_scene{id,set{}}, remove_scene{id}. '
         + 'Indexes are those from get_floor_plan, before this edit.',
@@ -357,12 +360,14 @@ export function createAgent({ store, config, raw, render, onAction }) {
             items: {
               type: 'object', required: ['op'],
               properties: {
-                op: { type: 'string', enum: ['set_home', 'add_room', 'update_room', 'remove_room', 'furnish_room', 'add_furniture',
+                op: { type: 'string', enum: ['set_home', 'add_floor', 'update_floor', 'add_room', 'update_room', 'remove_room', 'furnish_room', 'add_furniture',
                   'update_furniture', 'remove_furniture', 'add_opening', 'remove_opening', 'add_light', 'update_light', 'remove_light',
                   'add_ac', 'update_ac', 'remove_ac', 'add_scene', 'update_scene', 'remove_scene'] },
                 id: { type: 'string' }, name: { type: 'string' }, room: { type: 'string' },
                 rect: { type: 'array', items: { type: 'number' }, description: '[x, z, width, depth] in metres' },
-                floor: { type: 'string', enum: FLOOR_KINDS },
+                floor: { type: 'string', enum: FLOOR_KINDS, description: 'flooring of a room' },
+                level: { type: 'string', description: 'id of the floor (storey) a room or opening is on, from "levels"' },
+                wallHeight: { type: 'number' }, below: { type: 'boolean', description: 'add_floor: under the others (a basement)' },
                 items: { type: 'array', items: FURNITURE_ITEM },
                 item: FURNITURE_ITEM,
                 index: { type: 'integer' },
@@ -674,4 +679,7 @@ const PLAN_RULES = `Floor plan rules:
 - Openings: doors, windows and open gaps sit on walls, given by two end points "from"/"to" on that wall line.
 - Lights: "type" ceiling, pendant, spots, floor, table or strip; "capabilities" any of brightness, temp, color (none = plain switch).
 - Air conditioners hang on a wall: "wall" north/south/east/west and "pos" on that wall line.
-- Devices marked "linked": true are real hardware: keep their ids, do not remove them.`;
+- Devices marked "linked": true are real hardware: keep their ids, do not remove them.
+- A home on several floors lists them in "levels", lowest first; rooms, furniture and openings carry "level" (the floor's id),
+  lamps and ACs are on their room's floor. Every floor uses the same x/z grid, so an upper room sits right above the one under it.
+  Without "levels" everything is on one floor. Stairs are furniture ("type": "stairs") on the lower floor.`;

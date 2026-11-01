@@ -1,6 +1,7 @@
 // Turns the rooms + openings of a plan into floors, walls and windows.
 import * as THREE from 'three';
 import { box, mat, at, floorMesh } from './kit.js';
+import { SLAB } from '../config.js';
 
 const EXT_T = 0.2;   // exterior wall thickness
 const INT_T = 0.1;   // interior wall thickness
@@ -64,20 +65,34 @@ function wallSegments(config) {
   return segments;
 }
 
-export function buildHouse(config, camDir) {
+// One floor of the home, standing on y = 0: `level` is one of config.levels. The lowest
+// stands on a plinth; a floor above it rests on a slab under each of its rooms.
+export function buildHouse(config, camDir, level = config.levels[0]) {
   const group = new THREE.Group();
   const floors = [];
-  const H = config.wallHeight;
+  const H = level.wallHeight;
   const Hi = Math.min(config.interiorWallHeight, H);
-  const { minX, minZ, maxX, maxZ } = config.bounds;
+  const rooms = config.rooms.filter((r) => r.level === level.id);
+  const openings = config.openings.filter((o) => o.level === level.id);
+  const { minX, minZ, maxX, maxZ } = level.bounds;
 
-  // Plinth the model stands on.
-  const plinth = box(maxX - minX + 0.7, 0.3, maxZ - minZ + 0.7, mat('#141927', { rough: 0.9 }), { r: 0.12 });
-  at(plinth, (minX + maxX) / 2, -0.305, (minZ + maxZ) / 2);
-  plinth.receiveShadow = true;
-  group.add(plinth);
+  if (level.elevation === 0) {
+    // Plinth the model stands on.
+    const plinth = box(maxX - minX + 0.7, 0.3, maxZ - minZ + 0.7, mat('#141927', { rough: 0.9 }), { r: 0.12 });
+    at(plinth, (minX + maxX) / 2, -0.305, (minZ + maxZ) / 2);
+    plinth.receiveShadow = true;
+    group.add(plinth);
+  } else {
+    const slab = mat('#1d2232', { rough: 0.9 });
+    for (const r of rooms) {
+      const s = box(r.w + EXT_T, SLAB - 0.01, r.d + EXT_T, slab, { r: 0 });
+      at(s, r.x + r.w / 2, -SLAB, r.z + r.d / 2);
+      s.receiveShadow = true;
+      group.add(s);
+    }
+  }
 
-  for (const room of config.rooms) {
+  for (const room of rooms) {
     const floor = floorMesh(room, room.floor);
     floor.userData = { kind: 'room', id: room.id };
     floors.push(floor);
@@ -106,7 +121,7 @@ export function buildHouse(config, camDir) {
     return m;
   };
 
-  for (const s of wallSegments(config)) {
+  for (const s of wallSegments({ rooms, openings })) {
     const exterior = s.kind === 'exterior';
     const t = exterior ? EXT_T : INT_T;
     // Outward normal of an exterior wall points away from its room.

@@ -34,6 +34,20 @@ public struct PlanEditor {
     public struct Room: Identifiable, Equatable {
         public let id: String
         public let name: String
+        /// The name of its floor, on a home with several.
+        public var floor: String? = nil
+
+        /// "Bedroom", or "Bedroom · First floor" where two floors could have one.
+        public var title: String { floor.map { "\(name) · \($0)" } ?? name }
+    }
+
+    /// The floors of a home on several, lowest first (id, name); empty for a home on one.
+    public var levels: [(id: String, name: String)] {
+        let list = (plan["levels"] as? [[String: Any]] ?? []).compactMap { level -> (id: String, name: String)? in
+            guard let id = level["id"] as? String, !id.isEmpty else { return nil }
+            return (id, (level["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? id)
+        }
+        return list.count > 1 ? list : []
     }
 
     // MARK: - Reading
@@ -41,14 +55,17 @@ public struct PlanEditor {
     public var name: String { plan["name"] as? String ?? "Home" }
 
     public var rooms: [Room] {
-        (plan["rooms"] as? [[String: Any]] ?? []).compactMap { room in
+        let levels = self.levels
+        let names = Dictionary(levels.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
+        return (plan["rooms"] as? [[String: Any]] ?? []).compactMap { room in
             guard let id = room["id"] as? String else { return nil }
-            return Room(id: id, name: (room["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? id)
+            let floor = levels.isEmpty ? nil : names[room["level"] as? String ?? levels[0].id]
+            return Room(id: id, name: (room["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? id, floor: floor)
         }
     }
 
     public var items: [Item] {
-        let names = Dictionary(rooms.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
+        let names = Dictionary(rooms.map { ($0.id, $0.title) }, uniquingKeysWith: { a, _ in a })
         var out: [Item] = []
         for (kind, key) in [(DeviceKind.light, "lights"), (.ac, "acs")] {
             for device in plan[key] as? [[String: Any]] ?? [] {
@@ -276,16 +293,20 @@ public struct PlanEditor {
         plan["scenes"] = scenes
     }
 
-    /// Adds a room east of the others; returns its id.
+    /// Adds a room east of the others (on the first floor of a home with several); returns its id.
     @discardableResult
     public mutating func addRoom(named name: String, width: Double = 4, depth: Double = 3.5) -> String {
         var rooms = plan["rooms"] as? [[String: Any]] ?? []
-        let rects = rooms.compactMap { ($0["rect"] as? [NSNumber])?.map(\.doubleValue) }.filter { $0.count == 4 }
+        let ground = levels.first?.id
+        let rects = rooms.filter { ground == nil || ($0["level"] as? String ?? ground) == ground }
+            .compactMap { ($0["rect"] as? [NSNumber])?.map(\.doubleValue) }.filter { $0.count == 4 }
         let maxX = rects.map { $0[0] + $0[2] }.max() ?? 0
         let minZ = rects.map { $0[1] }.min() ?? 0
         let base = Self.slug(name)
         let id = uniqueId(base, taken: allIds)
-        rooms.append(["id": id, "name": name, "rect": [Self.fix(maxX), Self.fix(minZ), width, depth], "floor": "oak"])
+        var room: [String: Any] = ["id": id, "name": name, "rect": [Self.fix(maxX), Self.fix(minZ), width, depth], "floor": "oak"]
+        if let ground { room["level"] = ground }
+        rooms.append(room)
         plan["rooms"] = rooms
         return id
     }

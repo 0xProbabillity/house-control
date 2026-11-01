@@ -320,6 +320,32 @@ const builders = {
     }
     return g;
   },
+
+  // A straight flight up to the floor above: you step on at the front (+z) and climb towards the back.
+  stairs({ width = 1, depth = 2.8, height = 2.9 }) {
+    const steps = Math.max(3, Math.round(height / 0.18));
+    const rise = height / steps;
+    const run = depth / steps;
+    const body = mat('#d9d4cb', { rough: 0.9 });
+    const tread = mat(WOOD, { rough: 0.6 });
+    const g = new THREE.Group();
+    for (let i = 0; i < steps; i++) {
+      const z = depth / 2 - run * (i + 0.5);
+      g.add(at(box(width, rise * i + rise - 0.03, run, body, { r: 0 }), 0, 0, z));
+      g.add(at(box(width + 0.02, 0.03, run + 0.02, tread, { r: 0.008 }), 0, rise * (i + 1) - 0.03, z));
+    }
+    // A handrail along the open side.
+    const rail = mat(BLACK, { rough: 0.5 });
+    const slope = Math.atan2(height, depth);
+    const length = Math.hypot(height, depth);
+    const bar = at(box(0.04, 0.04, length, rail, { r: 0.015 }), width / 2 - 0.03, height / 2 + 0.9, 0);
+    bar.rotation.x = slope;
+    g.add(bar);
+    for (const t of [0.1, 0.5, 0.9]) {
+      g.add(at(box(0.025, 0.9, 0.025, rail, { r: 0 }), width / 2 - 0.03, height * t, depth / 2 - depth * t));
+    }
+    return g;
+  },
 };
 
 export const FURNITURE_TYPES = Object.keys(builders);
@@ -348,6 +374,7 @@ export function footprint(item) {
     case 'desk': return [w || 1.4, 0.65];
     case 'wardrobe': return [w || 1.6, 0.6];
     case 'bookshelf': return [w || 1, 0.32];
+    case 'stairs': return [w || 1, item.depth || 2.8];
     default: return [0.6, 0.6];
   }
 }

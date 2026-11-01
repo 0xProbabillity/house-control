@@ -323,10 +323,22 @@ Right-click the icon and choose **Edit Home…**
   <img src="docs/editor.png" width="820" alt="The floor plan editor">
 </p>
 
-- Drag rooms to move them and drag a corner to resize; everything snaps to 5 cm.
+- Drag rooms to move them; drag the dots on a selected room's corners and sides to resize it. Edges snap to
+  the rooms around them (hold ⌥ not to), everything else to 5 cm.
 - Where two rooms touch, the wall between them appears by itself. Walls facing the camera are cut away.
-- Add doors, windows, furniture, lamps and air conditioners from the list on the left.
+  **Split in two** divides a room and puts a door between the halves.
+- Add rooms, lamps, air conditioners, doors, windows, stairs and furniture from the bar under the plan.
+  Doors and windows slide along the walls and jump to the nearest one; drag their ends to make them wider.
+- Scroll to move around, pinch or ⌘-scroll to zoom. ⌘D duplicates, R turns, ⌘Z undoes.
 - **Save & apply** writes the plan and reloads the panel.
+
+### Floors
+
+A house on more than one floor: **+ Floor** over the plan adds one. A new floor can copy the rooms of the one
+below it, or start as one room as big as it to divide up; the floor below shows faintly underneath, with its
+stairs, so walls line up. Each floor has its own name and ceiling height. In the panel, buttons under the 3D model
+switch floors, and picking a room or a lamp goes to its floor by itself. The **House** demo is on two floors.
+A home on one floor looks and works exactly as before.
 
 The plan is a single JSON file, `~/Library/Application Support/HouseControl/plan.json`. You can write it by hand,
 export it, or import someone else's: see [docs/floor-plan.md](docs/floor-plan.md) for every field.
