@@ -193,7 +193,7 @@ Details, every tool, and the privacy model: [docs/ai-access.md](docs/ai-access.m
 </p>
 
 The iPhone app is the panel made for a thumb: tap a lamp in the 3D view or its tile, drag across a tile to dim,
-touch and hold a light for brightness and colour, pinch the model to zoom, swipe in from the left edge to go back.
+touch and hold a light for brightness and colour, turn the model all the way round with one finger, move it and pinch to zoom with two, swipe in from the left edge to go back.
 
 It needs no Mac. Everything is set up on the phone, under **Settings** (the sliders button):
 

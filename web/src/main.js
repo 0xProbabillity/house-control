@@ -82,6 +82,7 @@ async function boot() {
         try { localStorage.setItem(levelKey(config), id); } catch { /* private mode */ }
       },
       onHover: panel.showTooltip,
+      onView: panel.viewMoved,
       onPick(target) {
         if (!target) return;
         if (target.kind === 'light') { haptic('light'); store.toggleLight(target.id); }

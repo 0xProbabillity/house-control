@@ -352,6 +352,31 @@ html.native .card { width: auto; height: auto; box-shadow:
   transition: transform 260ms var(--spring), opacity 200ms;
 }
 .floor .count.zero { transform: scale(0); opacity: 0; min-width: 0; width: 0; padding: 0; margin-left: -7px; }
+
+/* Puts the camera back after it has been moved: beside the floor buttons, level with them. */
+.view-reset {
+  position: absolute;
+  bottom: 44px;
+  right: 14px;
+  z-index: 4;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  background: rgba(16, 21, 36, 0.55);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.8);
+  transition: opacity 200ms, transform 260ms var(--spring);
+}
+.view-reset::after { content: ''; position: absolute; inset: -6px; } /* easy to hit with a finger */
+.view-reset.show { opacity: 1; pointer-events: auto; transform: none; }
+.view-reset:active { transform: scale(0.92); }
 .level-label {
   grid-column: 1 / -1;
   margin: 14px 2px 0;
@@ -828,8 +853,8 @@ html.ios .menu button:active { background: rgba(255, 255, 255, 0.1); color: var(
 html.ios .panel-toast { bottom: calc(var(--safe-bottom) + 14px); font-size: 13.5px; }
 html.ios .tooltip { display: none; }
 html.ios .floor { height: 34px; font-size: 13px; padding: 0 13px; }
-html.ios.split .floors { bottom: calc(var(--safe-bottom) + 16px); }
-html.ios.table .floors { bottom: 12px; }
+html.ios.split .floors, html.ios.split .view-reset { bottom: calc(var(--safe-bottom) + 16px); }
+html.ios.table .floors, html.ios.table .view-reset { bottom: 12px; }
 html.ios .fatal { margin: calc(env(safe-area-inset-top, 0px) + 20px) 16px 0; width: auto; }
 
 /* ---------- iPhone Duo and other wide screens ---------- */

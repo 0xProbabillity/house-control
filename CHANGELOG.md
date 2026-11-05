@@ -3,6 +3,18 @@
 What changed in each release of House Control. The Mac app is on
 [Releases](https://github.com/0xProbabillity/house-control/releases); the iPhone app is on the App Store and TestFlight.
 
+## 1.4.0 — in TestFlight (iPhone)
+
+### Get to everything in the 3D model
+
+- **Turn the home all the way round** with one finger, and tilt it from nearly level with the floor to straight down.
+  The outer walls on your side sink out of the way as you go, whichever side that is.
+- **Two fingers move the home** up, down, left and right, and pinch to zoom, closer than before. What is under your
+  fingers stays under them.
+- **A button puts the view back.** It shows beside the model only while the view has been changed.
+- Your view stays where you left it: a room is framed from your angle, and leaving a room or a device returns to it.
+- The shadows redraw when the model stops moving, so turning it does not stutter.
+
 ## 1.3.0 — in TestFlight
 
 ### Homes on several floors

@@ -74,8 +74,15 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
       return b;
     }));
 
+  // Back from wherever the camera was moved to; only there while it is somewhere else.
+  const viewReset = h('button.view-reset', {
+    title: 'Reset view',
+    'aria-label': 'Reset view',
+    onclick: () => { haptic('tick'); world?.resetView(); },
+  }, icon('fit', 15, 2));
+
   const clip = h('div.card-clip',
-    h('div.stage', canvas, floors),
+    h('div.stage', canvas, floors, viewReset),
     h('div.tint'),
     h('header.top',
       h('div.home', h('div.home-badge', icon('home', 17)),
@@ -599,6 +606,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     attach(w) { world = w; card.classList.remove('booting'); levelShown(w.level); },
     /** The model went to another floor by itself (a room or a device on it was picked). */
     levelShown,
+    viewMoved(moved) { viewReset.classList.toggle('show', moved); },
     showTooltip,
     openSheet,
     closeSheet,
