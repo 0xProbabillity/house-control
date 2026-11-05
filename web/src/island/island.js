@@ -254,6 +254,7 @@ export async function bootIsland(root) {
       // Keep drawing while the island closes over the model, then rest.
       setTimeout(() => { if (isle.dataset.state !== 'expanded') world?.setRunning(false); }, 500);
       if (focused) { focused = null; world?.focus(null); }
+      world?.resetView(); // the island has no button for it: it opens on the plan's own view
     }
     update();
   }

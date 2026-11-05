@@ -377,6 +377,7 @@ html.native .card { width: auto; height: auto; box-shadow:
 .view-reset::after { content: ''; position: absolute; inset: -6px; } /* easy to hit with a finger */
 .view-reset.show { opacity: 1; pointer-events: auto; transform: none; }
 .view-reset:active { transform: scale(0.92); }
+@media (hover: hover) { .view-reset:hover { background: rgba(38, 46, 70, 0.75); } }
 .level-label {
   grid-column: 1 / -1;
   margin: 14px 2px 0;

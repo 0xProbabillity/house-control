@@ -267,7 +267,8 @@ export function createWorld(canvas, config, store, { onHover, onPick, onLevel = 
 
   function updateRig(dt, instant = false) {
     // Two fingers move the model with them, so it stays under them; the rest glides.
-    const k = instant ? 1 : 1 - Math.exp(-dt * (pinch ? 28 : 5.5));
+    const held = pinch || magnify || performance.now() < wheelUntil;
+    const k = instant ? 1 : 1 - Math.exp(-dt * (held ? 28 : 5.5));
     const g = rig.goal;
     const delta = Math.abs(g.az - rig.az) + Math.abs(g.el - rig.el) + Math.abs(g.dist - rig.dist) * 2
       + rig.target.distanceTo(g.target) * 4;
@@ -358,47 +359,61 @@ export function createWorld(canvas, config, store, { onHover, onPick, onLevel = 
   }
 
   // Two fingers move the model and pinch to zoom, keeping what is under them under them.
+  // A mouse moves it the same way, with the right or middle button or Shift held.
   const fingers = new Map();
   let pinch = null;
+  let magnify = null;  // a trackpad's pinch
+  let wheelMode = null;
+  let wheelAt = 0;
+  let wheelUntil = 0;
+  const pair = () => {
+    const [a, b = a] = fingers.values();
+    return [a, b];
+  };
   const spread = () => {
-    const [a, b] = [...fingers.values()];
+    const [a, b] = pair();
     return Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
   };
-  // The point between the fingers, in pixels off the centre of the view.
-  const between = () => {
-    const [a, b] = [...fingers.values()];
+  // A point of the window, in pixels off the centre of the view.
+  const offCentre = (x, y) => {
     const r = canvas.getBoundingClientRect();
-    return {
-      x: (a.x + b.x) / 2 - r.left - width / 2,
-      y: (a.y + b.y) / 2 - r.top - height / 2 - (topInset - bottomInset) / 2,
-    };
+    return { x: x - r.left - width / 2, y: y - r.top - height / 2 - (topInset - bottomInset) / 2 };
   };
-  function startPinch() {
-    const m = between();
+  const between = () => {
+    const [a, b] = pair();
+    return offCentre((a.x + b.x) / 2, (a.y + b.y) / 2);
+  };
+  // The spot on the floor at a point off the centre, and moving the view to put it back there.
+  const spotAt = (m) => {
     const off = floorOffset(m.x, m.y, rig.goal.dist);
-    pinch = {
-      spread: spread(), zoom: rig.zoom,
-      x: rig.goal.target.x + off.x, z: rig.goal.target.z + off.z, // the spot on the floor they hold
-    };
-  }
-  function movePinch() {
-    rig.zoom = clamp(pinch.zoom * pinch.spread / spread(), ZOOM_MIN, ZOOM_MAX);
-    frameGoal();
-    const m = between();
+    return { x: rig.goal.target.x + off.x, z: rig.goal.target.z + off.z };
+  };
+  function holdSpot(spot, m) {
     const off = floorOffset(m.x, m.y, rig.goal.dist);
-    rig.pan.set(pinch.x - off.x - rig.framed.x, 0, pinch.z - off.z - rig.framed.z);
+    rig.pan.set(spot.x - off.x - rig.framed.x, 0, spot.z - off.z - rig.framed.z);
     frameGoal();
     userMoved();
     wake();
   }
+  function zoomTo(zoom, spot, m) {
+    rig.zoom = clamp(zoom, ZOOM_MIN, ZOOM_MAX);
+    frameGoal();
+    holdSpot(spot, m);
+  }
+  function startPinch() {
+    pinch = { fingers: Math.min(2, fingers.size), spread: spread(), zoom: rig.zoom, spot: spotAt(between()) };
+  }
+  const movePinch = () => zoomTo(pinch.zoom * pinch.spread / spread(), pinch.spot, between());
 
   canvas.addEventListener('pointerdown', (ev) => {
     canvas.setPointerCapture(ev.pointerId);
     fingers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-    if (fingers.size === 2) {
+    const mouseMoves = ev.pointerType === 'mouse' && (ev.button === 1 || ev.button === 2 || ev.shiftKey);
+    if (fingers.size === 2 || mouseMoves) {
       startPinch();
       drag = null;
       setHover(null);
+      if (mouseMoves) canvas.style.cursor = 'grabbing';
       return;
     }
     if (fingers.size > 2) return;
@@ -407,7 +422,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, onLevel = 
   canvas.addEventListener('pointermove', (ev) => {
     if (fingers.has(ev.pointerId)) fingers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
     if (pinch) {
-      if (fingers.size >= 2) movePinch();
+      if (fingers.size >= pinch.fingers) movePinch();
       return;
     }
     if (drag) {
@@ -428,7 +443,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, onLevel = 
   const release = (ev) => {
     fingers.delete(ev.pointerId);
     if (pinch) { // lifting after a pinch picks nothing
-      if (!fingers.size) pinch = null;
+      if (!fingers.size) { pinch = null; canvas.style.cursor = 'grab'; }
       else if (fingers.size >= 2) startPinch();
       return;
     }
@@ -446,18 +461,47 @@ export function createWorld(canvas, config, store, { onHover, onPick, onLevel = 
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', (ev) => {
     fingers.delete(ev.pointerId);
-    if (!fingers.size) pinch = null;
+    if (!fingers.size) { pinch = null; canvas.style.cursor = 'grab'; }
     else if (pinch && fingers.size >= 2) startPinch();
     drag = null;
   });
+  canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
   canvas.addEventListener('pointerleave', () => { if (!drag) setHover(null); });
+  // Two fingers on a trackpad move the model. A mouse wheel, which clicks by whole notches,
+  // zooms, and so does ⌘ / Ctrl with either. One burst of scrolling is all one or the other.
   canvas.addEventListener('wheel', (ev) => {
     ev.preventDefault();
-    rig.zoom = clamp(rig.zoom * Math.exp(ev.deltaY * 0.0015), ZOOM_MIN, ZOOM_MAX);
+    const held = ev.ctrlKey || ev.metaKey;
+    const notch = ev.deltaMode === 1 || (ev.deltaX === 0 && ev.wheelDeltaY !== 0 && ev.wheelDeltaY % 120 === 0);
+    if (ev.timeStamp - wheelAt > 160) wheelMode = notch ? 'zoom' : 'pan';
+    wheelAt = ev.timeStamp;
+    wheelUntil = performance.now() + 200;
+    const unit = ev.deltaMode === 1 ? 16 : 1;
+    if (held || wheelMode === 'zoom') {
+      const m = offCentre(ev.clientX, ev.clientY);
+      zoomTo(rig.zoom * Math.exp(ev.deltaY * unit * (held ? 0.0075 : 0.0015)), spotAt(m), m);
+      return;
+    }
+    const off = floorOffset(ev.deltaX * unit, ev.deltaY * unit, rig.goal.dist);
+    rig.pan.x += off.x;
+    rig.pan.z += off.z;
     frameGoal();
     userMoved();
     wake();
   }, { passive: false });
+  // A pinch on a trackpad (Safari's and WKWebView's own events; a finger pinch never gets here).
+  canvas.addEventListener('gesturestart', (ev) => {
+    if (fingers.size) return;
+    ev.preventDefault();
+    const m = offCentre(ev.clientX, ev.clientY);
+    magnify = { zoom: rig.zoom, spot: spotAt(m), m };
+  });
+  canvas.addEventListener('gesturechange', (ev) => {
+    if (!magnify) return;
+    ev.preventDefault();
+    zoomTo(magnify.zoom / ev.scale, magnify.spot, magnify.m);
+  });
+  canvas.addEventListener('gestureend', () => { magnify = null; });
   canvas.style.cursor = 'grab';
 
   /* ---------- loop ---------- */

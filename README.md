@@ -22,7 +22,8 @@
 ## What it does
 
 - **Lives in the menu bar.** Click the house icon and a panel drops down; click anywhere else and it is gone.
-- **Your floor plan in 3D.** Rooms, walls, doors, windows and furniture are built from one JSON file.
+- **Your floor plan in 3D.** Rooms, walls, doors, windows and furniture are built from one JSON file. Turn it all the
+  way round and move it around: on the Mac drag to turn, two fingers on the trackpad to move, pinch to zoom.
   Lamps light the scene the way they light the room; an AC that is running blows visible air.
 - **Lights.** Tap to toggle, drag across a tile to dim, open a light for brightness, white temperature and colour.
 - **Air conditioners.** Power, target temperature, mode and fan speed, with the room temperature from a real sensor if you have one.
