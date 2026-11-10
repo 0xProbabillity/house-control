@@ -16,7 +16,9 @@ targets:
         NSPhotoLibraryAddUsageDescription: House Control saves the Smart Life sign-in code to Photos, so the Smart Life app on this iPhone can scan it from there.
     settings:
       base:
-        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) SMART_LIFE
+        # ROOM_SCAN: scanning the home with LiDAR (Sources/Scan), in beta on TestFlight only
+        # until it moves to project.yml.
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) SMART_LIFE ROOM_SCAN
         PRODUCT_BUNDLE_IDENTIFIER: io.github.0xprobabillity.HouseControl
         HOUSE_APP_GROUP: group.io.github.0xprobabillity.HouseControl
   HouseWidgets:

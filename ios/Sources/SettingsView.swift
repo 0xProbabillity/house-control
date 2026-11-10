@@ -97,6 +97,16 @@ struct SettingsView: View {
                                 : "\(model.linkedDevices) linked to real devices")
                 }
                 .buttonStyle(RowButtonStyle())
+                #if ROOM_SCAN
+                RowDivider()
+                Button { model.openScan() } label: {
+                    linkRow(symbol: "cube.transparent.fill", tint: Theme.warm, title: "Scan with LiDAR", beta: true,
+                            detail: model.canScan ? "Walk through your home, pin lamps and ACs as you go"
+                                : "Needs an iPhone with a LiDAR camera")
+                }
+                .buttonStyle(RowButtonStyle())
+                .disabled(!model.canScan)
+                #endif
             }
             HStack(spacing: 10) {
                 Button { newHome = true } label: { Label("New home", systemImage: "plus") }
@@ -110,11 +120,16 @@ struct SettingsView: View {
         }
     }
 
-    private func linkRow(symbol: String, tint: Color, title: String, detail: String) -> some View {
+    private func linkRow(symbol: String, tint: Color, title: String, beta: Bool = false, detail: String) -> some View {
         HStack(spacing: 14) {
             IconBadge(symbol: symbol, tint: tint)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
+                HStack(spacing: 7) {
+                    Text(title).font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
+                    #if ROOM_SCAN
+                    if beta { BetaBadge() }
+                    #endif
+                }
                 Text(detail).font(.system(size: 13.5)).foregroundStyle(Theme.muted).lineLimit(1)
             }
             Spacer(minLength: 8)

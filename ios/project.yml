@@ -60,7 +60,7 @@ targets:
         # Home Assistant answers plain HTTP on the local network, the Hue Bridge HTTPS with its own certificate.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
-        NSCameraUsageDescription: The camera reads the pairing code shown by House Control on your Mac or PC.
+        NSCameraUsageDescription: The camera reads the pairing code shown by House Control on your Mac or PC, and measures your rooms when you scan your home.
         CFBundleURLTypes:
           - CFBundleURLName: io.github.0xprobabillity.HouseControl.pair
             CFBundleURLSchemes: [housecontrol]

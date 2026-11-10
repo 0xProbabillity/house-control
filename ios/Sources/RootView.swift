@@ -9,6 +9,9 @@ struct RootView: View {
             Theme.background.ignoresSafeArea()
             HomeWebView(web: model.web)
                 .ignoresSafeArea()
+                #if ROOM_SCAN
+                .fullScreenCover(isPresented: $model.showScan) { ScanScreen() }
+                #endif
             if let banner = model.banner {
                 BannerView(banner: banner)
                     .padding(.top, 6)

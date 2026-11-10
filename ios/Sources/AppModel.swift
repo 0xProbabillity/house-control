@@ -124,6 +124,14 @@ final class AppModel {
     var showNewHome = false
     private(set) var banner: Banner?
 
+    #if ROOM_SCAN
+    // Scanning the home with LiDAR (Scan/): the screen, the name the new home gets, and a
+    // scan read back from a file to review again (HOUSE_SCAN_FIXTURE).
+    var showScan = false
+    var scanName = "My home"
+    @ObservationIgnored var scanReplay: RoomScan?
+    #endif
+
     init() {
         let environment = ProcessInfo.processInfo.environment
         // HOUSE_DATA_DIR (SIMCTL_CHILD_HOUSE_DATA_DIR in the simulator) runs the app on a
@@ -197,9 +205,21 @@ final class AppModel {
         case "connections": showSettings = true
         case "welcome": showWelcome = true
         case "newhome": showNewHome = true
+        #if ROOM_SCAN
+        case "scan": showScan = true
+        #endif
         case "home": break
         default: showWelcome = !sandboxed && !UserDefaults.standard.bool(forKey: "welcomed")
         }
+        #if ROOM_SCAN
+        // HOUSE_SCAN_FIXTURE=<a saved scan, as JSON> opens the review of that scan.
+        if let path = environment["HOUSE_SCAN_FIXTURE"], let data = FileManager.default.contents(atPath: path),
+           let scan = try? JSONDecoder().decode(RoomScan.self, from: data) {
+            scanReplay = scan
+            showWelcome = false
+            showScan = true
+        }
+        #endif
     }
 
     // MARK: - Life cycle

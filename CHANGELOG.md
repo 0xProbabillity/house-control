@@ -3,6 +3,23 @@
 What changed in each release of House Control. The Mac app is on
 [Releases](https://github.com/0xProbabillity/house-control/releases); the iPhone app is on the App Store and TestFlight.
 
+## 1.5.0 — in TestFlight (beta, testers on the team only)
+
+### Scan your home with LiDAR
+
+- **Walk through the home with the iPhone's LiDAR camera** and House Control draws it: rooms, walls, doors,
+  windows and furniture, squared up and lined up with each other, ready in 3D. On iPhone Pro models, from
+  **New home** or **Settings → Scan with LiDAR**.
+- **One room at a time.** Tap **Next room** in the doorway; every room lands in the same plan. An L-shaped room
+  becomes two rooms open to each other, and two rooms scanned apart meet in the middle of the wall between them.
+- **Pin your lamps and air conditioners as you go.** Point the circle at one and tap +: a pin stays on it as you
+  walk, and a half-height list beside the camera offers the matching devices of Smart Life, Home Assistant, Hue and
+  Apple Home, or "link later". A lamp on the ceiling becomes a ceiling lamp, one at shoulder height a floor lamp; an
+  AC goes on its wall.
+- **See it before it is saved:** the plan from above, rooms to rename, pins to drop, and whether it becomes the
+  home or another floor of the home you have. **Save and fine-tune** opens the editor on it.
+- The phone keeps the screen awake while scanning, and finishes the scan itself if it gets too warm.
+
 ## 1.4.0 — in TestFlight
 
 ### Get to everything in the 3D model

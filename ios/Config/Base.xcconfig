@@ -1,6 +1,6 @@
 // Version of the iPhone app. CURRENT_PROJECT_VERSION is the build number TestFlight sees.
-MARKETING_VERSION = 1.4.0
-CURRENT_PROJECT_VERSION = 13
+MARKETING_VERSION = 1.5.0
+CURRENT_PROJECT_VERSION = 14
 
 CODE_SIGN_STYLE = Automatic
 

@@ -7,6 +7,8 @@ struct NewHomeView: View {
     @State private var name = "My home"
     @State private var template: String? = nil
     @State private var confirmReplace = false
+    /// Scanning with LiDAR picked instead of a layout.
+    @State private var scan = false
     @FocusState private var typing: Bool
 
     private let templates: [(id: String?, title: String, detail: String, symbol: String)] = [
@@ -33,10 +35,38 @@ struct NewHomeView: View {
                     }
                     VStack(spacing: 10) {
                         SectionTitle("Start from")
+                        #if ROOM_SCAN
+                        if model.canScan {
+                            Card {
+                                Button { scan = true } label: {
+                                    HStack(spacing: 14) {
+                                        IconBadge(symbol: "cube.transparent.fill", tint: Theme.green)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            HStack(spacing: 7) {
+                                                Text("Scan with LiDAR").font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
+                                                BetaBadge()
+                                            }
+                                            Text("Walk through it with the camera; lamps and ACs pinned on the way")
+                                                .font(.system(size: 13.5)).foregroundStyle(Theme.muted)
+                                        }
+                                        Spacer(minLength: 8)
+                                        Image(systemName: scan ? "checkmark.circle.fill" : "circle")
+                                            .font(.system(size: 22))
+                                            .foregroundStyle(scan ? Theme.accent : Theme.faint)
+                                            .contentTransition(.symbolEffect(.replace))
+                                    }
+                                    .padding(.horizontal, 14)
+                                    .frame(minHeight: 72)
+                                }
+                                .buttonStyle(RowButtonStyle())
+                                .accessibilityAddTraits(scan ? .isSelected : [])
+                            }
+                        }
+                        #endif
                         Card {
                             ForEach(Array(templates.enumerated()), id: \.offset) { index, option in
                                 if index > 0 { RowDivider() }
-                                Button { template = option.id } label: {
+                                Button { template = option.id; scan = false } label: {
                                     HStack(spacing: 14) {
                                         IconBadge(symbol: option.symbol, tint: option.id == nil ? Theme.warm : Theme.accent)
                                         VStack(alignment: .leading, spacing: 2) {
@@ -44,23 +74,27 @@ struct NewHomeView: View {
                                             Text(option.detail).font(.system(size: 13.5)).foregroundStyle(Theme.muted)
                                         }
                                         Spacer(minLength: 8)
-                                        Image(systemName: template == option.id ? "checkmark.circle.fill" : "circle")
+                                        Image(systemName: !scan && template == option.id ? "checkmark.circle.fill" : "circle")
                                             .font(.system(size: 22))
-                                            .foregroundStyle(template == option.id ? Theme.accent : Theme.faint)
+                                            .foregroundStyle(!scan && template == option.id ? Theme.accent : Theme.faint)
                                             .contentTransition(.symbolEffect(.replace))
                                     }
                                     .padding(.horizontal, 14)
                                     .frame(minHeight: 66)
                                 }
                                 .buttonStyle(RowButtonStyle())
-                                .accessibilityAddTraits(template == option.id ? .isSelected : [])
+                                .accessibilityAddTraits(!scan && template == option.id ? .isSelected : [])
                             }
                         }
-                        Footnote(text: "The editor opens next: drag rooms and lamps with a finger, pinch to zoom. Lamps and air conditioners stay simulated until you link them to your real devices.")
+                        Footnote(text: scan ? "The camera opens next. Nothing here changes until you save the scan."
+                                 : "The editor opens next: drag rooms and lamps with a finger, pinch to zoom. Lamps and air conditioners stay simulated until you link them to your real devices.")
                     }
                     Button {
-                        if model.hasCustomPlan { confirmReplace = true } else { create() }
-                    } label: { Label("Create and edit", systemImage: "pencil.and.ruler.fill") }
+                        if scan { startScan() } else if model.hasCustomPlan { confirmReplace = true } else { create() }
+                    } label: {
+                        if scan { Label("Start scanning", systemImage: "viewfinder") }
+                        else { Label("Create and edit", systemImage: "pencil.and.ruler.fill") }
+                    }
                         .buttonStyle(PrimaryButtonStyle())
                         .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
                         .confirmationDialog("Replace \(model.customPlanName ?? "your home")?", isPresented: $confirmReplace, titleVisibility: .visible) {
@@ -88,6 +122,14 @@ struct NewHomeView: View {
         .presentationBackground(Theme.background)
         .presentationDragIndicator(.visible)
         .preferredColorScheme(.dark)
+    }
+
+    /// The scan asks before it replaces anything, once there is something to save.
+    private func startScan() {
+        #if ROOM_SCAN
+        model.openScan(name: name.trimmingCharacters(in: .whitespaces))
+        dismiss()
+        #endif
     }
 
     private func create() {
