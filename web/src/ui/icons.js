@@ -7,11 +7,13 @@ import {
   Undo2, Activity, KeyRound, ArrowUpRight, Camera, Square,
   HouseWifi, Smartphone, Radar, CircleCheck, CircleAlert, ChevronRight, Unlink, LoaderCircle, Router,
   List, Trash2, Scan, Redo2, Map as MapIcon, DoorClosed, Armchair,
+  Heater, Coffee, Lightbulb as Bulb, Blinds, Bot,
   Layers, ChevronsUp, RotateCw, ZoomIn, ZoomOut, SquareSplitHorizontal, CopyPlus, AppWindow, SquareDashed,
 } from 'lucide';
 
 const ICONS = {
   power: Power, sun: Sun, sofa: Sofa, film: Film, moon: Moon, door: DoorOpen,
+  downlights: Bulb, towelRail: Heater, kettle: Coffee, blind: Blinds, vacuum: Bot,
   ceiling: LampCeiling, pendant: Lamp, spots: Lightbulb, floor: LampFloor, table: LampDesk, strip: Sparkles,
   cool: Snowflake, heat: Flame, dry: Droplets, fan: Fan, auto: RefreshCw, wind: Wind, leaf: Leaf,
   down: ChevronDown, back: ChevronLeft, plus: Plus, minus: Minus, thermo: Thermometer,

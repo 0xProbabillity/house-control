@@ -30,10 +30,13 @@ function glowMaterial() {
   return new THREE.MeshStandardMaterial({ color: '#8d8f96', roughness: 0.6, emissive: '#000000', emissiveIntensity: 1 });
 }
 
-function spot(intensity, y) {
+function spot(intensity, y, { shadow = true, x = 0, z = 0 } = {}) {
   const light = new THREE.SpotLight(0xffffff, 0, 0, 1.2, 0.75, 2);
-  light.position.set(0, y, 0);
-  light.target.position.set(0, y - 1, 0);
+  light.position.set(x, y, z);
+  light.target.position.set(x, y - 1, z);
+  light.userData.max = intensity;
+  light.userData.canShadow = shadow;
+  if (!shadow) return light;
   light.castShadow = true;
   light.shadow.mapSize.set(1024, 1024);
   light.shadow.camera.near = 0.15;
@@ -87,6 +90,108 @@ const fixtures = {
       glow: [globe],
       lights: [spot(cfg.intensity ?? 9, y - 0.05)],
       hit: [0.6, 0.7, 0.6, y],
+    };
+  },
+
+  // Several recessed spots on one switch. Every spot is drawn; the light itself comes from
+  // at most three sources spread over the group, so a room of eight costs what three lamps do.
+  downlights(cfg, H) {
+    const y = cfg.y ?? H - 0.05;
+    const local = cfg.points.map(([x, z]) => [x - cfg.pos[0], z - cfg.pos[1]]);
+    // The model has no ceiling and is seen from above, so the lit face is the one on show.
+    const glow = local.map(([x, z]) => at(cyl(0.07, 0.07, 0.03, glowMaterial(), 20), x, y - 0.015, z));
+    const parts = local.map(([x, z]) => at(cyl(0.09, 0.09, 0.012, mat(DARK, { rough: 0.5 }), 20), x, y - 0.03, z));
+    const n = Math.min(local.length, 3);
+    const total = (cfg.intensity ?? 7) * local.length;
+    const lights = [];
+    for (let i = 0; i < n; i++) {
+      const [x, z] = local[Math.round((i + 0.5) * local.length / n - 0.5)];
+      lights.push(spot(total / n, y - 0.05, { shadow: i === 0, x, z }));
+    }
+    const xs = local.map((p) => p[0]);
+    const zs = local.map((p) => p[1]);
+    return {
+      parts, glow, lights,
+      hit: [Math.max(...xs) - Math.min(...xs) + 0.4, 0.3, Math.max(...zs) - Math.min(...zs) + 0.4, y],
+      // Grown as one piece the spots would slide apart; each stays where it is drawn.
+      rigid: true,
+    };
+  },
+
+  // Heated towel rail on a wall: "pos" is on the wall line, "rot" turns its front into the room
+  // (0 faces south, like furniture). The bars glow when it heats.
+  towelRail(cfg) {
+    const y = cfg.y ?? 0.75;
+    const w = cfg.width ?? 0.5;
+    const h = cfg.height ?? 0.8;
+    const steel = mat('#c9ccd3', { rough: 0.25, metal: 0.9 });
+    const parts = [
+      at(cyl(0.014, 0.014, h, steel, 12), -w / 2, y, 0.07),
+      at(cyl(0.014, 0.014, h, steel, 12), w / 2, y, 0.07),
+    ];
+    const glow = [];
+    const bars = Math.max(3, Math.round(h / 0.13));
+    for (let i = 0; i < bars; i++) {
+      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, w, 10), glowMaterial());
+      bar.rotation.z = Math.PI / 2;
+      glow.push(at(bar, 0, y + 0.05 + (h - 0.1) * (i / (bars - 1)), 0.07));
+    }
+    return { parts, glow, lights: [], hit: [w + 0.2, h + 0.2, 0.35, y + h / 2], onColor: '#ff5a1f', offColor: '#c9ccd3', glowGain: 0.55 };
+  },
+
+  // Extractor fan in the ceiling: a round grille whose blades turn while it runs.
+  fan(cfg, H) {
+    const y = cfg.y ?? H - 0.06;
+    const rotor = new THREE.Group();
+    for (let i = 0; i < 5; i++) {
+      const blade = at(box(0.2, 0.012, 0.07, mat('#d7dae0', { rough: 0.5 }), { r: 0 }), 0.11, 0, 0);
+      blade.rotation.x = 0.5;
+      const arm = new THREE.Group();
+      arm.rotation.y = (i / 5) * Math.PI * 2;
+      arm.add(blade);
+      rotor.add(arm);
+    }
+    rotor.position.set(0, y - 0.01, 0);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.012, 10, 40), glowMaterial());
+    ring.rotation.x = Math.PI / 2;
+    // An open frame, not a plate: seen from above, the blades have to stay visible.
+    const frame = new THREE.Mesh(new THREE.TorusGeometry(0.245, 0.03, 12, 44), mat('#eceef2', { rough: 0.45 }));
+    frame.rotation.x = Math.PI / 2;
+    return {
+      parts: [
+        at(frame, 0, y, 0),
+        at(cyl(0.05, 0.05, 0.05, mat('#eceef2', { rough: 0.4 }), 20), 0, y - 0.03, 0),
+        rotor,
+      ],
+      glow: [at(ring, 0, y, 0)],
+      lights: [],
+      spin: [rotor],
+      hit: [0.7, 0.4, 0.7, y],
+      onColor: '#4fd1ff', offColor: '#8d8f96', glowGain: 0.6,
+    };
+  },
+
+  // Electric kettle on a worktop ("y" is the height of the surface it stands on).
+  kettle(cfg) {
+    const y = cfg.y ?? 0.9;
+    const steel = mat('#d9dce2', { rough: 0.22, metal: 0.85 });
+    const dark = mat(DARK, { rough: 0.5 });
+    const handle = at(box(0.025, 0.15, 0.03, dark, { r: 0.01 }), -0.115, y + 0.045, 0);
+    const spout = at(box(0.05, 0.04, 0.05, steel, { r: 0.012 }), 0.095, y + 0.15, 0);
+    return {
+      parts: [
+        at(cyl(0.095, 0.095, 0.02, dark, 28), 0, y, 0),
+        at(cyl(0.07, 0.09, 0.19, steel, 28), 0, y + 0.03, 0),
+        at(cyl(0.05, 0.068, 0.02, dark, 24), 0, y + 0.22, 0),
+        at(cyl(0.014, 0.014, 0.025, dark, 12), 0, y + 0.24, 0),
+        at(box(0.05, 0.02, 0.03, dark, { r: 0.008 }), -0.095, y + 0.185, 0),
+        at(box(0.05, 0.02, 0.03, dark, { r: 0.008 }), -0.095, y + 0.045, 0),
+        handle, spout,
+      ],
+      glow: [at(cyl(0.098, 0.098, 0.012, glowMaterial(), 28), 0, y + 0.02, 0)],
+      lights: [],
+      hit: [0.45, 0.45, 0.45, y + 0.13],
+      onColor: '#ff7a2a', offColor: '#3a3f4b', glowGain: 0.8,
     };
   },
 
@@ -170,6 +275,12 @@ export class LightUnit {
 
     this.glow = f.glow.map((m) => m.material);
     this.lights = f.lights;
+    // An appliance shows that it runs in its own colour rather than the colour of a lamp.
+    this.onColor = f.onColor ? new THREE.Color(f.onColor) : null;
+    this.offColor = new THREE.Color(f.offColor || '#8d8f96');
+    this.glowGain = f.glowGain ?? 1;
+    this.spin = f.spin || [];
+    this.rigid = Boolean(f.rigid);
     for (const l of this.lights) {
       this.group.add(l);
       if (l.target) this.group.add(l.target);
@@ -201,7 +312,7 @@ export class LightUnit {
   apply(state, { instant = false, delay = 0 } = {}) {
     const dimmable = this.cfg.capabilities.includes('brightness');
     this.goal = state.on ? (dimmable ? state.brightness : 1) : 0;
-    lightColor(state, this.goalColor);
+    if (this.onColor) this.goalColor.copy(this.onColor); else lightColor(state, this.goalColor);
     this.delay = delay;
     if (instant) {
       this.level = this.goal;
@@ -216,6 +327,9 @@ export class LightUnit {
 
   update(dt) {
     if (this.delay > 0) { this.delay -= dt; return true; }
+    // Blades keep turning for as long as the fan runs, so the scene keeps drawing.
+    const spinning = this.spin.length > 0 && this.level > 0.01;
+    if (spinning) for (const s of this.spin) s.rotation.y += dt * 11 * this.level;
     const k = 1 - Math.exp(-dt * (this.goal > this.level ? 7 : 5));
     const dl = this.goal - this.level;
     const dh = this.hoverGoal - this.hover;
@@ -229,7 +343,7 @@ export class LightUnit {
         this.write();
         return true;
       }
-      return false;
+      return spinning;
     }
     this.level += dl * k;
     this.hover += dh * (1 - Math.exp(-dt * 14));
@@ -246,14 +360,14 @@ export class LightUnit {
       l.color.copy(this.color);
     }
     // Lamp bodies stay faintly readable when off and hot enough to bloom when on.
-    const e = this.level > 0.001 ? 0.8 + 1.7 * Math.pow(this.level, 0.7) : 0;
+    const e = this.level > 0.001 ? (0.8 + 1.7 * Math.pow(this.level, 0.7)) * this.glowGain : 0;
     for (const m of this.glow) {
       m.emissive.copy(this.color);
       m.emissiveIntensity = e + this.hover * 0.5;
       if (this.level < 0.001) m.emissive.copy(tmp.set('#5b6b93'));
-      m.color.copy(tmp.set('#8d8f96')).lerp(this.color, Math.min(1, this.level * 2));
+      m.color.copy(this.offColor).lerp(this.color, Math.min(1, this.level * 2));
     }
-    const s = 1 + this.hover * 0.14 + Math.sin(this.pulse * Math.PI) * 0.22;
+    const s = this.rigid ? 1 : 1 + this.hover * 0.14 + Math.sin(this.pulse * Math.PI) * 0.22;
     this.model.scale.setScalar(s);
   }
 }

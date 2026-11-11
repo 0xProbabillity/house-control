@@ -1,7 +1,11 @@
 // Loads and normalises a floor plan ("home.json"). Everything the 3D scene and the UI
 // know about the apartment comes from this one document, so swapping the file swaps the home.
 
-const LIGHT_TYPES = ['ceiling', 'pendant', 'spots', 'floor', 'table', 'strip'];
+// 'downlights' is one switch driving several recessed spots ("points": [[x, z], ...]).
+// The appliance types are switched like a lamp but are not lighting: a heated towel rail,
+// an extractor fan, a kettle. "All on/off" and a scene's "*" leave them alone.
+export const APPLIANCE_TYPES = ['towelRail', 'fan', 'kettle'];
+const LIGHT_TYPES = ['ceiling', 'pendant', 'spots', 'downlights', 'floor', 'table', 'strip', ...APPLIANCE_TYPES];
 const WALLS = ['north', 'south', 'east', 'west'];
 
 export class ConfigError extends Error {}
@@ -114,11 +118,20 @@ export function normalize(raw) {
     unique(l.id, 'A light');
     need(roomIds.has(l.room), `Light "${l.id}" refers to unknown room "${l.room}"`);
     need(LIGHT_TYPES.includes(l.type), `Light "${l.id}" has unknown type "${l.type}" (use ${LIGHT_TYPES.join(', ')})`);
-    need(isPoint(l.pos), `Light "${l.id}" needs "pos": [x, z]`);
+    let pos = l.pos;
+    if (l.type === 'downlights') {
+      need(Array.isArray(l.points) && l.points.length > 0 && l.points.every(isPoint),
+        `Light "${l.id}" needs "points": [[x, z], ...]`);
+      // The group sits at the middle of its spots unless the plan says otherwise.
+      if (!isPoint(pos)) pos = [0, 1].map((i) => l.points.reduce((sum, p) => sum + p[i], 0) / l.points.length);
+    }
+    need(isPoint(pos), `Light "${l.id}" needs "pos": [x, z]`);
     return {
       ...l,
+      pos,
+      appliance: APPLIANCE_TYPES.includes(l.type),
       name: l.name || l.id,
-      rot: l.rot || 0,
+      rot: l.type === 'downlights' ? 0 : (l.rot || 0),
       capabilities: l.capabilities || [], // plain smart plugs: on/off only
       level: roomLevel.get(l.room),
     };

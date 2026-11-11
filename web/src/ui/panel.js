@@ -135,6 +135,9 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     update();
   }
 
+  // Lighting proper: the appliances (kettle, towel rail, fan) have tiles but stay out of the counts.
+  const lamps = config.lights.filter((l) => !l.appliance);
+
   function inScope(cfg) {
     return ui.room === 'all' || cfg.room === ui.room;
   }
@@ -142,12 +145,12 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   function bulk(on) {
     haptic('medium');
     if (ui.room === 'all') { store.setAllLights(on); return; }
-    for (const l of config.lights) if (l.room === ui.room) store.setLight(l.id, { on });
+    for (const l of lamps) if (l.room === ui.room) store.setLight(l.id, { on });
   }
 
   function toggleEverything() {
     haptic('heavy');
-    const anyOn = Object.values(state.lights).some((l) => l.on) || Object.values(state.acs).some((a) => a.on);
+    const anyOn = lamps.some((l) => state.lights[l.id].on) || Object.values(state.acs).some((a) => a.on);
     if (anyOn) {
       store.setAllLights(false);
       for (const id of Object.keys(state.acs)) store.setAC(id, { on: false });
@@ -169,7 +172,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
       ? h('button.tile-more', { 'aria-label': `${cfg.name} settings`, onclick: (e) => { e.stopPropagation(); openSheet({ kind: 'light', id: cfg.id }); } }, icon('sliders', 15))
       : null;
     const el = h(`div.tile${dimmable ? '.dimmable' : ''}`, { role: 'button', tabindex: 0, 'aria-label': cfg.name },
-      h('div.bubble', icon(cfg.capabilities.length ? cfg.type : 'plug', 19)),
+      h('div.bubble', icon(cfg.type, 19)),
       h('div.tile-text', h('div.tile-name', cfg.name), sub),
       more,
       h('div.tile-level'));
@@ -292,7 +295,8 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
         if (!devices.length) continue;
         if (ui.room === 'all') nodes.push(h('div.group-label', room.name));
         devices.filter((t) => t.kind === 'ac').forEach(add);
-        devices.filter((t) => t.kind === 'light').forEach(add);
+        devices.filter((t) => t.kind === 'light' && !t.cfg.appliance).forEach(add);
+        devices.filter((t) => t.kind === 'light' && t.cfg.appliance).forEach(add);
       }
       if (multiLevel && ui.room === 'all' && nodes.length > before) nodes.splice(before, 0, h('div.level-label', level.name));
     }
@@ -541,7 +545,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     }
     const sum = new THREE.Color(0, 0, 0);
     let weight = 0;
-    for (const cfg of config.lights) {
+    for (const cfg of lamps) {
       const s = state.lights[cfg.id];
       if (!s.on) continue;
       const w = cfg.capabilities.includes('brightness') ? s.brightness : 1;
@@ -555,7 +559,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   }
 
   function update() {
-    const lights = Object.values(state.lights);
+    const lights = lamps.map((l) => state.lights[l.id]);
     const onCount = lights.filter((l) => l.on).length;
     const acsOn = Object.values(state.acs).filter((a) => a.on);
     const anyOn = onCount > 0 || acsOn.length > 0;
@@ -570,19 +574,19 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
 
     for (const [id, { b, count }] of roomButtons) {
       b.classList.toggle('active', ui.room === id);
-      const n = config.lights.filter((l) => (id === 'all' || l.room === id) && state.lights[l.id].on).length;
+      const n = lamps.filter((l) => (id === 'all' || l.room === id) && state.lights[l.id].on).length;
       count.textContent = n;
       count.classList.toggle('zero', n === 0 || id === 'all');
     }
     for (const [id, { b, count }] of floorButtons) {
       b.classList.toggle('active', ui.level === id);
       b.setAttribute('aria-pressed', String(ui.level === id));
-      const n = config.lights.filter((l) => l.level === id && state.lights[l.id].on).length;
+      const n = lamps.filter((l) => l.level === id && state.lights[l.id].on).length;
       count.textContent = n;
       count.classList.toggle('zero', n === 0);
     }
 
-    const scoped = config.lights.filter(inScope);
+    const scoped = lamps.filter(inScope);
     const scopedOn = scoped.filter((l) => state.lights[l.id].on).length;
     listTitle.replaceChildren(h('b', ui.room === 'all' ? 'Whole home' : roomName.get(ui.room)), ` · ${scopedOn} of ${scoped.length} on`);
 

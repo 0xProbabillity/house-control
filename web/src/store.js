@@ -159,7 +159,7 @@ export function createStore(config) {
   }
 
   function summary() {
-    const lights = Object.values(state.lights);
+    const lights = Object.entries(state.lights).filter(([id]) => !lightCfg.get(id).appliance).map(([, l]) => l);
     const acs = Object.entries(state.acs).filter(([, a]) => a.on);
     return {
       lightsOn: lights.filter((l) => l.on).length,
@@ -196,7 +196,8 @@ export function createStore(config) {
 
     setAllLights(on) {
       let any = false;
-      for (const id of Object.keys(state.lights)) any = writeLight(id, { on }) || any;
+      // Appliances (kettle, towel rail, fan) are not lighting: "all on" must not start them.
+      for (const id of Object.keys(state.lights)) if (!lightCfg.get(id).appliance) any = writeLight(id, { on }) || any;
       if (any) { state.scene = null; emit({ type: 'bulk' }); }
     },
 
@@ -208,7 +209,9 @@ export function createStore(config) {
       const scene = config.scenes.find((s) => s.id === sceneId);
       if (!scene) return;
       for (const id of Object.keys(state.lights)) {
-        const patch = { ...(scene.lights['*'] || {}), ...(scene.lights[id] || {}) };
+        // "*" means every lamp; an appliance only follows a scene that names it.
+        const patch = { ...(lightCfg.get(id).appliance ? {} : scene.lights['*'] || {}), ...(scene.lights[id] || {}) };
+        if (!Object.keys(patch).length) continue;
         // A scene that sets a white temperature should not be overridden by a stale colour.
         if (!('color' in patch) && 'temp' in patch) patch.color = null;
         writeLight(id, patch);
