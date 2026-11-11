@@ -158,7 +158,7 @@ const PAD_MIN_SAT = 0.12;
 
 export function createColorPad({ value, onInput }) {
   const thumb = h('div.pad-thumb');
-  const el = h('div.pad', { role: 'slider', tabindex: 0, 'aria-label': 'Colour' }, thumb);
+  const el = h('div.pad', { role: 'slider', tabindex: 0, 'aria-label': 'Цвет' }, thumb);
   let dragging = false;
 
   const place = (x, y, hex) => {

@@ -37,7 +37,7 @@ function safeAreaTop() {
 function fatal(title, error) {
   console.error(error);
   app.replaceChildren(h('div.fatal', h('h1', title),
-    'The floor plan could not be loaded. Fix the file and reload, or pick another plan from the menu bar icon.',
+    'Не удалось загрузить план. Исправьте файл и загрузите его снова.',
     h('code', String(error?.message || error))));
   post('ready', { error: String(error?.message || error) });
 }
@@ -49,7 +49,7 @@ async function boot() {
     raw = await loadRawConfig();
     config = normalize(structuredClone(raw));
   } catch (error) {
-    fatal('Could not open this home', error);
+    fatal('Не удалось открыть этот дом', error);
     return;
   }
 
@@ -91,7 +91,7 @@ async function boot() {
       },
     });
   } catch (error) {
-    fatal('3D view failed to start', error);
+    fatal('Не удалось запустить 3D-вид', error);
     return;
   }
 
