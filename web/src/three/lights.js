@@ -113,6 +113,7 @@ const fixtures = {
     return {
       parts, glow, lights,
       hit: [Math.max(...xs) - Math.min(...xs) + 0.4, 0.3, Math.max(...zs) - Math.min(...zs) + 0.4, y],
+      hitAt: [(Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...zs) + Math.min(...zs)) / 2],
       // Grown as one piece the spots would slide apart; each stays where it is drawn.
       rigid: true,
     };
@@ -193,6 +194,51 @@ const fixtures = {
       lights: [],
       hit: [0.45, 0.45, 0.45, y + 0.13],
       onColor: '#ff7a2a', offColor: '#3a3f4b', glowGain: 0.8,
+    };
+  },
+
+  // A light line of several straight runs ("paths"), all on one switch.
+  lightLine(cfg) {
+    const y = cfg.y ?? 1;
+    const glow = [];
+    const lights = [];
+    const xs = [];
+    const zs = [];
+    let total = 0;
+    const runs = [];
+    for (const path of cfg.paths) {
+      for (let i = 0; i < path.length - 1; i++) {
+        const [ax, az] = [path[i][0] - cfg.pos[0], path[i][1] - cfg.pos[1]];
+        const [bx, bz] = [path[i + 1][0] - cfg.pos[0], path[i + 1][1] - cfg.pos[1]];
+        const length = Math.hypot(bx - ax, bz - az);
+        if (length < 0.01) continue;
+        runs.push({ ax, az, bx, bz, length });
+        total += length;
+        xs.push(ax, bx);
+        zs.push(az, bz);
+      }
+    }
+    // One source per metre and a half or so, but never more than six for the whole line.
+    const sources = Math.max(1, Math.min(6, Math.round(total / 1.5)));
+    const power = (cfg.intensity ?? 1.6) * Math.max(1, total / 2) / sources;
+    let placed = 0;
+    let walked = 0;
+    for (const run of runs) {
+      const bar = box(run.length + 0.022, 0.022, 0.022, glowMaterial(), { r: 0.008 });
+      bar.rotation.y = -Math.atan2(run.bz - run.az, run.bx - run.ax);
+      glow.push(at(bar, (run.ax + run.bx) / 2, y - 0.011, (run.az + run.bz) / 2));
+      while (placed < sources && (placed + 0.5) * (total / sources) <= walked + run.length) {
+        const t = ((placed + 0.5) * (total / sources) - walked) / run.length;
+        lights.push(point(power, y - 0.05, { shadow: false, distance: 3.2, x: run.ax + (run.bx - run.ax) * t, z: run.az + (run.bz - run.az) * t }));
+        placed += 1;
+      }
+      walked += run.length;
+    }
+    return {
+      parts: [], glow, lights,
+      hit: [Math.max(...xs) - Math.min(...xs) + 0.3, 0.4, Math.max(...zs) - Math.min(...zs) + 0.3, y],
+      hitAt: [(Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...zs) + Math.min(...zs)) / 2],
+      rigid: true,
     };
   },
 
@@ -281,6 +327,7 @@ const fixtures = {
   },
 
   strip(cfg) {
+    if (cfg.paths) return fixtures.lightLine(cfg);
     const y = cfg.y ?? 1;
     const length = cfg.length ?? 1;
     const n = Math.max(1, Math.round(length / 1.0));
@@ -337,7 +384,7 @@ export class LightUnit {
 
     const [hw, hh, hd, hy] = f.hit;
     this.hit = new THREE.Mesh(new THREE.BoxGeometry(hw, hh, hd), new THREE.MeshBasicMaterial());
-    this.hit.position.y = hy;
+    this.hit.position.set(f.hitAt?.[0] ?? 0, hy, f.hitAt?.[1] ?? 0);
     this.hit.visible = false;
     this.hit.userData = { kind: 'light', id: cfg.id };
     this.group.add(this.hit);

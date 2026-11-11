@@ -82,7 +82,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   const roomChips = new Map();
   const labelsLayer = h('div.room-labels');
   for (const r of config.rooms) {
-    if (!climateRooms.has(r.id)) continue;
+    if (r.part != null || !climateRooms.has(r.id)) continue;
     const el = h('div.room-label');
     roomLabels.set(r.id, { el, room: r });
     labelsLayer.append(el);
@@ -170,7 +170,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   /* ---------- rooms ---------- */
 
   const roomButtons = new Map();
-  for (const r of [{ id: 'all', name: 'Все' }, ...config.rooms]) {
+  for (const r of [{ id: 'all', name: 'Все' }, ...config.rooms.filter((x) => x.part == null)]) {
     const count = h('span.count.zero', '0');
     const b = h('button.room', { onclick: () => { haptic('tick'); selectRoom(r.id); } }, r.name, count);
     roomButtons.set(r.id, { b, count });
@@ -178,6 +178,8 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   }
 
   function selectRoom(id) {
+    // A tap on a piece of a room (see "part" in the plan) selects the room it belongs to.
+    id = config.rooms.find((r) => r.id === id)?.part ?? id;
     if (ui.room === id) id = 'all';
     ui.room = id;
     layoutTiles();
@@ -359,6 +361,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     for (const level of levels) {
       const before = nodes.length;
       for (const room of config.rooms) {
+        if (room.part != null) continue;
         if (room.level !== level.id || (ui.room !== 'all' && room.id !== ui.room)) continue;
         const devices = [...tiles.values()].filter((t) => t.cfg.room === room.id);
         if (!devices.length) continue;

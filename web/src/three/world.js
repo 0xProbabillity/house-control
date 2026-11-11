@@ -216,8 +216,11 @@ export function createWorld(canvas, config, store, { onHover, onPick, onLevel = 
     const y = level.elevation;
     const H = level.wallHeight;
     if (f?.kind === 'room') {
-      const r = config.rooms.find((x) => x.id === f.id);
-      box = new THREE.Box3(new THREE.Vector3(r.x, y, r.z), new THREE.Vector3(r.x + r.w, y + H * 0.75, r.z + r.d));
+      // The room and its pieces (see "part" in the plan) are framed together.
+      const rs = config.rooms.filter((x) => x.id === f.id || x.part === f.id);
+      box = new THREE.Box3(
+        new THREE.Vector3(Math.min(...rs.map((r) => r.x)), y, Math.min(...rs.map((r) => r.z))),
+        new THREE.Vector3(Math.max(...rs.map((r) => r.x + r.w)), y + H * 0.75, Math.max(...rs.map((r) => r.z + r.d))));
       fill = 0.84;
     } else if (f?.kind === 'ac') {
       const unit = acs.get(f.id);

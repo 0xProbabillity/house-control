@@ -104,8 +104,17 @@ export function normalize(raw) {
       `Room "${r.id}" needs "rect": [x, z, width, depth]`);
     const [x, z, w, d] = r.rect;
     need(w > 0 && d > 0, `Room "${r.id}" has an empty rect`);
-    return { id: r.id, name: r.name || r.id, x, z, w, d, floor: r.floor || 'oak', level: levelOf(r, `Room "${r.id}"`) };
+    return { id: r.id, name: r.name || r.id, x, z, w, d, floor: r.floor || 'oak', level: levelOf(r, `Room "${r.id}"`), part: r.part ?? null };
   });
+  // A room that is not a rectangle is drawn as several: "part": "<room id>" makes a rectangle a
+  // piece of that room. It keeps its own floor and walls but has no name, tab or devices of its own.
+  for (const r of rooms) {
+    if (r.part == null) continue;
+    const main = rooms.find((x) => x.id === r.part);
+    need(main && main !== r && main.part == null, `Room "${r.id}" is part of unknown room "${r.part}"`);
+    r.name = main.name;
+  }
+  const mainRoom = new Map(rooms.map((r) => [r.id, r.part ?? r.id]));
   const roomIds = new Set(rooms.map((r) => r.id));
   const roomLevel = new Map(rooms.map((r) => [r.id, r.level]));
 
@@ -118,8 +127,18 @@ export function normalize(raw) {
   const lights = (raw.lights || []).map((l) => {
     unique(l.id, 'A light');
     need(roomIds.has(l.room), `Light "${l.id}" refers to unknown room "${l.room}"`);
+    l = { ...l, room: mainRoom.get(l.room) };
     need(LIGHT_TYPES.includes(l.type), `Light "${l.id}" has unknown type "${l.type}" (use ${LIGHT_TYPES.join(', ')})`);
     let pos = l.pos;
+    // A light line that turns a corner or runs in several pieces, on one switch:
+    // "paths": [[[x, z], [x, z], ...], ...] instead of "pos" / "rot" / "length".
+    const paths = l.type === 'strip' && Array.isArray(l.paths) ? l.paths : null;
+    if (paths) {
+      need(paths.length > 0 && paths.every((p) => Array.isArray(p) && p.length >= 2 && p.every(isPoint)),
+        `Light "${l.id}" needs "paths": [[[x, z], [x, z], ...], ...]`);
+      const all = paths.flat();
+      if (!isPoint(pos)) pos = [0, 1].map((i) => all.reduce((sum, p) => sum + p[i], 0) / all.length);
+    }
     if (l.type === 'downlights') {
       need(Array.isArray(l.points) && l.points.length > 0 && l.points.every(isPoint),
         `Light "${l.id}" needs "points": [[x, z], ...]`);
@@ -132,7 +151,7 @@ export function normalize(raw) {
       pos,
       appliance: APPLIANCE_TYPES.includes(l.type),
       name: l.name || l.id,
-      rot: l.type === 'downlights' ? 0 : (l.rot || 0),
+      rot: l.type === 'downlights' || paths ? 0 : (l.rot || 0),
       capabilities: l.type === 'blind' ? ['brightness'] : (l.capabilities || []), // plain smart plugs: on/off only
       level: roomLevel.get(l.room),
     };
@@ -151,6 +170,7 @@ export function normalize(raw) {
   const acs = (raw.acs || []).map((a) => {
     unique(a.id, 'An AC');
     need(roomIds.has(a.room), `AC "${a.id}" refers to unknown room "${a.room}"`);
+    a = { ...a, room: mainRoom.get(a.room) };
     // "type": "floor" is underfloor heating: a thermostat for the whole room, with no unit on a wall.
     if (a.type === 'floor') {
       const r = rooms.find((x) => x.id === a.room);
@@ -170,7 +190,7 @@ export function normalize(raw) {
   // Room climate: "sensors": [{ room, temperature, humidity }] names the thermometer and the
   // hygrometer of a room; "outdoor": { weather, temperature, humidity, pressure } what is known
   // about outside. The values themselves arrive from the connected platform.
-  const sensors = (Array.isArray(raw.sensors) ? raw.sensors : []).filter((s) => s && roomIds.has(s.room));
+  const sensors = (Array.isArray(raw.sensors) ? raw.sensors : []).filter((s) => s && roomIds.has(s.room)).map((s) => ({ ...s, room: mainRoom.get(s.room) }));
   const outdoor = raw.outdoor && typeof raw.outdoor === 'object' ? raw.outdoor : null;
 
   const furniture = (raw.furniture || []).map((f, i) => {
