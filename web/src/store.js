@@ -26,6 +26,16 @@ export function createStore(config) {
   const lightCfg = new Map(config.lights.map((l) => [l.id, l]));
   const acCfg = new Map(config.acs.map((a) => [a.id, a]));
 
+  // Lamps fed through another lamp's switch ("power" in the plan): switch id -> the lamps behind it.
+  const fedBy = new Map();
+  for (const l of config.lights) {
+    if (l.power == null) continue;
+    if (!fedBy.has(l.power)) fedBy.set(l.power, []);
+    fedBy.get(l.power).push(l.id);
+  }
+  // Set while one write also changed the lamps behind a switch, so every view redraws them all.
+  let cascaded = false;
+
   const state = { lights: {}, acs: {}, scene: null };
   for (const l of config.lights) state.lights[l.id] = defaultLight(l);
   for (const a of config.acs) state.acs[a.id] = defaultAC(a, config.outdoorTemp);
@@ -55,6 +65,7 @@ export function createStore(config) {
   }
 
   function emit(change) {
+    cascaded = false;
     for (const fn of listeners) fn(change);
     if (change.type !== 'tick') {
       persist();
@@ -114,7 +125,9 @@ export function createStore(config) {
       current[key] = before[key];
       any = true;
     }
-    if (any) emit({ type: kind, id, reverted: true });
+    if (any && kind === 'light' && fedBy.has(id)) follow(id, current.on);
+    if (any) emit(cascaded ? { type: 'bulk', reverted: true } : { type: kind, id, reverted: true });
+    cascaded = false;
     store.onDeviceError?.(id, error.message);
   }
 
@@ -128,16 +141,41 @@ export function createStore(config) {
     return out;
   }
 
+  // The switch changed: the lamps behind it lose power with it, and come back on with it when
+  // it was switched here. Heads that have just got power need a moment before they listen, so
+  // their own "on" follows a little later and is allowed to fail quietly.
+  function follow(feeder, on, { command = false } = {}) {
+    for (const id of fedBy.get(feeder) || []) {
+      const dep = state.lights[id];
+      if (dep.on === on) continue;
+      dep.on = on;
+      cascaded = true;
+      if (!on || !command || !isNative) continue;
+      setTimeout(() => {
+        if (!state.lights[feeder].on || !dep.on) return;
+        call('command', { kind: 'light', id, patch: { on: true }, state: { ...dep } }).catch(() => {});
+      }, 4000);
+    }
+  }
+
   function writeLight(id, patch, { remote = false } = {}) {
     const cur = state.lights[id];
     if (!cur) return false;
+    const cfg = lightCfg.get(id);
+    let fed = false;
+    if (cfg.power != null && patch.on === true && !state.lights[cfg.power].on) {
+      // No power, no light: a stale "on" from the device is ignored, a tap here closes the switch first.
+      if (remote) patch = { ...patch, on: false };
+      else fed = writeLight(cfg.power, { on: true });
+    }
     const clean = sanitizeLight(id, patch);
     // Only what actually changed is worth sending to the device.
     const diff = Object.fromEntries(Object.entries(clean).filter(([k, v]) => cur[k] !== v));
-    if (!Object.keys(diff).length) return false;
+    if (!Object.keys(diff).length) return fed;
     const before = Object.fromEntries(Object.keys(diff).map((k) => [k, cur[k]]));
     Object.assign(cur, clean);
     if (!remote) dispatch('light', id, diff, before);
+    if ('on' in diff && fedBy.has(id)) follow(id, cur.on, { command: !remote });
     return true;
   }
 
@@ -190,7 +228,8 @@ export function createStore(config) {
     on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
 
     setLight(id, patch) {
-      if (writeLight(id, patch)) { state.scene = null; emit({ type: 'light', id }); }
+      if (writeLight(id, patch)) { state.scene = null; emit(cascaded ? { type: 'bulk' } : { type: 'light', id }); }
+      cascaded = false;
     },
     toggleLight(id) { store.setLight(id, { on: !state.lights[id].on }); },
 
@@ -242,7 +281,10 @@ export function createStore(config) {
     // State reported by real devices (native provider). Never echoed back as a command.
     applyRemote(update) {
       let any = false;
-      for (const [id, patch] of Object.entries(update.lights || {})) any = writeLight(id, patch, { remote: true }) || any;
+      // Switches before the lamps behind them, so a lamp is judged against the switch as it is now.
+      const reported = Object.entries(update.lights || {}).sort(([a], [b]) => fedBy.has(b) - fedBy.has(a));
+      for (const [id, patch] of reported) any = writeLight(id, patch, { remote: true }) || any;
+      if (cascaded) { any = true; cascaded = false; }
       for (const [id, patch] of Object.entries(update.acs || {})) any = writeAC(id, patch, { remote: true }) || any;
       for (const [id, f] of Object.entries(update.features || {})) {
         if (!state.acs[id] || JSON.stringify(features[id]) === JSON.stringify(f)) continue;

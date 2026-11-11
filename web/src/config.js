@@ -138,6 +138,16 @@ export function normalize(raw) {
     };
   });
 
+  // "power": "<light id>" — the lamp is fed through that light's switch (smart track heads
+  // behind a wall switch). It is dark whenever the switch is off and comes on with it.
+  const lightIds = new Map(lights.map((l) => [l.id, l]));
+  for (const l of lights) {
+    if (l.power == null) continue;
+    const feeder = lightIds.get(l.power);
+    need(feeder && feeder !== l, `Light "${l.id}" is powered by unknown light "${l.power}"`);
+    need(feeder.power == null, `Light "${l.id}": "${l.power}" is itself powered by another light`);
+  }
+
   const acs = (raw.acs || []).map((a) => {
     unique(a.id, 'An AC');
     need(roomIds.has(a.room), `AC "${a.id}" refers to unknown room "${a.room}"`);

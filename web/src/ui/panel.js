@@ -576,7 +576,8 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
 
     for (const [id, { b, count }] of roomButtons) {
       b.classList.toggle('active', ui.room === id);
-      const n = lamps.filter((l) => (id === 'all' || l.room === id) && state.lights[l.id].on).length;
+      // The badge counts what is running in the room: lamps and appliances (an open blind is not "running").
+      const n = config.lights.filter((l) => l.type !== 'blind' && (id === 'all' || l.room === id) && state.lights[l.id].on).length;
       count.textContent = n;
       count.classList.toggle('zero', n === 0 || id === 'all');
     }

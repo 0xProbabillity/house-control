@@ -124,19 +124,20 @@ const fixtures = {
     const y = cfg.y ?? 0.75;
     const w = cfg.width ?? 0.5;
     const h = cfg.height ?? 0.8;
-    const steel = mat('#c9ccd3', { rough: 0.25, metal: 0.9 });
+    // Dark against the wall, so it reads when it is off as well.
+    const steel = mat('#2b2f37', { rough: 0.35, metal: 0.7 });
     const parts = [
-      at(cyl(0.014, 0.014, h, steel, 12), -w / 2, y, 0.07),
-      at(cyl(0.014, 0.014, h, steel, 12), w / 2, y, 0.07),
+      at(cyl(0.02, 0.02, h, steel, 12), -w / 2, y, 0.07),
+      at(cyl(0.02, 0.02, h, steel, 12), w / 2, y, 0.07),
     ];
     const glow = [];
     const bars = Math.max(3, Math.round(h / 0.13));
     for (let i = 0; i < bars; i++) {
-      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, w, 10), glowMaterial());
+      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, w, 10), glowMaterial());
       bar.rotation.z = Math.PI / 2;
       glow.push(at(bar, 0, y + 0.05 + (h - 0.1) * (i / (bars - 1)), 0.07));
     }
-    return { parts, glow, lights: [], hit: [w + 0.2, h + 0.2, 0.35, y + h / 2], onColor: '#ff5a1f', offColor: '#c9ccd3', glowGain: 0.55 };
+    return { parts, glow, lights: [], hit: [w + 0.2, h + 0.2, 0.35, y + h / 2], onColor: '#ff5a1f', offColor: '#2b2f37', glowGain: 0.55 };
   },
 
   // Extractor fan in the ceiling: a round grille whose blades turn while it runs.
