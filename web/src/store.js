@@ -14,7 +14,7 @@ function defaultLight(cfg) {
 
 function defaultAC(cfg, outdoor) {
   return {
-    on: false, target: 24, mode: 'cool', fan: 'auto', swing: 'swing',
+    on: false, target: cfg.type === 'floor' ? 27 : 24, mode: cfg.type === 'floor' ? 'heat' : 'cool', fan: 'auto', swing: 'swing',
     sleep: false, eco: false, roomTemp: Math.min(outdoor - 2, 27),
     // On but not running right now (a real thermostat says so); never sent to a device.
     idle: false,
@@ -160,7 +160,7 @@ export function createStore(config) {
 
   function summary() {
     const lights = Object.entries(state.lights).filter(([id]) => !lightCfg.get(id).appliance).map(([, l]) => l);
-    const acs = Object.entries(state.acs).filter(([, a]) => a.on);
+    const acs = Object.entries(state.acs).filter(([id, a]) => a.on && acCfg.get(id).type !== 'floor');
     return {
       lightsOn: lights.filter((l) => l.on).length,
       lightsTotal: lights.length,
@@ -217,7 +217,8 @@ export function createStore(config) {
         writeLight(id, patch);
       }
       for (const id of Object.keys(state.acs)) {
-        const patch = { ...(scene.acs['*'] || {}), ...(scene.acs[id] || {}) };
+        // Underfloor heating is slow and belongs to the room, not to the mood: only a scene that names it changes it.
+        const patch = { ...(acCfg.get(id).type === 'floor' ? {} : scene.acs['*'] || {}), ...(scene.acs[id] || {}) };
         if (Object.keys(patch).length) writeAC(id, patch);
       }
       state.scene = sceneId;

@@ -195,6 +195,53 @@ const fixtures = {
     };
   },
 
+  // Roller blind on a window: "pos" is on the wall line, "rot" turns its front into the room,
+  // "y" is the top of the window and "height" how far the cloth drops when closed.
+  // The lamp level is how far it is open: 0 hangs all the way down, 1 is rolled up.
+  blind(cfg) {
+    const top = cfg.y ?? 2.1;
+    const w = cfg.width ?? 1.2;
+    const drop = cfg.height ?? 1.25;
+    const geo = new THREE.BoxGeometry(w - 0.05, 1, 0.01);
+    geo.translate(0, -0.5, 0);
+    const cloth = new THREE.Mesh(geo, mat('#e9e4d8', { rough: 0.95 }));
+    cloth.position.set(0, top, 0.07);
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(w - 0.03, 0.03, 0.03), mat('#c9ccd3', { rough: 0.4, metal: 0.6 }));
+    rail.position.set(0, top, 0.07);
+    return {
+      parts: [at(box(w, 0.08, 0.09, mat('#f1f1f3', { rough: 0.5 }), { r: 0.015 }), 0, top, 0.07), cloth, rail],
+      glow: [],
+      lights: [],
+      hit: [w + 0.1, drop + 0.2, 0.4, top - drop / 2],
+      rigid: true,
+      animate(level) {
+        const len = Math.max(0.04, drop * (1 - level));
+        cloth.scale.y = len;
+        rail.position.y = cloth.position.y - len;
+      },
+    };
+  },
+
+  // Robot vacuum at its dock ("pos" is where the dock stands, "rot" turns it into the room).
+  vacuum(cfg) {
+    const body = mat('#f2f3f5', { rough: 0.35 });
+    const dark = mat(DARK, { rough: 0.5 });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.012, 10, 36), glowMaterial());
+    ring.rotation.x = Math.PI / 2;
+    return {
+      parts: [
+        at(box(0.2, 0.12, 0.07, dark, { r: 0.015 }), 0, 0, -0.03),
+        at(cyl(0.175, 0.175, 0.085, body, 36), 0, 0.01, 0.2),
+        at(cyl(0.05, 0.05, 0.022, dark, 24), 0, 0.095, 0.2),
+        at(box(0.2, 0.02, 0.02, dark, { r: 0.006 }), 0, 0.03, 0.365),
+      ],
+      glow: [at(ring, 0, 0.1, 0.2)],
+      lights: [],
+      hit: [0.5, 0.3, 0.6, 0.1],
+      onColor: '#4fd1ff', offColor: '#8d8f96', glowGain: 0.8,
+    };
+  },
+
   spots(cfg, H) {
     const y = cfg.y ?? H - 0.16;
     const glow = [-0.32, 0, 0.32].map((x) => at(cyl(0.055, 0.045, 0.1, glowMaterial(), 20), x, y - 0.06, 0));
@@ -281,6 +328,7 @@ export class LightUnit {
     this.glowGain = f.glowGain ?? 1;
     this.spin = f.spin || [];
     this.rigid = Boolean(f.rigid);
+    this.animate = f.animate || null;
     for (const l of this.lights) {
       this.group.add(l);
       if (l.target) this.group.add(l.target);
@@ -367,6 +415,7 @@ export class LightUnit {
       if (this.level < 0.001) m.emissive.copy(tmp.set('#5b6b93'));
       m.color.copy(this.offColor).lerp(this.color, Math.min(1, this.level * 2));
     }
+    this.animate?.(this.level);
     const s = this.rigid ? 1 : 1 + this.hover * 0.14 + Math.sin(this.pulse * Math.PI) * 0.22;
     this.model.scale.setScalar(s);
   }

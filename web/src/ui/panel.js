@@ -22,6 +22,8 @@ const tmp = new THREE.Color();
 const css = (c) => `#${c.getHexString()}`;
 
 function lightStatus(cfg, s) {
+  if (cfg.type === 'blind') return s.on ? `Откр. ${Math.round(s.brightness * 100)}%` : 'Закрыта';
+  if (cfg.type === 'vacuum') return s.on ? 'Убирает' : 'На базе';
   if (!s.on) return 'Выкл';
   return cfg.capabilities.includes('brightness') ? `${Math.round(s.brightness * 100)}%` : 'Вкл';
 }
@@ -561,7 +563,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   function update() {
     const lights = lamps.map((l) => state.lights[l.id]);
     const onCount = lights.filter((l) => l.on).length;
-    const acsOn = Object.values(state.acs).filter((a) => a.on);
+    const acsOn = config.acs.filter((a) => a.type !== 'floor').map((a) => state.acs[a.id]).filter((a) => a.on);
     const anyOn = onCount > 0 || acsOn.length > 0;
 
     homeSub.replaceChildren(

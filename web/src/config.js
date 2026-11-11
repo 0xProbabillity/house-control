@@ -3,8 +3,9 @@
 
 // 'downlights' is one switch driving several recessed spots ("points": [[x, z], ...]).
 // The appliance types are switched like a lamp but are not lighting: a heated towel rail,
-// an extractor fan, a kettle. "All on/off" and a scene's "*" leave them alone.
-export const APPLIANCE_TYPES = ['towelRail', 'fan', 'kettle'];
+// an extractor fan, a kettle, a roller blind ("brightness" is how far it is open), a robot
+// vacuum. "All on/off" and a scene's "*" leave them alone.
+export const APPLIANCE_TYPES = ['towelRail', 'fan', 'kettle', 'blind', 'vacuum'];
 const LIGHT_TYPES = ['ceiling', 'pendant', 'spots', 'downlights', 'floor', 'table', 'strip', ...APPLIANCE_TYPES];
 const WALLS = ['north', 'south', 'east', 'west'];
 
@@ -132,7 +133,7 @@ export function normalize(raw) {
       appliance: APPLIANCE_TYPES.includes(l.type),
       name: l.name || l.id,
       rot: l.type === 'downlights' ? 0 : (l.rot || 0),
-      capabilities: l.capabilities || [], // plain smart plugs: on/off only
+      capabilities: l.type === 'blind' ? ['brightness'] : (l.capabilities || []), // plain smart plugs: on/off only
       level: roomLevel.get(l.room),
     };
   });
@@ -140,9 +141,15 @@ export function normalize(raw) {
   const acs = (raw.acs || []).map((a) => {
     unique(a.id, 'An AC');
     need(roomIds.has(a.room), `AC "${a.id}" refers to unknown room "${a.room}"`);
+    // "type": "floor" is underfloor heating: a thermostat for the whole room, with no unit on a wall.
+    if (a.type === 'floor') {
+      const r = rooms.find((x) => x.id === a.room);
+      return { ...a, type: 'floor', name: a.name || a.id, pos: [r.x + r.w / 2, r.z + r.d / 2], y: 0,
+        min: a.min ?? 5, max: a.max ?? 35, level: roomLevel.get(a.room) };
+    }
     need(isPoint(a.pos), `AC "${a.id}" needs "pos": [x, z]`);
     need(WALLS.includes(a.wall), `AC "${a.id}" needs "wall": one of ${WALLS.join(', ')}`);
-    return { ...a, name: a.name || a.id, y: a.y ?? 2.2, min: a.min ?? 16, max: a.max ?? 30, level: roomLevel.get(a.room) };
+    return { ...a, type: 'wall', name: a.name || a.id, y: a.y ?? 2.2, min: a.min ?? 16, max: a.max ?? 30, level: roomLevel.get(a.room) };
   });
 
   const scenes = (raw.scenes || []).map((s) => {

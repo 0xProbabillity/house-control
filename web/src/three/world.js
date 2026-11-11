@@ -8,6 +8,7 @@ import { buildHouse } from './house.js';
 import { buildFurniture } from './furniture.js';
 import { LightUnit } from './lights.js';
 import { ACUnit } from './ac.js';
+import { FloorHeat } from './floorheat.js';
 
 export const STAGE_BG = '#0a0e1a';
 
@@ -103,7 +104,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, onLevel = 
 
   const acs = new Map();
   for (const cfg of config.acs) {
-    const unit = new ACUnit(cfg);
+    const unit = cfg.type === 'floor' ? new FloorHeat(cfg, config.rooms.find((r) => r.id === cfg.room)) : new ACUnit(cfg);
     acs.set(cfg.id, unit);
     floors.get(cfg.level).group.add(unit.group);
   }
