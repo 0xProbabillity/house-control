@@ -28,6 +28,34 @@ function lightStatus(cfg, s) {
   return cfg.capabilities.includes('brightness') ? `${Math.round(s.brightness * 100)}%` : 'Вкл';
 }
 
+// Room climate, as the sensors report it.
+function climateText(c) {
+  const parts = [];
+  if (c?.temp != null) parts.push(`${c.temp.toFixed(1)}°`);
+  if (c?.humidity != null) parts.push(`${Math.round(c.humidity)}%`);
+  return parts.join(' · ');
+}
+// Too damp (a bathroom after a shower) or too dry is worth a second look.
+const humidityAlert = (c) => c?.humidity != null && (c.humidity > 65 || c.humidity < 30);
+
+const WEATHER = {
+  sunny: 'ясно', 'clear-night': 'ясно', cloudy: 'облачно', partlycloudy: 'переменная облачность',
+  rainy: 'дождь', pouring: 'ливень', snowy: 'снег', 'snowy-rainy': 'снег с дождём', fog: 'туман',
+  windy: 'ветрено', 'windy-variant': 'ветрено', lightning: 'гроза', 'lightning-rainy': 'гроза', hail: 'град',
+};
+const HPA_TO_MMHG = 0.750062;
+
+function outdoorText(o) {
+  if (!o) return '';
+  const parts = [];
+  if (o.temp != null) parts.push(`${o.temp > 0 ? '+' : ''}${Math.round(o.temp)}°`);
+  if (o.humidity != null) parts.push(`${Math.round(o.humidity)}%`);
+  if (WEATHER[o.condition]) parts.push(WEATHER[o.condition]);
+  const outside = parts.length ? `На улице ${parts.join(' · ')}` : '';
+  const pressure = o.pressure != null ? `${Math.round(o.pressure * HPA_TO_MMHG)} мм рт. ст.` : '';
+  return [outside, pressure].filter(Boolean).join(' · ');
+}
+
 function acTemperatureColor(target, cfg) {
   const t = clamp((target - cfg.min) / (cfg.max - cfg.min), 0, 1);
   return tmp.set('#1c4fc0').lerp(new THREE.Color('#8a3d12'), t).clone();
@@ -46,6 +74,41 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   const canvas = h('canvas', { tabindex: -1 });
   const tooltip = h('div.tooltip');
   const homeSub = h('div.home-sub');
+  const homeOut = h('div.home-out');
+
+  // Temperature and humidity of each room that has sensors, floating over it on the stage.
+  const climateRooms = new Set(config.sensors.map((s) => s.room));
+  const roomLabels = new Map();
+  const roomChips = new Map();
+  const labelsLayer = h('div.room-labels');
+  for (const r of config.rooms) {
+    if (!climateRooms.has(r.id)) continue;
+    const el = h('div.room-label');
+    roomLabels.set(r.id, { el, room: r });
+    labelsLayer.append(el);
+  }
+  let labelsOn = true;
+  try { labelsOn = localStorage.getItem('house.climateLabels') !== '0'; } catch { /* no storage: shown */ }
+  const climateToggle = h('button.climate-toggle', {
+    hidden: roomLabels.size === 0, title: 'Температура и влажность на плане', 'aria-label': 'Температура и влажность на плане',
+    onclick: () => {
+      haptic('tick');
+      labelsOn = !labelsOn;
+      try { localStorage.setItem('house.climateLabels', labelsOn ? '1' : '0'); } catch { /* not remembered */ }
+      update();
+    },
+  }, icon('thermo', 15, 2));
+
+  function placeLabels() {
+    if (!world) return;
+    for (const { el, room } of roomLabels.values()) {
+      const shown = labelsOn && room.level === ui.level && el.textContent !== '';
+      el.classList.toggle('show', shown);
+      if (!shown) continue;
+      const p = world.project(room.x + room.w / 2, 1.0, room.z + room.d / 2);
+      el.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -50%)`;
+    }
+  }
   const power = h('button.round.power', { title: 'Всё вкл / выкл', 'aria-label': 'Переключить всё', onclick: toggleEverything }, icon('power', 21, 2.2));
   const gear = h('button.round', { title: 'Настройки и планы', 'aria-label': 'Настройки и планы', onclick: () => onMenu(gear) }, icon('settings', 17));
   // Shown while an AI assistant has a link to this home (AI Access on the Mac).
@@ -59,8 +122,8 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   const panel = h('section.panel',
     scenes, rooms,
     h('div.list-head', listTitle,
-      h('button.pill', { onclick: () => bulk(true) }, 'Всё вкл'),
-      h('button.pill', { onclick: () => bulk(false) }, 'Всё выкл')),
+      h('button.pill', { title: 'Включить весь свет. Приборы, штора и отопление не затрагиваются', onclick: () => bulk(true) }, 'Свет вкл'),
+      h('button.pill', { title: 'Выключить весь свет. Приборы, штора и отопление не затрагиваются', onclick: () => bulk(false) }, 'Свет выкл')),
     h('div.devices', grid));
   const sheet = h('section.sheet.hidden');
   sheet.inert = true;
@@ -84,11 +147,11 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   }, icon('fit', 15, 2));
 
   const clip = h('div.card-clip',
-    h('div.stage', canvas, floors, viewReset),
+    h('div.stage', canvas, labelsLayer, floors, viewReset, climateToggle),
     h('div.tint'),
     h('header.top',
       h('div.home', h('div.home-badge', icon('home', 17)),
-        h('div', h('div.home-name', config.name), homeSub)),
+        h('div', h('div.home-name', config.name), homeSub, homeOut)),
       aiBadge, gear, power),
     tooltip, panel, sheet, toastEl);
   const card = h('div.card.booting', h('div.notch'), clip);
@@ -235,7 +298,10 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
         el.style.setProperty('--c', css(lightColor(s, tmp)));
         el.style.setProperty('--level', s.on ? String(s.brightness) : '0');
         // On a phone the group heading above the tile already names the room.
-        sub.textContent = ui.room === 'all' && !isPhone ? `${lightStatus(cfg, s)} · ${roomName.get(cfg.room)}` : lightStatus(cfg, s);
+        // An appliance with a thermometer (the water in a kettle, a towel rail) shows it next to its state.
+        const t = state.climate.devices[cfg.id]?.temp;
+        const status = t == null ? lightStatus(cfg, s) : `${lightStatus(cfg, s)} · ${Math.round(t)}°`;
+        sub.textContent = ui.room === 'all' && !isPhone && t == null ? `${status} · ${roomName.get(cfg.room)}` : status;
       },
     };
   }
@@ -284,6 +350,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   }
 
   function layoutTiles() {
+    roomChips.clear();
     const nodes = [];
     let i = 0;
     const add = (t) => { t.el.style.setProperty('--i', i++); nodes.push(t.el); };
@@ -295,7 +362,12 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
         if (room.level !== level.id || (ui.room !== 'all' && room.id !== ui.room)) continue;
         const devices = [...tiles.values()].filter((t) => t.cfg.room === room.id);
         if (!devices.length) continue;
-        if (ui.room === 'all') nodes.push(h('div.group-label', room.name));
+        if (ui.room === 'all') {
+          const c = state.climate.rooms[room.id];
+          const chip = h(`span.climate${humidityAlert(c) ? '.alert' : ''}`, climateText(c));
+          roomChips.set(room.id, chip);
+          nodes.push(h('div.group-label', room.name, chip));
+        }
         devices.filter((t) => t.kind === 'ac').forEach(add);
         devices.filter((t) => t.kind === 'light' && !t.cfg.appliance).forEach(add);
         devices.filter((t) => t.kind === 'light' && t.cfg.appliance).forEach(add);
@@ -591,7 +663,24 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
 
     const scoped = lamps.filter(inScope);
     const scopedOn = scoped.filter((l) => state.lights[l.id].on).length;
-    listTitle.replaceChildren(h('b', ui.room === 'all' ? 'Весь дом' : roomName.get(ui.room)), ` · ${scopedOn} из ${scoped.length} вкл`);
+    const here = ui.room === 'all' ? '' : climateText(state.climate.rooms[ui.room]);
+    listTitle.replaceChildren(h('b', ui.room === 'all' ? 'Весь дом' : roomName.get(ui.room)),
+      here ? h(`span.climate${humidityAlert(state.climate.rooms[ui.room]) ? '.alert' : ''}`, here) : '',
+      ` · свет: ${scopedOn} из ${scoped.length}`);
+
+    homeOut.textContent = outdoorText(state.climate.outdoor);
+    climateToggle.classList.toggle('on', labelsOn);
+    for (const [id, { el }] of roomLabels) {
+      const c = state.climate.rooms[id];
+      el.textContent = climateText(c);
+      el.classList.toggle('alert', humidityAlert(c));
+    }
+    for (const [id, chip] of roomChips) {
+      const c = state.climate.rooms[id];
+      chip.textContent = climateText(c);
+      chip.classList.toggle('alert', humidityAlert(c));
+    }
+    placeLabels();
 
     for (const t of tiles.values()) t.update();
     sheetView?.update();
@@ -614,6 +703,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     /** The model went to another floor by itself (a room or a device on it was picked). */
     levelShown,
     viewMoved(moved) { viewReset.classList.toggle('show', moved); },
+    placeLabels,
     showTooltip,
     openSheet,
     closeSheet,

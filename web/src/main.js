@@ -83,6 +83,7 @@ async function boot() {
       },
       onHover: panel.showTooltip,
       onView: panel.viewMoved,
+      onFrame: panel.placeLabels,
       onPick(target) {
         if (!target) return;
         if (target.kind === 'light') { haptic('light'); store.toggleLight(target.id); }

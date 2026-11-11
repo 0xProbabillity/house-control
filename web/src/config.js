@@ -167,6 +167,12 @@ export function normalize(raw) {
     return { id: s.id, name: s.name || s.id, icon: s.icon || 'sun', lights: s.lights || {}, acs: s.acs || {} };
   });
 
+  // Room climate: "sensors": [{ room, temperature, humidity }] names the thermometer and the
+  // hygrometer of a room; "outdoor": { weather, temperature, humidity, pressure } what is known
+  // about outside. The values themselves arrive from the connected platform.
+  const sensors = (Array.isArray(raw.sensors) ? raw.sensors : []).filter((s) => s && roomIds.has(s.room));
+  const outdoor = raw.outdoor && typeof raw.outdoor === 'object' ? raw.outdoor : null;
+
   const furniture = (raw.furniture || []).map((f, i) => {
     const level = levelOf(f, `Furniture #${i + 1}`);
     // Stairs climb to the floor above unless told otherwise.
@@ -200,6 +206,8 @@ export function normalize(raw) {
     lights,
     acs,
     scenes,
+    sensors,
+    outdoor,
     bounds: all,
   };
 }

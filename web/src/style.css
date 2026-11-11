@@ -932,3 +932,26 @@ html.ios .card.relayout .panel:not(.hidden), html.ios .card.relayout .sheet:not(
     animation-duration: 1ms !important; transition-duration: 1ms !important;
   }
 }
+
+/* ---------- room climate ---------- */
+.home-out { margin-top: 2px; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.home-out:empty { display: none; }
+.room-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.room-label {
+  position: absolute; left: 0; top: 0; padding: 3px 8px; border-radius: 9px;
+  font-size: 11px; font-weight: 600; white-space: nowrap; color: #eef2ff;
+  background: rgba(14, 18, 30, .62); border: 1px solid rgba(255, 255, 255, .1);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  opacity: 0; transition: opacity 200ms; will-change: transform;
+}
+.room-label.show { opacity: 1; }
+.room-label.alert { color: #2a1a05; background: rgba(255, 190, 92, .92); border-color: transparent; }
+.group-label .climate, .list-head .climate { margin-left: 8px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); }
+.group-label .climate.alert, .list-head .climate.alert { color: #ffbe5c; }
+.climate-toggle {
+  position: absolute; left: 14px; bottom: 14px; width: 30px; height: 30px; padding: 0;
+  display: grid; place-items: center; border-radius: 50%; pointer-events: auto;
+  color: var(--muted); background: rgba(32, 33, 39, .78); border: 1px solid rgba(255, 255, 255, .1);
+  transition: color .2s, background .2s;
+}
+.climate-toggle.on { color: #ffd9a8; background: rgba(70, 52, 30, .85); }

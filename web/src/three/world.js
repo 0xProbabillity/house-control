@@ -21,7 +21,7 @@ const ZOOM_MAX = 1.2;
 const PAN_MARGIN = 1;      // metres the view's centre may go past the edge of the floor
 const PAN_TILT_MIN = 0.35; // keeps a two-finger drag sane when looking almost along the floor
 
-export function createWorld(canvas, config, store, { onHover, onPick, onLevel = () => {}, onView = () => {}, level: firstLevel, background = STAGE_BG }) {
+export function createWorld(canvas, config, store, { onHover, onPick, onLevel = () => {}, onView = () => {}, onFrame = null, level: firstLevel, background = STAGE_BG }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -310,7 +310,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, onLevel = 
   }
 
   const unsubscribe = store.on((change) => {
-    if (change.type === 'tick') return;
+    if (change.type === 'tick' || change.type === 'climate') return;
     if (change.type === 'light') lights.get(change.id).apply(store.state.lights[change.id]);
     else if (change.type === 'ac') acs.get(change.id).apply(store.state.acs[change.id]);
     else syncAll();
@@ -538,6 +538,7 @@ export function createWorld(canvas, config, store, { onHover, onPick, onLevel = 
       composer.render(dt);
       awake = Math.max(0, awake - 1);
       if (hovered && active) onHover({ ...hovered, ...screenAnchor(hovered) });
+      onFrame?.();
     }
     if (running && (active || awake > 0)) raf = requestAnimationFrame(frame);
   }
@@ -563,6 +564,12 @@ export function createWorld(canvas, config, store, { onHover, onPick, onLevel = 
   const world = {
     lights,
     acs,
+
+    /** Where a point of the home (metres, on the floor shown) lands on the stage, in CSS pixels. */
+    project(x, y, z) {
+      v.set(x, level.elevation + y, z).project(camera);
+      return { x: (v.x * 0.5 + 0.5) * width, y: (-v.y * 0.5 + 0.5) * height, visible: v.z < 1 };
+    },
 
     setInsets(top, bottom) { topInset = top; bottomInset = bottom; resize(); },
     resize,

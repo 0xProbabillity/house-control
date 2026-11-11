@@ -36,7 +36,8 @@ export function createStore(config) {
   // Set while one write also changed the lamps behind a switch, so every view redraws them all.
   let cascaded = false;
 
-  const state = { lights: {}, acs: {}, scene: null };
+  // climate: what the sensors say — { rooms: { id: { temp, humidity } }, outdoor: {...}, devices: { lightId: { temp } } }
+  const state = { lights: {}, acs: {}, scene: null, climate: { rooms: {}, outdoor: {}, devices: {} } };
   for (const l of config.lights) state.lights[l.id] = defaultLight(l);
   for (const a of config.acs) state.acs[a.id] = defaultAC(a, config.outdoorTemp);
   // What each real AC can do, as reported by the native side. A simulated AC can do everything.
@@ -50,6 +51,7 @@ export function createStore(config) {
       for (const [id, s] of Object.entries(saved.acs || {})) if (state.acs[id]) Object.assign(state.acs[id], s);
       for (const [id, f] of Object.entries(saved.features || {})) if (state.acs[id]) features[id] = f;
       state.scene = saved.scene || null;
+      if (saved.climate?.rooms) Object.assign(state.climate, saved.climate);
       restored = true;
     }
   } catch { /* storage unavailable: start from defaults */ }
@@ -291,7 +293,15 @@ export function createStore(config) {
         features[id] = f;
         any = true;
       }
+      let climate = false;
+      for (const part of ['rooms', 'outdoor', 'devices']) {
+        const next = update.climate?.[part];
+        if (!next || JSON.stringify(next) === JSON.stringify(state.climate[part])) continue;
+        state.climate[part] = next;
+        climate = true;
+      }
       if (any) emit({ type: 'bulk', remote: true });
+      else if (climate) emit({ type: 'climate', remote: true, adopted: true });
     },
   };
 
