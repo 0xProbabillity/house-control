@@ -19,6 +19,22 @@
   <img src="docs/hero.png" alt="The panel, an air conditioner sheet and a colour light sheet">
 </p>
 
+> [!NOTE]
+> **This is a fork.** Branch [`ha-devices`](../../tree/ha-devices) extends the web app (`web/`) for use as a
+> Home Assistant card through [hass-house-control](https://github.com/Silverviql/hass-house-control/tree/ha-devices).
+> It adds:
+> - **More kinds of devices:** groups of recessed spots on one switch, light lines that turn corners, lamps behind
+>   a shared wall switch, underfloor heating, and appliances — heated towel rail, extractor fan, kettle, roller
+>   blind and robot vacuum. Appliances stay out of **Light on / off** and a scene's `"*"`.
+> - **Room climate:** temperature and humidity over each room and in the panel, and the weather outside under
+>   the home's name.
+> - **Rooms of several rectangles** with one name and one tab.
+> - **A Russian panel.**
+>
+> The plan fields are described in [docs/floor-plan.md](docs/floor-plan.md) (marked *ha-devices fork*); what
+> changed is in the [CHANGELOG](CHANGELOG.md#ha-devices-fork). The Mac, iPhone and Windows apps are not changed
+> by this fork. Everything else below is the upstream README.
+
 ## What it does
 
 - **Lives in the menu bar.** Click the house icon and a panel drops down; click anywhere else and it is gone.

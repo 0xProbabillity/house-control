@@ -3,6 +3,39 @@
 What changed in each release of House Control. The Mac app is on
 [Releases](https://github.com/0xProbabillity/house-control/releases); the iPhone app is on the App Store and TestFlight.
 
+## ha-devices fork
+
+Changes on branch `ha-devices` of this fork, for the Home Assistant card
+([hass-house-control](https://github.com/Silverviql/hass-house-control/tree/ha-devices)). Only the web app in `web/`
+changes; the plan fields are in [docs/floor-plan.md](docs/floor-plan.md).
+
+### More kinds of devices
+
+- **Downlights:** several recessed spots on one switch are one device and one tile (`"type": "downlights"` with
+  `points`). Every spot is drawn; at most three light sources light the room.
+- **Light lines of several runs** on one switch, round corners or in pieces (`paths` on a `strip`).
+- **Lamps behind a shared switch** (`power`): smart track heads on the ceiling spots' wall switch go dark with
+  the switch, come on with it, and tapping one closes the switch first.
+- **Underfloor heating** (`"type": "floor"` in `acs`): a thermostat for the room, with the heating loop glowing
+  on the floor while it heats.
+- **Appliances** with their own models: heated towel rail, extractor fan (the blades turn), kettle, roller blind
+  (opens and closes on the window) and robot vacuum. They are left out of **Light on / off**, a scene's `"*"` and
+  the lamp counts; a running appliance shows in its room's badge.
+
+### Climate
+
+- Temperature and humidity of each room as chips over the 3D model (a button hides them) and next to the room
+  headings; damp or dry rooms are highlighted.
+- The weather outside and the pressure in mmHg under the home's name (`sensors` and `outdoor` in the plan).
+- A device's own thermometer (`sensor`) is shown on its tile, such as the water in a kettle.
+
+### Panel
+
+- **Rooms of several rectangles** (`part`): one name, one tab and one group of devices.
+- **Light on / Light off** say what they do: they never touch appliances, blinds or heating.
+- The panel is in Russian.
+- Tiles show the icon of the device type.
+
 ## 1.4.0 — in TestFlight
 
 ### Get to everything in the 3D model

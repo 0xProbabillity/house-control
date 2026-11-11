@@ -109,8 +109,18 @@ draws the floor below faintly so walls and stairs line up. Stairs are furniture 
 | `rect` | `[x, z, width, depth]` |
 | `floor` | `oak`, `walnut`, `tile` or `stone` |
 | `level` | The floor (storey) it is on, on a home with [several](#levels-floors) |
+| `part` | *ha-devices fork.* The `id` of another room this rectangle belongs to (see below) |
 
 Rooms are rectangles. Where two of them touch, an inner wall appears on its own; make an L-shaped room out of two.
+
+In the ha-devices fork, the second rectangle can say `"part": "<id of the first>"`. It keeps its own floor and
+walls but is not a room of its own: no name, no tab in the panel, no group of devices. Its name is the main room's,
+lamps, ACs and sensors placed in it belong to the main room, and focusing the room frames all of its pieces.
+
+```jsonc
+{ "id": "hall",       "name": "Hall", "rect": [6.45, 1.75, 1.75, 4.62], "floor": "stone" },
+{ "id": "hall_top",   "part": "hall", "rect": [8.2, 1.75, 1.2, 1.7],    "floor": "stone" }
+```
 
 ## `openings`
 
@@ -151,7 +161,7 @@ Decoration only. Every piece has `type`, `pos` (`[x, z]` of its centre), an opti
 | `id` | Unique |
 | `name` | Shown on the tile |
 | `room` | The `id` of its room |
-| `type` | `ceiling`, `pendant`, `spots`, `floor`, `table` or `strip` |
+| `type` | `ceiling`, `pendant`, `spots`, `floor`, `table` or `strip`; in the ha-devices fork also `downlights` and the [appliances](#appliances-ha-devices-fork) `towelRail`, `fan`, `kettle`, `blind`, `vacuum` |
 | `pos` | `[x, z]` |
 | `y` | Height, if the default for the type does not fit |
 | `rot` | Rotation, for strips and spots |
@@ -159,18 +169,112 @@ Decoration only. Every piece has `type`, `pos` (`[x, z]` of its centre), an opti
 | `capabilities` | Any of `brightness`, `temp`, `color`. Leave it out for a plain smart plug that only switches |
 | `color` | Initial colour of a colour light |
 | `link`, `tuya` | Link to a real device — see below |
+| `points` | *ha-devices fork*, `downlights` only: `[[x, z], ...]` — every recessed spot on this one switch |
+| `paths` | *ha-devices fork*, `strip` only: `[[[x, z], [x, z], ...], ...]` — a light line of several straight runs on one switch, in place of `pos`, `rot` and `length` |
+| `power` | *ha-devices fork.* The `id` of the light whose switch feeds this one (see below) |
+| `sensor` | *ha-devices fork.* A thermometer of the device, shown on its tile (the water in a kettle) |
+
+### Downlights, light lines and shared switches (ha-devices fork)
+
+**`downlights`** is a group of recessed spots on one switch. Each spot in `points` is drawn where it is, and the
+group is one tile and one device. `pos` defaults to the middle of the spots. However many spots there are, at most
+three light sources light the room, so a room of eight costs what three lamps do.
+
+```jsonc
+{ "id": "living.spots", "name": "Spots", "room": "living", "type": "downlights",
+  "points": [[0.95, 0.7], [2.06, 0.7], [3.02, 0.7], [3.97, 0.7]],
+  "link": { "service": "homeassistant", "id": "switch.living_spots" } }
+```
+
+**`paths`** draws a `strip` that turns a corner or runs in several pieces, all on one switch:
+
+```jsonc
+{ "id": "hall.line", "name": "Light line", "room": "hall", "type": "strip", "y": 2.62,
+  "paths": [[[6.99, 2.73], [6.99, 5.03]], [[8.99, 2.51], [7.68, 2.51], [7.68, 6.3]]] }
+```
+
+**`power`** is for smart lamps behind an ordinary wall switch, such as track heads on the same switch as the
+ceiling spots. When the switch is off, the lamps behind it are dark and get no commands. Switching it on brings
+them on too. Tapping one of them while the switch is off closes the switch first and turns the lamp on a few
+seconds later, once it has power. A lamp cannot feed another lamp that is itself fed.
+
+```jsonc
+{ "id": "kitchen.track1", "name": "Track 1", "room": "kitchen", "type": "spots", "pos": [2.35, 5.22],
+  "capabilities": ["brightness", "temp"], "power": "kitchen.spots",
+  "link": { "service": "homeassistant", "id": "light.track_1" } }
+```
 
 ## `acs`
 
 | Field | Meaning |
 | --- | --- |
 | `id`, `name`, `room` | As for lights |
-| `wall` | The wall it hangs on: `north`, `south`, `east` or `west` |
+| `type` | *ha-devices fork.* `wall` (the default) or `floor` for underfloor heating (see below) |
+| `wall` | The wall it hangs on: `north`, `south`, `east` or `west`. Not used by `floor` |
 | `pos` | `[x, z]`, on that wall |
 | `y` | Height. Default `2.2` |
 | `min`, `max` | Range of the target temperature. Defaults `16` and `30` |
 | `link`, `tuya` | Link to a real device — see below |
 | `sensor` | A thermometer for the room — see below |
+
+**Underfloor heating (ha-devices fork).** `"type": "floor"` is a thermostat for the whole room instead of a unit
+on a wall. It needs no `pos` or `wall`; the heating loop is drawn on the room's floor and glows while it heats.
+`min` and `max` default to `5` and `35`. A scene's `"*"` and the panel's summary leave it alone: only a scene that
+names it changes it.
+
+```jsonc
+{ "id": "bath.floor", "name": "Floor heating", "room": "bath", "type": "floor",
+  "link": { "service": "homeassistant", "id": "climate.bathroom_floor" } }
+```
+
+## Appliances (ha-devices fork)
+
+Appliances are lights in the plan (they live in `lights`, switch on and off and can be linked the same way), but
+they are not lighting:
+
+- **Light on / Light off** in the panel and a scene's `"*"` leave them alone; only a scene that names one changes it.
+- They are not counted as lamps. A room's badge does count a running appliance, so a kettle that is on shows on
+  its room's tab. An open blind is not counted as running.
+
+| `type` | Model | Options | Level |
+| --- | --- | --- | --- |
+| `towelRail` | Heated towel rail on a wall; the bars glow when it heats | `rot` (front into the room, as for furniture), `y` (bottom, default `0.75`), `width` (`0.5`), `height` (`0.8`) | on / off |
+| `fan` | Extractor fan in the ceiling; the blades turn while it runs | `y` | on / off |
+| `kettle` | Kettle on a worktop; the base glows while it boils | `y` (height of the worktop, default `0.9`) | on / off |
+| `blind` | Roller blind on a window | `rot`, `y` (top of the window, default `2.1`), `width` (`1.2`), `height` (drop when closed, `1.25`) | how far it is open: `on` is open, `brightness` is the position |
+| `vacuum` | Robot vacuum on its dock; the ring glows while it cleans | `rot` | on = cleaning, off = back to the dock |
+
+```jsonc
+{ "id": "bath.towel", "name": "Towel rail", "room": "bath", "type": "towelRail", "pos": [7.95, 0.02],
+  "link": { "service": "homeassistant", "id": "switch.towel_rail" },
+  "sensor": { "service": "homeassistant", "id": "sensor.towel_rail_temperature" } }
+```
+
+## `sensors` and `outdoor`: climate (ha-devices fork)
+
+The temperature and humidity of each room, and what is known about outside:
+
+```jsonc
+"sensors": [
+  { "room": "living", "temperature": "sensor.living_temperature", "humidity": "sensor.living_humidity" },
+  { "room": "bath",   "temperature": "sensor.bath_temperature",   "humidity": "sensor.bath_humidity" }
+],
+"outdoor": {
+  "weather": "weather.forecast_home",          // temperature, humidity, pressure and the sky
+  "pressure": "sensor.living_pressure"         // optional: a sensor of your own wins over the forecast
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `sensors[].room` | The room (a room's `part` counts as the room) |
+| `sensors[].temperature`, `sensors[].humidity` | Entity ids; either may be left out |
+| `outdoor.weather` | A `weather.*` entity |
+| `outdoor.temperature`, `outdoor.humidity`, `outdoor.pressure` | Optional `sensor.*` entities that replace the forecast's values |
+
+The values are shown as chips over the rooms in the 3D view (a button beside the model hides them), next to each
+room's heading in the panel, and as a line under the home's name: outside temperature, humidity, sky and the
+pressure in mmHg. A room more humid than 65 % or drier than 30 % is highlighted.
 
 ## `scenes`
 
