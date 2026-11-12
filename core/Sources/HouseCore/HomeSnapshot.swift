@@ -69,6 +69,8 @@ public struct HomeSnapshot: Codable, Equatable, Sendable {
         /// Device id (or "*" for every device) -> the fields the scene sets.
         public var lights: [String: [String: JSONValue]]
         public var acs: [String: [String: JSONValue]]
+        /// An on/off scene (a room button): applied again while on, it turns its devices off.
+        public var toggle: Bool?
     }
 
     /// A piece of furniture: its footprint on the plan (`w` × `d` metres, turned by `rot` degrees).
@@ -225,6 +227,12 @@ public extension HomeSnapshot {
             if !changes.isEmpty { scene = nil }
         case .scene:
             guard let id = action.id, let definition = scenes.first(where: { $0.id == id }) else { break }
+            if isActive(definition) && definition.toggle == true {
+                changes = definition.targets(lights.map(\.id)).compactMap { writeLight($0, ["on": .bool(false)]) }
+                    + definition.targets(acs.map(\.id), in: \.acs).compactMap { writeAC($0, ["on": .bool(false)]) }
+                if scene == id { scene = nil }
+                break
+            }
             for light in lights {
                 var patch = (definition.lights["*"] ?? [:]).merging(definition.lights[light.id] ?? [:]) { $1 }
                 // A scene that sets a white temperature should not be overridden by a stale colour.
@@ -333,7 +341,22 @@ public extension HomeSnapshot.Light {
 
 }
 
+public extension HomeSnapshot {
+    /// True while `scene` is in force: an on/off scene while any lamp it turns on is lit.
+    func isActive(_ scene: Scene) -> Bool {
+        guard scene.toggle == true else { return self.scene == scene.id }
+        let lit = Set(lights.filter(\.on).map(\.id))
+        return scene.targets(lights.map(\.id)).contains(where: lit.contains)
+    }
+}
+
 public extension HomeSnapshot.Scene {
+    /// The devices among `ids` this scene switches on: named ones, or all when "*" does.
+    func targets(_ ids: [String], in rules: KeyPath<Self, [String: [String: JSONValue]]> = \.lights) -> [String] {
+        let rules = self[keyPath: rules]
+        return ids.filter { (rules[$0]?["on"] ?? rules["*"]?["on"])?.bool == true }
+    }
+
     var symbol: String {
         switch icon {
         case "sun": return "sun.max.fill"

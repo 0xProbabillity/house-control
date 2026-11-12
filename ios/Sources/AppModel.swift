@@ -331,6 +331,25 @@ final class AppModel {
         show(Banner(symbol: "checkmark.circle.fill", text: "Floor plan imported", tint: Theme.green))
     }
 
+    /// The homes kept before something replaced this phone's one (a scan, the Mac, a file).
+    var earlierHomes: [PlanStore.Earlier] {
+        _ = planVersion
+        return plans.earlierHomes()
+    }
+
+    /// Makes a kept home this phone's home again, and the paired computer's.
+    func restoreEarlier(_ home: PlanStore.Earlier) {
+        do {
+            let data = try plans.restore(home)
+            reloadHome()
+            sync.sendPlan(data)
+            Haptics.shared.play("success")
+            show(Banner(symbol: "clock.arrow.circlepath", text: "\(home.name) is back", tint: Theme.green))
+        } catch {
+            show(Banner(symbol: "exclamationmark.triangle.fill", text: "Could not bring this home back", tint: Theme.red))
+        }
+    }
+
     func removeCustomPlan() {
         plans.removeCustom()
         reloadHome()

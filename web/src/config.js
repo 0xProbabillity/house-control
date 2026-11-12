@@ -134,7 +134,7 @@ export function normalize(raw) {
 
   const scenes = (raw.scenes || []).map((s) => {
     need(typeof s.id === 'string' && s.id, 'A scene is missing an "id"');
-    return { id: s.id, name: s.name || s.id, icon: s.icon || 'sun', lights: s.lights || {}, acs: s.acs || {} };
+    return { id: s.id, name: s.name || s.id, icon: s.icon || 'sun', lights: s.lights || {}, acs: s.acs || {}, toggle: s.toggle === true };
   });
 
   const furniture = (raw.furniture || []).map((f, i) => {

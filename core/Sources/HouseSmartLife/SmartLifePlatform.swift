@@ -34,6 +34,13 @@ public final class SmartLifePlatform: LinkedCloud {
     public func command(appId id: String, kind: String, link: [String: Any], patch: [String: Any],
                         state: [String: Any], log: EventLog) async throws {
         guard let cloud = active, let deviceId = link["deviceId"] as? String else { return }
+        if kind == "light", link["sceneSwitch"] != nil {
+            let command = try SceneSwitch.command(link: link, patch: patch)
+            guard smartLife.isConfigured else { throw SmartLifeService.Failure(message: "Connect Smart Life to use this IR switch") }
+            try await smartLife.triggerScene(homeId: command.homeId, sceneId: command.sceneId)
+            log.write("\(id) IR \(command.on ? "on" : "off") via Smart Life → ok")
+            return
+        }
         // The first command to a device may arrive before anything is known about it.
         await cloud.prepare(deviceId)
         let codes = cloud.knownCodes[deviceId] ?? []
@@ -72,6 +79,8 @@ public final class SmartLifePlatform: LinkedCloud {
         var features: [String: Any] = [:]
         for (id, entry) in entries {
             guard let deviceId = entry.link["deviceId"] as? String else { continue }
+            // A learned IR key has no reported power state; retain the last command.
+            if entry.link["sceneSwitch"] != nil { continue }
             if entry.kind == "ac", let known = TuyaMapper.acFeatures(codes: cloud.knownCodes[deviceId] ?? [],
                                                                      ranges: cloud.knownRanges[deviceId] ?? [:]) {
                 features[id] = known

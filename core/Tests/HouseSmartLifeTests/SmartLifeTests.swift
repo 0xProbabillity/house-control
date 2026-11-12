@@ -6,6 +6,16 @@ import HouseCore
 /// the hub routing plan links through it.
 @MainActor
 final class SmartLifeTests: XCTestCase {
+    func testSceneSwitchUsesSeparatePowerActionsAndRejectsIncompleteLinks() throws {
+        let pair: [String: Any] = ["homeId": "home", "on": "on-scene", "off": "off-scene"]
+        let link: [String: Any] = ["sceneSwitch": pair]
+        XCTAssertEqual(try SceneSwitch.command(link: link, patch: ["on": true]).sceneId, "on-scene")
+        XCTAssertEqual(try SceneSwitch.command(link: link, patch: ["on": false]).sceneId, "off-scene")
+        XCTAssertThrowsError(try SceneSwitch.command(link: ["sceneSwitch": ["homeId": "home", "on": "same", "off": "same"]], patch: ["on": true]))
+        XCTAssertThrowsError(try SceneSwitch.command(link: ["sceneSwitch": ["homeId": "home", "on": "on-scene"]], patch: ["on": true]))
+        XCTAssertThrowsError(try SceneSwitch.command(link: link, patch: ["on": true, "brightness": 0.5]))
+    }
+
     private func json(_ commands: [[String: Any]]) -> String {
         String(data: try! JSONSerialization.data(withJSONObject: commands, options: [.sortedKeys]), encoding: .utf8)!
     }

@@ -3,7 +3,21 @@
 What changed in each release of House Control. The Mac app is on
 [Releases](https://github.com/0xProbabillity/house-control/releases); the iPhone app is on the App Store and TestFlight.
 
-## 1.5.0 — in TestFlight (beta, testers on the team only)
+## 1.5.1 — in TestFlight (beta, testers on the team only)
+
+### Room buttons, and a home that cannot be lost
+
+- **On/off scenes.** Tick **On/off button** on a scene in the editor and it becomes a room button: a tap turns its
+  lights on, the next tap (while any of them is on) turns them off. It shows as on while its lights are lit, in the
+  panel, the island and the widgets.
+- **Earlier homes.** Before a scan, a file, the editor or a paired Mac or phone replaces the home, the one there is
+  kept. **Settings → Home → Earlier homes** on the iPhone and **Earlier Homes** in the Mac's menu bring one back,
+  on both devices.
+- Saving a scan in place of your home now says the old one is kept, and where.
+- **Learned IR lights** (a Smart Life DIY remote key) switch through their Smart Life ON and OFF Tap-to-Run scenes,
+  so they no longer fail with error 2008 on the iPhone.
+
+## 1.5.0 — in TestFlight
 
 ### Scan your home with LiDAR
 

@@ -53,7 +53,7 @@ export function widgetSnapshot(config, store, plan) {
       const [w, d] = footprint(f);
       return { type: f.type, x: f.pos[0], z: f.pos[1], w, d, rot: f.rot || 0, color: f.color || null, level: multi ? f.level : undefined };
     }),
-    scenes: config.scenes.map((s) => ({ id: s.id, name: s.name, icon: s.icon, lights: s.lights, acs: s.acs })),
+    scenes: config.scenes.map((s) => ({ id: s.id, name: s.name, icon: s.icon, lights: s.lights, acs: s.acs, toggle: s.toggle || undefined })),
   };
 }
 

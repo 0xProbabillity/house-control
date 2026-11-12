@@ -344,7 +344,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
       snapshot();
       const value = select.value;
       delete item.link;
-      if (item.tuya) { delete item.tuya.deviceId; if (!Object.keys(item.tuya).length) delete item.tuya; }
+      if (item.tuya) { delete item.tuya.deviceId; delete item.tuya.sceneSwitch; if (!Object.keys(item.tuya).length) delete item.tuya; }
       const device = find(value);
       if (value) {
         const [service, id] = value.split('|');
@@ -369,6 +369,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
     return section('Real device',
       h('label.field', h('span', 'Device'), select),
       info ? h(`p.note${offline ? '.bad' : ''}`, offline ? `${info} · offline` : info) : null,
+      item.tuya?.sceneSwitch ? h('p.note', 'On/off sends the linked Smart Life Tap-to-Run IR commands. Power state is estimated.') : null,
       device?.service === 'homekit' && state.info.homekit?.remote ? h('p.note', 'Switched from your iPhone; simulated on this Mac.') : null,
       Object.keys(state.errors).length ? h('p.note.bad', Object.entries(state.errors).map(([s, e]) => `${SERVICES[s]?.name || s}: ${e}`).join(' · ')) : null);
   }

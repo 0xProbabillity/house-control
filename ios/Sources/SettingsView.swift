@@ -11,6 +11,7 @@ struct SettingsView: View {
     @State private var confirmUnpair = false
     @State private var confirmSignOut = false
     @State private var newHome = false
+    @State private var restoring: PlanStore.Earlier?
 
     var body: some View {
         @Bindable var model = model
@@ -114,10 +115,34 @@ struct SettingsView: View {
                 Button { importing = true } label: { Label("Import file", systemImage: "square.and.arrow.down") }
                     .buttonStyle(SecondaryButtonStyle())
             }
+            if !model.earlierHomes.isEmpty { earlierMenu }
             if !model.hasCustomPlan {
                 footnote("Make your own home here, or pair with House Control on a Mac or PC and the one drawn there arrives by itself.")
             }
         }
+        .confirmationDialog("Bring back \(restoring?.name ?? "this home")?", isPresented: Binding(
+            get: { restoring != nil }, set: { if !$0 { restoring = nil } }), titleVisibility: .visible) {
+            Button("Bring back") { if let home = restoring { model.restoreEarlier(home) }; restoring = nil }
+        } message: {
+            Text(model.macName == nil
+                 ? "It becomes this iPhone's home again. The one here now is kept among the earlier homes."
+                 : "It becomes the home on this iPhone and on \(model.macName ?? "your computer"). The one here now is kept among the earlier homes.")
+        }
+    }
+
+    /// The homes kept before a scan, the computer or a file replaced the one here.
+    private var earlierMenu: some View {
+        Menu {
+            ForEach(model.earlierHomes.prefix(12)) { home in
+                Button { restoring = home } label: {
+                    Text(home.name)
+                    Text("\(home.rooms) rooms, \(home.devices) devices · \(home.date.formatted(date: .abbreviated, time: .shortened))")
+                }
+            }
+        } label: {
+            Label("Earlier homes", systemImage: "clock.arrow.circlepath")
+        }
+        .buttonStyle(SecondaryButtonStyle())
     }
 
     private func linkRow(symbol: String, tint: Color, title: String, beta: Bool = false, detail: String) -> some View {

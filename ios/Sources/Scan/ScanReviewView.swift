@@ -121,8 +121,8 @@ struct ScanReviewView: View {
                 Button("Replace", role: .destructive) { commit() }
             } message: {
                 Text(model.macName == nil
-                     ? "The scan becomes this iPhone's home in place of the one there now, with its links to your devices."
-                     : "The scan becomes this iPhone's home, and \(model.macName ?? "your computer")'s too.")
+                     ? "The scan becomes this iPhone's home in place of the one there now. That one is kept: Settings → Home → Earlier homes brings it back."
+                     : "The scan becomes this iPhone's home, and \(model.macName ?? "your computer")'s too. The one there now is kept: Settings → Home → Earlier homes brings it back.")
             }
         }
         .presentationBackground(Theme.background)

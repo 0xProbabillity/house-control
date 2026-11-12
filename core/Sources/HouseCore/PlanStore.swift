@@ -64,10 +64,84 @@ public final class PlanStore {
     }
 
     /// Stores an already serialised plan byte for byte, so its revision matches the sender's.
+    /// The plan it replaces is kept among the earlier homes first.
     public func saveCustom(data: Data, select: Bool = true) throws {
+        keepEarlier(before: data)
         try data.write(to: customPlanURL, options: .atomic)
         if select { self.select("custom") }
     }
+
+    // MARK: - Earlier homes
+
+    /// A copy of the home as it was before something replaced it.
+    public struct Earlier: Identifiable, Equatable, Sendable {
+        public let url: URL
+        public let date: Date
+        public let name: String
+        public let rooms: Int
+        public let devices: Int
+        public var id: String { url.lastPathComponent }
+    }
+
+    /// Where the copies are kept, beside plan.json.
+    public var earlierDirectory: URL { directory.appendingPathComponent("Earlier homes", isDirectory: true) }
+
+    /// How many copies are kept; the oldest go first.
+    static let earlierLimit = 40
+
+    /// The kept copies, newest first.
+    public func earlierHomes() -> [Earlier] {
+        let files = (try? FileManager.default.contentsOfDirectory(at: earlierDirectory, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+        return files.filter { $0.pathExtension == "json" }.compactMap { url in
+            guard let data = try? Data(contentsOf: url),
+                  let plan = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+            let date = (try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            let devices = ((plan["lights"] as? [Any])?.count ?? 0) + ((plan["acs"] as? [Any])?.count ?? 0)
+            return Earlier(url: url, date: date, name: plan["name"] as? String ?? "Home",
+                           rooms: (plan["rooms"] as? [Any])?.count ?? 0, devices: devices)
+        }
+        .sorted { $0.date > $1.date }
+    }
+
+    /// Makes a kept copy the home again (the one it replaces is kept in turn) and returns its bytes.
+    @discardableResult
+    public func restore(_ earlier: Earlier) throws -> Data {
+        let data = try Data(contentsOf: earlier.url)
+        _ = try Self.validate(data)
+        try saveCustom(data: data)
+        return data
+    }
+
+    /// Keeps the current plan before `next` replaces it. A different home (another name, other
+    /// rooms) is always kept; an edit of the same one at most once an hour, so a long session in
+    /// the editor does not push the older homes out.
+    private func keepEarlier(before next: Data) {
+        guard let current = try? Data(contentsOf: customPlanURL), current != next,
+              let old = try? JSONSerialization.jsonObject(with: current) as? [String: Any] else { return }
+        let new = (try? JSONSerialization.jsonObject(with: next) as? [String: Any]) ?? [:]
+        let fm = FileManager.default
+        let kept = earlierHomes()
+        if Self.sameHome(old, new), let last = kept.first, Date().timeIntervalSince(last.date) < 3600 { return }
+        if kept.contains(where: { (try? Data(contentsOf: $0.url)) == current }) { return }
+        try? fm.createDirectory(at: earlierDirectory, withIntermediateDirectories: true)
+        let stamp = Self.stampFormatter.string(from: Date())
+        let url = earlierDirectory.appendingPathComponent("plan-\(stamp)-\(Self.revision(of: current)).json")
+        try? current.write(to: url, options: .atomic)
+        for extra in earlierHomes().dropFirst(Self.earlierLimit) { try? fm.removeItem(at: extra.url) }
+    }
+
+    /// The same home, edited: its name and its rooms are the same.
+    static func sameHome(_ a: [String: Any], _ b: [String: Any]) -> Bool {
+        func rooms(_ p: [String: Any]) -> [String] { ((p["rooms"] as? [[String: Any]]) ?? []).compactMap { $0["id"] as? String }.sorted() }
+        return (a["name"] as? String) == (b["name"] as? String) && rooms(a) == rooms(b)
+    }
+
+    private static let stampFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyyMMdd-HHmmss"
+        return f
+    }()
 
     public static func encode(_ plan: [String: Any]) throws -> Data {
         try JSONSerialization.data(withJSONObject: plan, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])

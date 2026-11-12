@@ -186,6 +186,14 @@ final class SmartLifeService: DeviceCloud {
         _ = try await request("POST", "/v1.1/m/thing/\(deviceId)/commands", body: ["commands": commands])
     }
 
+    /// DIY IR keys are not standard device data points. Smart Life Tap-to-Run
+    /// wraps the learned key and is exposed by the same device-sharing session.
+    func triggerScene(homeId: String, sceneId: String) async throws {
+        let result = try await request("POST", "/v1.0/m/scene/ha/trigger",
+                                       body: ["homeId": homeId, "sceneId": sceneId])
+        guard result as? Bool == true else { throw Failure(message: "Smart Life did not run the linked IR command") }
+    }
+
     /// Read-only snapshot for diagnostics: raw status and specification of the given devices.
     func diagnostics(for ids: [String]) async -> [String: Any] {
         var out: [String: Any] = [:]

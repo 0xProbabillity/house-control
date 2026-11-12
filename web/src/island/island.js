@@ -225,7 +225,7 @@ export async function bootIsland(root) {
       h('i.dot', { style: onCount || acOn ? {} : { background: 'rgba(255,255,255,.25)', boxShadow: 'none' } }),
       h('b', onCount ? `${onCount} of ${lights.length}` : 'No'), ' lights on', acOn ? ` · ${acOn.target}°` : '');
     power.classList.toggle('on', onCount > 0 || Boolean(acOn));
-    for (const [id, b] of sceneButtons) b.classList.toggle('active', state.scene === id);
+    for (const [id, b] of sceneButtons) b.classList.toggle('active', store.sceneActive(id));
     for (const row of rows) row();
   }
 

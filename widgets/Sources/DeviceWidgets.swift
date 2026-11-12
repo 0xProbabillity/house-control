@@ -36,7 +36,7 @@ struct ScenesWidgetView: View {
                         .foregroundStyle(home.activeScene == nil ? Palette.faint : Palette.text)
                 }
                 HStack(spacing: 8) {
-                    ForEach(scenes) { SceneTile(scene: $0, active: $0.id == home.scene) }
+                    ForEach(scenes) { SceneTile(scene: $0, active: home.isActive($0)) }
                 }
             } else {
                 Grid(horizontalSpacing: 7, verticalSpacing: 7) {

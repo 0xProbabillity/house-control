@@ -81,6 +81,50 @@ final class WidgetTests: XCTestCase {
         XCTAssertNil(h.scene)
     }
 
+    func testOnOffSceneTurnsItsLampsOffTheSecondTime() {
+        var h = home()
+        h.scenes.append(.init(id: "room", name: "Room", icon: "sofa",
+                              lights: ["main": ["on": .bool(true)], "tv": ["on": .bool(true)]], acs: [:], toggle: true))
+        let room = h.scenes.last!
+        XCTAssertFalse(h.isActive(room))
+        _ = h.apply(.scene("room"))
+        XCTAssertTrue(h.light("main")!.on && h.light("tv")!.on)
+        // A lamp it does not name is left alone.
+        XCTAssertTrue(h.light("plug")!.on)
+        XCTAssertTrue(h.isActive(room))
+        // Any of its lamps still on: the next tap turns them off.
+        _ = h.apply(.light("main", on: false))
+        let (_, changes) = h.apply(.scene("room"))
+        XCTAssertEqual(changes.map(\.id), ["tv"])
+        XCTAssertFalse(h.isActive(room))
+        XCTAssertTrue(h.light("plug")!.on)
+        XCTAssertNil(h.scene)
+    }
+
+    func testEarlierHomeIsKeptWhenAnotherReplacesIt() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        setenv("HOUSE_DATA_DIR", dir.path, 1)
+        defer { unsetenv("HOUSE_DATA_DIR"); try? FileManager.default.removeItem(at: dir) }
+        let store = PlanStore()
+        let home: [String: Any] = ["name": "Flat", "rooms": [["id": "living"], ["id": "bed"]], "lights": [["id": "a"]]]
+        try store.saveCustom(home)
+        XCTAssertTrue(store.earlierHomes().isEmpty)
+        // An edit of the same home soon after the last copy is not kept again.
+        try store.saveCustom(["name": "Flat", "rooms": [["id": "living"], ["id": "bed"]], "lights": [] as [Any]])
+        XCTAssertEqual(store.earlierHomes().count, 1)
+        try store.saveCustom(["name": "Flat", "rooms": [["id": "living"], ["id": "bed"]], "lights": [["id": "b"]]])
+        XCTAssertEqual(store.earlierHomes().count, 1)
+        // A scan in its place is another home: the one before it is kept.
+        try store.saveCustom(["name": "Scan", "rooms": [["id": "r1"]]])
+        let kept = store.earlierHomes()
+        XCTAssertEqual(kept.count, 2)
+        XCTAssertEqual(kept.first?.name, "Flat")
+        XCTAssertEqual(kept.first?.rooms, 2)
+        try store.restore(kept.first!)
+        XCTAssertEqual(store.customPlanName, "Flat")
+        XCTAssertEqual(store.earlierHomes().first?.name, "Scan")
+    }
+
     func testTargetIsClampedAndRounded() {
         var h = home()
         XCTAssertEqual(h.apply(.acTarget("ac", 40)).resolved.target, 30)

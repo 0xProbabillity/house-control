@@ -190,6 +190,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(withTitle: "Edit Home…", action: #selector(openEditor), keyEquivalent: "").target = self
             menu.addItem(withTitle: "Load Floor Plan…", action: #selector(loadPlan), keyEquivalent: "").target = self
             menu.addItem(withTitle: "Reveal Plan File", action: #selector(revealPlan), keyEquivalent: "").target = self
+            if let earlier = earlierHomesMenuItem() { menu.addItem(earlier) }
             menu.addItem(withTitle: "Reveal Device Log", action: #selector(revealLog), keyEquivalent: "").target = self
             menu.addItem(.separator())
             let islandItem = menu.addItem(withTitle: "Show Island", action: #selector(toggleIsland), keyEquivalent: "")
@@ -290,6 +291,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             alert("Could not load this floor plan", error.localizedDescription)
         }
+    }
+
+    /// "Earlier Homes": the homes kept before something replaced them (a scan, a phone, a file).
+    private func earlierHomesMenuItem() -> NSMenuItem? {
+        let kept = plans.earlierHomes().prefix(12)
+        guard !kept.isEmpty else { return nil }
+        let menu = NSMenu()
+        let format = DateFormatter()
+        format.dateStyle = .medium
+        format.timeStyle = .short
+        for home in kept {
+            let item = menu.addItem(withTitle: "\(home.name) · \(home.rooms) rooms, \(home.devices) devices · \(format.string(from: home.date))",
+                                    action: #selector(restoreEarlier(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = home.url
+        }
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Show in Finder", action: #selector(revealEarlier), keyEquivalent: "").target = self
+        let item = NSMenuItem(title: "Earlier Homes", action: nil, keyEquivalent: "")
+        item.submenu = menu
+        return item
+    }
+
+    @objc private func restoreEarlier(_ sender: NSMenuItem) {
+        guard let url = sender.representedObject as? URL,
+              let home = plans.earlierHomes().first(where: { $0.url == url }) else { return }
+        panel.hide()
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Bring back \(home.name)?"
+        alert.informativeText = "It becomes the home on this Mac and on the paired phones. The home here now is kept under Earlier Homes."
+        alert.addButton(withTitle: "Bring Back")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        do {
+            try plans.restore(home)
+            reloadAll()
+            editor?.host.load()
+        } catch {
+            self.alert("Could not bring this home back", error.localizedDescription)
+        }
+    }
+
+    @objc private func revealEarlier() {
+        NSWorkspace.shared.activateFileViewerSelecting([plans.earlierDirectory])
     }
 
     @objc private func revealPlan() {

@@ -566,7 +566,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
       acsOn.length ? ` · AC ${acsOn[0].target}°` : '');
     power.classList.toggle('on', anyOn);
 
-    for (const [id, b] of sceneButtons) b.classList.toggle('active', state.scene === id);
+    for (const [id, b] of sceneButtons) b.classList.toggle('active', store.sceneActive(id));
 
     for (const [id, { b, count }] of roomButtons) {
       b.classList.toggle('active', ui.room === id);
