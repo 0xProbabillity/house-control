@@ -10,7 +10,7 @@ struct RootView: View {
             HomeWebView(web: model.web)
                 .ignoresSafeArea()
                 #if ROOM_SCAN
-                .fullScreenCover(isPresented: $model.showScan) { ScanScreen() }
+                .fullScreenCover(isPresented: $model.showScan) { ScanScreen().environment(model) }
                 #endif
             if let banner = model.banner {
                 BannerView(banner: banner)
@@ -19,10 +19,13 @@ struct RootView: View {
                     .zIndex(1)
             }
         }
-        .sheet(isPresented: $model.showSettings) { SettingsView() }
-        .sheet(isPresented: $model.showWelcome) { WelcomeView() }
-        .sheet(isPresented: $model.showNewHome) { NewHomeView() }
-        .fullScreenCover(isPresented: $model.showEditor, onDismiss: { model.editorClosed() }) { EditorScreen() }
+        // Each one is handed the model itself: on a Mac (the iPhone app running there) SwiftUI sizes
+        // a sheet before it has the environment of the view it comes from, and a view reading
+        // the model then stops the app ("No Observable object of type AppModel found").
+        .sheet(isPresented: $model.showSettings) { SettingsView().environment(model) }
+        .sheet(isPresented: $model.showWelcome) { WelcomeView().environment(model) }
+        .sheet(isPresented: $model.showNewHome) { NewHomeView().environment(model) }
+        .fullScreenCover(isPresented: $model.showEditor, onDismiss: { model.editorClosed() }) { EditorScreen().environment(model) }
         .alert("Which home do you keep?", isPresented: Binding(get: { model.planChoice != nil && !model.showEditor },
                                                                set: { if !$0, model.planChoice != nil { model.planChoice = nil } }),
                presenting: model.planChoice) { choice in

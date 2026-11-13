@@ -3,6 +3,17 @@
 What changed in each release of House Control. The Mac app is on
 [Releases](https://github.com/0xProbabillity/house-control/releases); the iPhone app is on the App Store and TestFlight.
 
+## 1.5.2 — 2026-11-13
+
+### Fixes from TestFlight feedback
+
+- **iPhone Duo:** the buttons at the top (Save in the editor, the panel's top-right buttons) no longer sit under
+  the status bar in the screen's top corner, on the outer and the inner screen alike. The app asks the system which
+  corners are covered and keeps its buttons clear of them.
+- **The iPhone app on a Mac** no longer quits when a sheet opens (the welcome screen, Settings, New home and the
+  editor's connections).
+- The editor says how to turn a door or a window: drag it onto a wall that runs the other way.
+
 ## 1.5.1 — in TestFlight (beta, testers on the team only)
 
 ### Room buttons, and a home that cannot be lost

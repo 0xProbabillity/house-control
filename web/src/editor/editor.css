@@ -371,6 +371,10 @@ html.ios.mode-editor body { background: var(--bg); }
 .p-bar {
   position: absolute; left: 0; right: 0; top: 0; z-index: 5; height: var(--bar-h);
   display: flex; align-items: center; gap: 4px; padding: var(--safe-top) 10px 0;
+  /* A top corner something stands over (iPhone Duo's status bar, reported by the app as
+     --corner-left/right): the buttons there move in past it. */
+  padding-left: max(10px, calc(var(--corner-left, 0px) + 4px));
+  padding-right: max(10px, calc(var(--corner-right, 0px) + 4px));
   background: linear-gradient(180deg, rgba(10, 14, 26, 0.96), rgba(10, 14, 26, 0.82));
   border-bottom: 1px solid var(--line);
   -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
@@ -410,6 +414,9 @@ html.ios.mode-editor body { background: var(--bg); }
 }
 .p-float:active { color: var(--text); transform: scale(0.94); }
 .editor.phone .levels { right: auto; max-width: calc(100% - 76px); padding: 3px; border-radius: 14px; }
+/* The "whole floor" button sits in the plan's top trailing corner: below whatever covers that
+   corner of the screen (iPhone Duo's status bar) when it reaches down past the top bar. */
+.editor.phone .p-float { top: max(12px, calc(var(--corner-top, 0px) - var(--bar-h) + 8px)); }
 .editor.phone .level-tab, .editor.phone .level-add { height: 34px; font-size: 13.5px; border-radius: 11px; }
 .editor.phone .empty-card { font-size: 14px; }
 .editor.phone .empty-actions .btn { height: 40px; font-size: 14px; }
@@ -526,7 +533,10 @@ html.ios.mode-editor body { background: var(--bg); }
     --safe-left: env(safe-area-inset-left, 0px);
     --safe-right: env(safe-area-inset-right, 0px);
   }
-  .p-bar { padding-left: max(10px, var(--safe-left)); padding-right: max(10px, var(--safe-right)); }
+  .p-bar {
+    padding-left: max(10px, var(--safe-left), calc(var(--corner-left, 0px) + 4px));
+    padding-right: max(10px, var(--safe-right), calc(var(--corner-right, 0px) + 4px));
+  }
   .editor.phone .canvas { transition: right 320ms var(--ease); }
   .editor.phone[data-sheet='peek'] .canvas, .editor.phone[data-sheet='full'] .canvas { bottom: var(--tools-h); right: var(--side-w); }
   .p-sheet, .p-sheet[data-state='peek'], .p-sheet[data-state='full'] {

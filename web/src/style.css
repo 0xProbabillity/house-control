@@ -868,7 +868,10 @@ html.ios .card {
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
 }
-html.ios .top { padding-left: max(20px, calc(var(--safe-left) + 8px)); padding-right: max(18px, calc(var(--safe-right) + 8px)); }
+html.ios .top {
+  padding-left: max(20px, calc(var(--safe-left) + 8px), calc(var(--corner-left, 0px) + 6px));
+  padding-right: max(18px, calc(var(--safe-right) + 8px), calc(var(--corner-right, 0px) + 6px));
+}
 html.ios .panel { container-type: inline-size; }
 
 html.ios.split .stage { inset: 0 auto 0 0; width: var(--split-start); height: auto; }

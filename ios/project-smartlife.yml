@@ -13,6 +13,7 @@ targets:
         product: HouseSmartLife
     info:
       properties:
+        NSCameraUsageDescription: The camera reads the pairing code shown by House Control on your Mac or PC, and measures your rooms when you scan your home.
         NSPhotoLibraryAddUsageDescription: House Control saves the Smart Life sign-in code to Photos, so the Smart Life app on this iPhone can scan it from there.
     settings:
       base:

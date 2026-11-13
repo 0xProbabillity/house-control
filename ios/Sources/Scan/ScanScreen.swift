@@ -227,7 +227,7 @@ private struct ScanLiveView: View {
             withAnimation { hintShown = false }
         }
         .sheet(item: $controller.picking) { tag in
-            ScanDevicePicker(tag: tag, controller: controller)
+            ScanDevicePicker(tag: tag, controller: controller).environment(model)
         }
         .confirmationDialog("Leave the scan?", isPresented: $confirmClose, titleVisibility: .visible) {
             if controller.roomsDone > 0 || controller.capturing {

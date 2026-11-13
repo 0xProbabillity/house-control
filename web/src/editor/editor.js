@@ -1324,7 +1324,10 @@ export async function bootEditor(root) {
         row(bind('To X', number(), { ...at(item, 'to', 0), parse: parseNum }), bind('To Z', number(), { ...at(item, 'to', 1), parse: parseNum })),
         item.type === 'window' ? row(bind('Sill, m', number(), { ...prop(item, 'sill', 0.85), parse: parseNum }),
           bind('Head, m', number(), { ...prop(item, 'head', 2.1), parse: parseNum })) : null,
-        h('p.note', 'Drag it along a wall, or onto another one: it snaps to the walls (hold ⌥ not to). Drag the dots at its ends to make it wider. Windows only show on the far walls; the walls facing the camera are cut away.')));
+        h('p.note', (isPhone
+          ? 'Drag it along a wall. To turn it, drag it onto a wall that runs the other way: it snaps to that wall and turns with it. Drag the dots at its ends to make it wider.'
+          : 'Drag it along a wall. To turn it, drag it onto a wall that runs the other way: it snaps to that wall and turns with it (hold ⌥ not to snap). Drag the dots at its ends to make it wider.')
+          + ' Windows only show on the far walls; the walls facing the camera are cut away.')));
     } else if (kind === 'scene') {
       head(item.name || item.id, `id: ${item.id}`);
       item.lights ||= {};

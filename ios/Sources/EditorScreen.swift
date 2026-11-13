@@ -33,6 +33,7 @@ struct EditorScreen: View {
                 }
             }
             .environment(\.insideEditor, true)
+            .environment(model)
             .presentationBackground(Theme.background)
             .presentationDragIndicator(.visible)
             .preferredColorScheme(.dark)

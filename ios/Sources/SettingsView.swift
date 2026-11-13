@@ -59,7 +59,7 @@ struct SettingsView: View {
         .presentationBackground(Theme.background)
         .presentationDragIndicator(.visible)
         .preferredColorScheme(.dark)
-        .sheet(isPresented: $newHome) { NewHomeView() }
+        .sheet(isPresented: $newHome) { NewHomeView().environment(model) }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
             do { try model.importPlan(from: try result.get()) }
             catch { problem = error.localizedDescription }

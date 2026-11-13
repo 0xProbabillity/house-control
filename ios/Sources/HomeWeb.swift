@@ -42,6 +42,7 @@ final class HomeWeb: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         if let view { return view }
         let webView = FoldWebView(frame: .zero, configuration: configuration)
         webView.onFold = { [weak self] _ in self?.sendFold() }
+        webView.onCorners = { [weak self] _ in self?.sendCorners() }
         webView.navigationDelegate = self
         webView.isOpaque = false
         webView.backgroundColor = UIColor(Theme.background)
@@ -121,6 +122,19 @@ final class HomeWeb: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         }
     }
 
+    /// The top corners something covers (iPhone Duo's status bar), as CSS variables the top
+    /// bars of the panel and the editor keep their buttons clear of (style.css, editor.css).
+    private func sendCorners() {
+        guard ready, let corners = (view as? FoldWebView)?.corners else { return }
+        let script = """
+            (() => { const s = document.documentElement.style;
+              s.setProperty('--corner-top', '\(Int(corners.top))px');
+              s.setProperty('--corner-left', '\(Int(corners.left))px');
+              s.setProperty('--corner-right', '\(Int(corners.right))px'); })();
+            """
+        view?.evaluateJavaScript(script, completionHandler: nil)
+    }
+
     func reply(to message: [String: Any], _ result: Any) {
         guard let id = message["callId"] as? Int else { return }
         call("reply", id, result)
@@ -137,6 +151,7 @@ final class HomeWeb: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
                 ready = true
                 retries = 0
                 if (view as? FoldWebView)?.fold != nil { sendFold() }
+                sendCorners()
             }
             onMessage?(body)
         }

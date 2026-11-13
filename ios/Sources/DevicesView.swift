@@ -105,6 +105,7 @@ struct DevicesView: View {
                 model.editPlan { $0.link(item.id, to: device?.raw) }
                 Haptics.shared.play("success")
             }
+            .environment(model)
         }
         .sheet(item: $pickingSensor) { item in
             DevicePicker(title: "\(item.name) · room temperature", kind: "sensor", current: item.sensor,
@@ -113,9 +114,11 @@ struct DevicesView: View {
                 model.editPlan { $0.setSensor(item.id, to: device?.raw) }
                 Haptics.shared.play("success")
             }
+            .environment(model)
         }
         .sheet(isPresented: $adding) {
             AddDevicesView(catalog: catalog, used: editor?.usedDevices ?? [:], rooms: editor?.rooms ?? [])
+                .environment(model)
         }
     }
 
