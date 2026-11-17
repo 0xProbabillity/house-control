@@ -25,7 +25,7 @@ struct SmartLifeView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 22) {
-                if model.smartLifeConnected {
+                if model.smartLifeConnected && !model.smartLifeExpired {
                     connected
                 } else if let login {
                     code(login)
@@ -47,6 +47,8 @@ struct SmartLifeView: View {
         .toolbarBackground(Theme.background, for: .navigationBar)
         .onAppear {
             if userCode.isEmpty { userCode = model.suggestedUserCode }
+            // Reconnecting an expired sign-in: the account's own User Code is already known.
+            if userCode.isEmpty { userCode = model.smartLifeUserCode }
             // HOUSE_SMARTLIFE_QR=<text> shows the code step with that content (screenshots, UI checks);
             // nothing is sent to Tuya for it.
             if login == nil, let demo = ProcessInfo.processInfo.environment["HOUSE_SMARTLIFE_QR"] {
@@ -57,7 +59,7 @@ struct SmartLifeView: View {
         .onDisappear { _ = model.showOnMac(nil) }
         // Back from the Smart Life app: do not wait for the next poll to find out.
         .onChange(of: scenePhase) { _, phase in
-            guard phase == .active, let login, !login.token.isEmpty, !model.smartLifeConnected else { return }
+            guard phase == .active, let login, !login.token.isEmpty, !model.smartLifeConnected || model.smartLifeExpired else { return }
             Task { _ = await model.finishLogin(token: login.token, userCode: userCode) }
         }
         // Ask every two seconds whether the login was confirmed, for as long as the code is up.

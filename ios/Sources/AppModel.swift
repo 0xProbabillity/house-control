@@ -102,6 +102,8 @@ final class AppModel {
     #endif
     private(set) var smartLifeConnected = false
     private(set) var smartLifeAccount = ""
+    /// Smart Life stopped accepting this iPhone's session: it needs a new QR login.
+    private(set) var smartLifeExpired = false
     /// The User Code entered on the Mac, offered here so it need not be typed again.
     private(set) var suggestedUserCode = ""
 
@@ -138,9 +140,12 @@ final class AppModel {
         // throw-away folder: nothing goes to the Keychain or the saved panel state.
         let sandboxed = !(environment["HOUSE_DATA_DIR"] ?? "").isEmpty
         let directory = plans.directory
+        // The lock file sits in the App Group, where the widgets find it too.
+        let group = SharedHome.groupContainer()
         func secret(_ name: String) -> SecretStore {
             sandboxed ? FileSecretStore(url: directory.appendingPathComponent("\(name).json"))
-                      : KeychainSecretStore(service: Bundle.main.bundleIdentifier ?? "HouseControl", account: name)
+                      : KeychainSecretStore(service: Bundle.main.bundleIdentifier ?? "HouseControl", account: name,
+                                            lockDirectory: group)
         }
         #if SMART_LIFE
         hub = DeviceHub(directory: directory, secret: secret, homeKit: homeKitService, cloud: SmartLifePlatform.init)
@@ -158,10 +163,18 @@ final class AppModel {
         #if SMART_LIFE
         smartLifeConnected = hub.smartLife?.isSmartLifeConnected ?? false
         smartLifeAccount = hub.smartLife?.account ?? ""
+        smartLifeExpired = hub.smartLife?.isSmartLifeExpired ?? false
         #endif
         lastSync = UserDefaults.standard.object(forKey: "lastSync") as? Date
 
         hub.onStale = { [weak self] in self?.poll() }
+        #if SMART_LIFE
+        hub.smartLife?.onSmartLifeExpiredChange = { [weak self] expired in
+            guard let self, smartLifeExpired != expired else { return }
+            smartLifeExpired = expired
+            editorWeb?.call("servicesChanged", hub.servicesInfo)
+        }
+        #endif
         homeKitService.onCatalogChange = { [weak self] in
             guard let self else { return }
             self.refreshConnections()
@@ -767,7 +780,7 @@ final class AppModel {
     // MARK: - Smart Life
 
     /// The User Code of the Smart Life account, for the Mac (empty without Smart Life).
-    private var smartLifeUserCode: String {
+    var smartLifeUserCode: String {
         #if SMART_LIFE
         hub.smartLife?.userCode ?? ""
         #else
@@ -803,6 +816,7 @@ final class AppModel {
         smartLife.signOut()
         smartLifeConnected = false
         smartLifeAccount = ""
+        smartLifeExpired = false
         pollTimer?.invalidate()
         pollTimer = nil
     }

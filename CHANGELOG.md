@@ -3,6 +3,19 @@
 What changed in each release of House Control. The Mac app is on
 [Releases](https://github.com/0xProbabillity/house-control/releases); the iPhone app is on the App Store and TestFlight.
 
+## 1.5.3 — 2026-11-17 (TestFlight, team only)
+
+### Smart Life no longer gets stuck on "sign invalid"
+
+- When Smart Life refused the iPhone's sign-in (**sign invalid, code -9999999**), every light command failed from
+  then on. Now the app first picks up a sign-in the widgets or Control Center buttons renewed meanwhile, or renews
+  it itself, and tries again.
+- The app and its widgets no longer renew the sign-in at the same time (that could leave one of them holding a
+  sign-in Smart Life had already replaced), and commands sent together wait for one renewal instead of racing it.
+- If Smart Life really has dropped the sign-in, the error says so, and **Settings → Smart Life** shows
+  **Sign-in expired** with **Reconnect Smart Life**: the QR login opens with your User Code filled in, and the
+  floor plan and its links stay as they are.
+
 ## 1.5.2 — 2026-11-13
 
 ### Fixes from TestFlight feedback

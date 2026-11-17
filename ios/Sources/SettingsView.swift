@@ -317,7 +317,24 @@ struct SettingsView: View {
     private var smartLifeSection: some View {
         VStack(spacing: 10) {
             SectionTitle("Smart Life")
-            if model.smartLifeConnected {
+            if model.smartLifeConnected && model.smartLifeExpired {
+                Card(padding: 16) {
+                    HStack(alignment: .top, spacing: 14) {
+                        IconBadge(symbol: "exclamationmark.triangle.fill", tint: Theme.red)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Sign-in expired").font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
+                            Text("Smart Life no longer accepts this iPhone's sign-in, so lights and air conditioners can't be switched. Scan the QR code again to reconnect; your floor plan and links stay as they are.")
+                                .font(.system(size: 14))
+                                .foregroundStyle(Theme.muted)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                NavigationLink(value: SettingsRoute.smartLife) {
+                    Label("Reconnect Smart Life", systemImage: "qrcode")
+                }
+                .buttonStyle(SecondaryButtonStyle())
+            } else if model.smartLifeConnected {
                 Card {
                     HStack(spacing: 14) {
                         IconBadge(symbol: "checkmark.seal.fill", tint: Theme.green)

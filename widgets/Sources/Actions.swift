@@ -57,7 +57,8 @@ enum WidgetActions {
         if real.contains(where: { !reachable.contains((services[$0.id] ?? nil) ?? "") }) { return false }
         let app = appBundleIdentifier
         let directory = shared.directory.appendingPathComponent("Hub", isDirectory: true)
-        let secret: (String) -> SecretStore = { KeychainSecretStore(service: app, account: $0) }
+        let group = SharedHome.groupContainer()
+        let secret: (String) -> SecretStore = { KeychainSecretStore(service: app, account: $0, lockDirectory: group) }
         #if SMART_LIFE
         let hub = DeviceHub(directory: directory, secret: secret, cloud: SmartLifePlatform.init)
         #else

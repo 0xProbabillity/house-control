@@ -43,7 +43,16 @@ final class SmartLifeService: DeviceCloud {
         var uid: String
         var endpoint: String
         var username: String
+        /// Set once the gateway stopped accepting this session even after a fresh read and a
+        /// refresh: only a new QR login brings it back.
+        var expired: Bool?
     }
+
+    /// Codes with which the gateway refuses the session rather than the request:
+    /// "sign invalid" (the signature is keyed on a refresh token it no longer knows) and
+    /// "token invalid".
+    static let sessionCodes: Set<String> = ["-9999999", "1010"]
+    static let expiredMessage = "Smart Life sign-in expired. Open Settings › Smart Life and scan the QR code again."
 
     struct Failure: LocalizedError {
         let message: String
@@ -58,7 +67,12 @@ final class SmartLifeService: DeviceCloud {
     private var loaded = false
     private(set) var knownCodes: [String: Set<String>] = [:]
     private(set) var knownRanges: [String: TuyaMapper.Ranges] = [:]
-    private var refreshing = false
+    /// The refresh in flight; every request that needs one waits for this same one.
+    private var refreshTask: Task<Void, Never>?
+    /// Called with true when the session died (a new QR login is needed), false once it works again.
+    var onExpiredChange: ((Bool) -> Void)?
+    /// Sends a request and reads its JSON; tests put a fake gateway here.
+    var fetch: (URLRequest) async throws -> [String: Any] = { try await SmartLifeService.json(for: $0) }
 
     /// The session lives in `smartlife.json` inside `directory`.
     convenience init(directory: URL) {
@@ -73,18 +87,19 @@ final class SmartLifeService: DeviceCloud {
     /// Refreshing rotates the refresh token, so a second process (`--diagnose` next to the
     /// running app) must pick up what the other one stored instead of carrying on with a
     /// token that no longer works.
-    private func reloadSession() {
+    private func reloadSession(force: Bool = false) {
         let stamp = vault.stamp
-        guard !loaded || stamp != sessionStamp else { return }
+        guard force || !loaded || stamp != sessionStamp else { return }
         loaded = true
         sessionStamp = stamp
         session = vault.read().flatMap { try? JSONDecoder().decode(Session.self, from: $0) }
     }
 
     var isConfigured: Bool { session != nil }
+    var isExpired: Bool { session?.expired == true }
 
     var publicInfo: [String: Any] {
-        ["connected": isConfigured, "userCode": session?.userCode ?? "", "account": session?.username ?? ""]
+        ["connected": isConfigured, "expired": isExpired, "userCode": session?.userCode ?? "", "account": session?.username ?? ""]
     }
 
     private func store(_ new: Session?) {
@@ -110,7 +125,7 @@ final class SmartLifeService: DeviceCloud {
         let url = URL(string: "\(Self.loginHost)/v1.0/m/life/home-assistant/qrcode/tokens?clientid=\(Self.clientId)&usercode=\(encoded)&schema=\(Self.schema)")!
         var request = URLRequest(url: url, timeoutInterval: 12)
         request.httpMethod = "POST"
-        let json = try await Self.json(for: request)
+        let json = try await fetch(request)
         guard json["success"] as? Bool == true, let result = json["result"] as? [String: Any],
               let token = result["qrcode"] as? String else {
             throw Failure(message: Self.explain(json, fallback: "Tuya did not accept this User Code."))
@@ -123,7 +138,7 @@ final class SmartLifeService: DeviceCloud {
         let code = userCode.trimmingCharacters(in: .whitespacesAndNewlines)
         let encoded = code.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? code
         let url = URL(string: "\(Self.loginHost)/v1.0/m/life/home-assistant/qrcode/tokens/\(token)?clientid=\(Self.clientId)&usercode=\(encoded)")!
-        let json = try await Self.json(for: URLRequest(url: url, timeoutInterval: 12))
+        let json = try await fetch(URLRequest(url: url, timeoutInterval: 12))
         guard json["success"] as? Bool == true, let r = json["result"] as? [String: Any],
               let access = r["access_token"] as? String, let refresh = r["refresh_token"] as? String,
               let endpoint = r["endpoint"] as? String else { return false }
@@ -132,6 +147,7 @@ final class SmartLifeService: DeviceCloud {
                       expiresAt: now + ((r["expire_time"] as? Double) ?? 7200) * 1000,
                       uid: r["uid"] as? String ?? "", endpoint: endpoint,
                       username: r["username"] as? String ?? ""))
+        onExpiredChange?(false)
         return true
     }
 
@@ -240,11 +256,35 @@ final class SmartLifeService: DeviceCloud {
 
     // MARK: - Encrypted, signed transport
 
-    private func refreshIfNeeded() async {
-        guard let s = session, !refreshing, s.expiresAt - 60_000 < Date().timeIntervalSince1970 * 1000 else { return }
-        refreshing = true
-        defer { refreshing = false }
-        guard let result = try? await request("GET", "/v1.0/m/token/\(s.refreshToken)", refresh: false) as? [String: Any],
+    private func needsRefresh(_ s: Session) -> Bool {
+        s.expiresAt - 60_000 < Date().timeIntervalSince1970 * 1000
+    }
+
+    /// Refreshes the access token when it is about to expire (or when `force`d after the
+    /// gateway refused it). Refreshing rotates the refresh token, so it happens once at a
+    /// time: within this process every caller waits for the same refresh, and across the
+    /// app and its widgets a file lock makes the second one pick up what the first stored.
+    private func refreshIfNeeded(force: Bool = false) async {
+        if let running = refreshTask {
+            await running.value
+            return
+        }
+        guard let s = session, force || needsRefresh(s) else { return }
+        let task = Task { @MainActor in await self.performRefresh(force: force, from: s.refreshToken) }
+        refreshTask = task
+        await task.value
+        refreshTask = nil
+    }
+
+    private func performRefresh(force: Bool, from used: String) async {
+        let lock: FileLock?
+        if let url = vault.lockURL { lock = await FileLock.acquire(url) } else { lock = nil }
+        defer { lock?.release() }
+        // Another process may have refreshed while this one waited for the lock.
+        reloadSession(force: true)
+        guard let s = session else { return }
+        if s.refreshToken != used || !(force || needsRefresh(s)) { return }
+        guard let result = try? await send("GET", "/v1.0/m/token/\(s.refreshToken)", session: s) as? [String: Any],
               let access = result["accessToken"] as? String, let refresh = result["refreshToken"] as? String else { return }
         var next = s
         next.accessToken = access
@@ -254,12 +294,45 @@ final class SmartLifeService: DeviceCloud {
         store(next)
     }
 
+    /// One request to the gateway. When it refuses the session, the request is tried once
+    /// more with what the Keychain holds now (a widget may have rotated the token) or, if
+    /// nothing changed there, after a refresh. If that fails too the session is marked
+    /// expired and the error says to scan the QR code again, instead of failing every
+    /// command with "sign invalid" until the user guesses what happened.
     private func request(_ method: String, _ path: String, query: [String: Any] = [:],
-                         body: [String: Any] = [:], refresh: Bool = true) async throws -> Any {
+                         body: [String: Any] = [:]) async throws -> Any {
         reloadSession()
-        if refresh { await refreshIfNeeded() }
-        guard let s = session else { throw Failure(message: "Not signed in to Smart Life") }
+        await refreshIfNeeded()
+        guard let first = session else { throw Failure(message: "Not signed in to Smart Life") }
+        do {
+            let result = try await send(method, path, query: query, body: body, session: first)
+            markExpired(false)
+            return result
+        } catch let failure as Failure where Self.sessionCodes.contains(failure.code) {
+            reloadSession(force: true)
+            if session?.refreshToken == first.refreshToken { await refreshIfNeeded(force: true) }
+            guard let second = session else { throw failure }
+            do {
+                let result = try await send(method, path, query: query, body: body, session: second)
+                markExpired(false)
+                return result
+            } catch let again as Failure where Self.sessionCodes.contains(again.code) {
+                markExpired(true)
+                throw Failure(message: Self.expiredMessage, code: again.code)
+            }
+        }
+    }
 
+    private func markExpired(_ expired: Bool) {
+        guard var s = session, (s.expired == true) != expired else { return }
+        s.expired = expired ? true : nil
+        store(s)
+        onExpiredChange?(expired)
+    }
+
+    /// The encrypted, signed envelope around one call, with the given session's tokens.
+    private func send(_ method: String, _ path: String, query: [String: Any] = [:],
+                      body: [String: Any] = [:], session s: Session) async throws -> Any {
         let rid = UUID().uuidString.lowercased()
         let hashKey = Transport.md5Hex(rid + s.refreshToken)
         let secret = Transport.secret(requestId: rid, hashKey: hashKey)
@@ -288,7 +361,7 @@ final class SmartLifeService: DeviceCloud {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
 
-        let json = try await Self.json(for: req)
+        let json = try await fetch(req)
         guard json["success"] as? Bool == true else {
             throw Failure(message: Self.explain(json, fallback: "Smart Life request failed"), code: Self.code(of: json))
         }
