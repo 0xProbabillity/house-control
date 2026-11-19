@@ -91,6 +91,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.settings?.snapshot(to: directory.appendingPathComponent("settings.png"))
             }
         }
+        if let folder = ProcessInfo.processInfo.environment["HOUSE_EVAL_DIR"] {
+            watchShellCommands(in: URL(fileURLWithPath: folder, isDirectory: true))
+        }
         if ProcessInfo.processInfo.environment["HOUSE_OPEN_PAIRING"] != nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.pairPhone() }
         }
@@ -122,6 +125,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
+    /// Quit asks first while the editor holds unsaved changes; it quits again once they are
+    /// saved or discarded, and Cancel keeps the app running.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let editor, editor.isDirty else { return .terminateNow }
+        editor.confirmUnsaved { proceed in
+            if proceed { NSApp.terminate(nil) }
+        }
+        return .terminateCancel
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         agent.stop(reason: "House Control quit")
     }
@@ -139,6 +152,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             source.resume()
             signalSources.append(source)
+        }
+    }
+
+    /// HOUSE_EVAL_DIR=<folder>: the native half of the scripted UI checks (the page half is in
+    /// WebHost). A file `shell.cmd` put there is run, then removed: `close` presses the editor's
+    /// close button, `quit` quits as ⌘Q does, `button:<title>` presses that button of the sheet
+    /// on the editor. What is on screen afterwards goes to `shell.json`. For test instances only.
+    private var shellTimer: Timer?
+    private func watchShellCommands(in folder: URL) {
+        let script = folder.appendingPathComponent("shell.cmd")
+        let result = folder.appendingPathComponent("shell.json")
+        shellTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, let raw = try? String(contentsOf: script, encoding: .utf8) else { return }
+                try? FileManager.default.removeItem(at: script)
+                let command = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                var done = true
+                switch command {
+                case "close": self.editor?.window.performClose(nil)
+                case "quit": NSApp.terminate(nil)
+                default:
+                    if command.hasPrefix("button:"), let sheet = self.editor?.window.attachedSheet {
+                        let title = String(command.dropFirst(7))
+                        let buttons = (sheet.contentView?.subviews ?? []).flatMap { [$0] + $0.subviews }.compactMap { $0 as? NSButton }
+                        if let button = buttons.first(where: { $0.title == title }) { button.performClick(nil) } else { done = false }
+                    } else { done = false }
+                }
+                // The window state after the command has had a moment to settle.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                    let sheet = self?.editor?.window.attachedSheet
+                    let texts = (sheet?.contentView?.subviews ?? []).flatMap { [$0] + $0.subviews }
+                        .compactMap { ($0 as? NSTextField)?.stringValue ?? ($0 as? NSButton)?.title }
+                    let state: [String: Any] = ["command": command, "done": done,
+                                                "editorOpen": self?.editor?.window.isVisible ?? false,
+                                                "sheet": texts, "sheetWindow": sheet?.windowNumber ?? 0,
+                                                "editorWindow": self?.editor?.window.windowNumber ?? 0]
+                    if let data = try? JSONSerialization.data(withJSONObject: state, options: .prettyPrinted) {
+                        try? data.write(to: result, options: .atomic)
+                    }
+                }
+            }
         }
     }
 
@@ -431,6 +485,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // A view that has just loaded takes over what the panel shows.
             if message["type"] as? String == "ready", host !== panel.host { panel.host.call("share") }
             if message["type"] as? String == "ready", host === panel.host { widgets.isReady = true }
+            // A freshly (re)loaded editor shows the saved plan.
+            if message["type"] as? String == "ready", host === editor?.host { editor?.setDirty(false) }
             if let summary = (message["summary"] as? [String: Any]) ?? (message["lightsOn"] != nil ? message : nil) {
                 updateStatus(summary)
             }
@@ -461,6 +517,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "setOpenAtLogin": setOpenAtLogin(message["on"] as? Bool ?? false)
 
         // Editor
+        case "editorDirty":
+            if host === editor?.host { editor?.setDirty(message["dirty"] as? Bool ?? false) }
         case "savePlan":
             guard let config = message["config"] as? [String: Any] else { return }
             do {

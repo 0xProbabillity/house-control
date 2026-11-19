@@ -227,14 +227,17 @@ html.native .card { width: auto; height: auto; box-shadow:
   display: flex;
   flex-direction: column;
   padding: 0 16px 16px;
-  transition: opacity 280ms ease, transform 460ms var(--ease), visibility 0s;
+  transition: opacity 280ms ease, transform 460ms var(--ease);
 }
 
+/* The one put away fades out and stops taking pointers; panel.js makes it inert for focus and
+   VoiceOver. Not visibility: hidden: WebKit (the Mac panel's WKWebView) then fails to repaint
+   the text inside overflow-clipped boxes (the AC sheet's option tiles, a tile's ellipsized name)
+   once it is shown again, leaving them blank or half drawn until something else changes. */
 .panel.hidden, .sheet.hidden {
   opacity: 0;
-  visibility: hidden;
   pointer-events: none;
-  transition: opacity 180ms ease, transform 300ms ease, visibility 0s 300ms;
+  transition: opacity 180ms ease, transform 300ms ease;
 }
 .panel.hidden { transform: translateY(14px) scale(0.985); }
 .sheet.hidden { transform: translateY(26px); }
@@ -584,12 +587,15 @@ html.native .card { width: auto; height: auto; box-shadow:
 
 .sheet { padding: 0 20px 18px; }
 /* Taller than the room under the model (a small phone, a folded Duo): the sheet scrolls.
-   Its sliders and colour pad keep every touch they start for themselves. */
+   While it does (.scrolls, set by panel.js), a swipe that starts up or down on a slider or the
+   colour pad scrolls it; one that starts sideways, or a tap, sets the value (dom.js). A sheet
+   that fits leaves them every touch they start. */
 html.ios .sheet {
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
 }
+html.ios .sheet.scrolls .slider-track, html.ios .sheet.scrolls .pad { touch-action: pan-y; }
 /* More below: the last row fades out at the edge, as a list does. */
 html.ios .sheet.more {
   -webkit-mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 28px), transparent 100%);
@@ -939,6 +945,34 @@ html.ios.ipad .card { --stage-h: var(--split-start, min(56%, 820px)); }
 /* A wide sheet keeps its controls at a hand's width, centred. */
 @media (min-width: 600px) {
   html.ios:not(.split) .sheet > * { width: 100%; max-width: 560px; margin-left: auto; margin-right: auto; }
+}
+
+/* A phone on its side (or any screen this short): the sheet's controls close up, so a colour
+   light's fits beside the model without scrolling. The colour pad takes what is left. */
+@media (max-height: 500px) {
+  html.ios .readout { margin-top: 6px; }
+  html.ios .big { font-size: 48px; }
+  html.ios .big small { font-size: 18px; }
+  html.ios .slider-row { margin-top: 12px; }
+  html.ios .slider-row .round { width: 44px; height: 44px; }
+  html.ios .slider-track, html.ios .slider-thumb { height: 44px; border-radius: 15px; }
+  html.ios .slider-thumb { width: 44px; left: calc(var(--p) * (100% - 44px)); }
+  html.ios .slider-fill { width: calc(var(--p) * (100% - 44px) + 44px); border-radius: 15px; }
+  html.ios .slider-thumb::after { inset: 13px 20px; }
+  html.ios .slider.compact .slider-track, html.ios .slider.compact .slider-thumb { height: 40px; }
+  html.ios .slider.compact .slider-thumb { width: 40px; left: calc(var(--p) * (100% - 40px)); }
+  html.ios .slider.compact .slider-fill { width: calc(var(--p) * (100% - 40px) + 40px); }
+  html.ios .slider.compact .slider-thumb::after { inset: 12px 18px; }
+  html.ios .field-label { margin-top: 12px; }
+  html.ios .field-label + .slider-row { margin-top: 6px; }
+  html.ios .sheet > .pad { flex: 1 1 56px; min-height: 48px; max-height: 120px; }
+  html.ios .swatches { margin-top: 8px; }
+  html.ios .swatch { height: 30px; }
+  html.ios .chips .toggle-chip { height: 40px; }
+  /* The big number already says where the AC is set; its range is in the slider's ends. */
+  html.ios .slider-scale { display: none; }
+  html.ios .options { padding-top: 12px; }
+  html.ios .option { height: 82px; padding: 11px; }
 }
 
 /* Folding or opening moves the controls; they settle where they now are. */

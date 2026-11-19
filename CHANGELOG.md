@@ -3,6 +3,20 @@
 What changed in each release of House Control. The Mac app is on
 [Releases](https://github.com/0xProbabillity/house-control/releases); the iPhone app is on the App Store and TestFlight.
 
+## 1.6.1 — 2026-11-20 (TestFlight, team only)
+
+### Fixes from a test pass on every screen size
+
+- **A colour light on an iPhone held sideways.** The light's sheet now fits beside the model, so there is nothing
+  to scroll and a swipe meant to scroll can no longer change the lamp's colour. Where a sheet still has to scroll
+  (the smallest iPhones), a swipe up or down that starts on a slider or the colour field scrolls it; sideways, or a
+  tap, sets the value.
+- **Mac: the air conditioner's sheet opened with empty tiles.** Mode, Fan speed, Sleep and Airflow showed their
+  icons only until something else changed, and a tile's name could be left half drawn after closing a sheet. Both
+  came from 1.6.0 and are fixed.
+- **Mac: the editor asks before it throws edits away.** Closing its window or quitting with unsaved changes now
+  offers Save, Discard or Cancel, and undoing everything clears "unsaved changes" again.
+
 ## 1.6.0 — 2026-11-19 (TestFlight, team only)
 
 ### iPad, ten languages and an AC that switches itself off

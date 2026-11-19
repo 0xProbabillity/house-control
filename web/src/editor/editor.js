@@ -8,7 +8,7 @@ import { createWorld } from '../three/world.js';
 import { FURNITURE_TYPES, footprint } from '../three/furniture.js';
 import { h, clamp } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
-import { isNative, isPhone, call, post, haptic, incoming } from '../bridge.js';
+import { isNative, isPhone, platform, call, post, haptic, incoming } from '../bridge.js';
 import { createConnections } from './connections.js';
 import { t, tc, tn, formatNumber } from '../i18n.js';
 
@@ -67,7 +67,10 @@ export async function bootEditor(root) {
     : at.startsWith('service:') ? { kind: 'service', service: at.slice(8) }
       : at === 'tuya' ? { kind: 'service', service: 'smartlife' } : { kind: 'home' });
   let sel = sectionSel(window.__HOUSE_BOOT__?.section || new URLSearchParams(location.search).get('section') || '');
+  // "Unsaved changes": the plan differs from the one last loaded or saved (`saved`, as JSON), so
+  // undoing back to it clears the mark and redo sets it again. Set through setDirty().
   let dirty = false;
+  let saved = '';
   let world = null;
   let phone = null; // the iPhone's layout and gestures, set up by buildPhoneLayout()
   let previewLights = true;
@@ -152,8 +155,15 @@ export async function bootEditor(root) {
     touch();
   }
 
+  // The Mac shell is told, so closing the window or quitting can ask about unsaved changes.
+  function setDirty(next) {
+    if (next === dirty) return;
+    dirty = next;
+    if (platform === 'macos') post('editorDirty', { dirty });
+  }
+
   function touch({ inspector: redrawInspector = true } = {}) {
-    dirty = true;
+    setDirty(JSON.stringify(doc) !== saved);
     renderSidebar();
     renderPlan();
     if (redrawInspector) renderInspector();
@@ -1543,8 +1553,10 @@ export async function bootEditor(root) {
       return;
     }
     try {
+      const sent = JSON.stringify(doc);
       await call('savePlan', { config: doc });
-      dirty = false;
+      saved = sent;
+      setDirty(JSON.stringify(doc) !== saved);
       validate();
       haptic('success');
       toast(isPhone ? t('Saved') : t('Saved — the menu bar panel now shows this home'));
@@ -1694,7 +1706,7 @@ export async function bootEditor(root) {
       h('p.note', t('Save them before closing? Saved plans reach your paired computer too.')),
       h('div.p-confirm-actions',
         h('button.btn.primary.wide', { onclick: async () => { closeModals(); await save(); if (!dirty) close(); } }, t('Save and close')),
-        h('button.btn.wide.danger', { onclick: () => { closeModals(); dirty = false; close(); } }, t('Discard changes')),
+        h('button.btn.wide.danger', { onclick: () => { closeModals(); setDirty(false); close(); } }, t('Discard changes')),
         h('button.btn.wide', { onclick: closeModals }, t('Keep editing'))));
 
     sheet.append(grip, inspector);
@@ -1911,6 +1923,7 @@ export async function bootEditor(root) {
   renderPlan();
   renderInspector();
   validate();
+  saved = JSON.stringify(doc);
   dirty = false;
   validate();
   schedulePreview(0);
@@ -1934,10 +1947,16 @@ export async function bootEditor(root) {
     checkLevel();
     if (sel.index != null && !doc[KEYS[sel.kind]]?.[sel.index]) sel = { kind: 'home' };
     if (sel.kind === 'level' && !levelList().some((l) => l.id === sel.id)) sel = { kind: 'home' };
+    saved = JSON.stringify(doc);
     touch();
-    dirty = false;
-    validate();
     toast(from ? t('Updated from {device}', { device: from }) : t('Updated from your other device'));
+  };
+
+  // The Mac's "Save" in its unsaved-changes alert: the same as “Save & apply”; true once saved.
+  incoming.saveForClose = async () => {
+    if (!valid) toast(status.textContent, true);
+    await save();
+    return !dirty;
   };
 
   window.__editor = { get doc() { return doc; }, select, tuya, links, phone };

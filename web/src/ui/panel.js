@@ -355,6 +355,10 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   const STAGE_FLOOR_PX = 210;
   let fitted = null;
   function fitSheet() {
+    fitStage();
+    markMore();
+  }
+  function fitStage() {
     const html = document.documentElement;
     const own = isPhone && ui.sheet && !html.classList.contains('split') && !html.classList.contains('table')
       && !html.style.getPropertyValue('--split-start');
@@ -376,7 +380,11 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     fitted = Math.max(floor, Math.round(full - (natural - room)));
     if (fitted < full) card.style.setProperty('--stage-h', `${fitted}px`);
   }
-  const markMore = () => sheet.classList.toggle('more', sheet.scrollHeight - sheet.scrollTop - sheet.clientHeight > 2);
+  // `scrolls`: a swipe up or down on its sliders and colour pad scrolls it (style.css, dom.js).
+  const markMore = () => {
+    sheet.classList.toggle('more', sheet.scrollHeight - sheet.scrollTop - sheet.clientHeight > 2);
+    sheet.classList.toggle('scrolls', isPhone && sheet.scrollHeight > sheet.clientHeight + 2);
+  };
   sheet.addEventListener('scroll', markMore, { passive: true });
   new ResizeObserver(markMore).observe(sheet);
   window.addEventListener('resize', () => { if (ui.sheet) fitSheet(); });
