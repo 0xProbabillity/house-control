@@ -4,7 +4,7 @@ import SwiftUI
 struct NewHomeView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
-    @State private var name = "My home"
+    @State private var name = String(localized: "My home", comment: "Name of the user's own home while it has none")
     @State private var template: String? = nil
     @State private var confirmReplace = false
     /// Scanning with LiDAR picked instead of a layout.
@@ -12,10 +12,14 @@ struct NewHomeView: View {
     @FocusState private var typing: Bool
 
     private let templates: [(id: String?, title: String, detail: String, symbol: String)] = [
-        (nil, "One room", "Draw the rest yourself, or add your devices to it", "square.dashed"),
-        ("studio", "Studio layout", "3 rooms with furniture, to adapt", "square.split.bottomrightquarter.fill"),
-        ("home", "Apartment layout", "5 rooms with furniture, to adapt", "building.2.fill"),
-        ("house", "House on two floors", "10 rooms and stairs, to adapt", "stairs"),
+        (nil, String(localized: "One room", comment: "New home: start from a single empty room"),
+         String(localized: "Draw the rest yourself, or add your devices to it", comment: "New home: under One room"), "square.dashed"),
+        ("studio", String(localized: "Studio layout", comment: "New home: start from the demo studio apartment"),
+         String(localized: "3 rooms with furniture, to adapt", comment: "New home: under a layout to start from"), "square.split.bottomrightquarter.fill"),
+        ("home", String(localized: "Apartment layout", comment: "New home: start from the demo apartment"),
+         String(localized: "5 rooms with furniture, to adapt", comment: "New home: under a layout to start from"), "building.2.fill"),
+        ("house", String(localized: "House on two floors", comment: "New home: start from the demo house"),
+         String(localized: "10 rooms and stairs, to adapt", comment: "New home: under a layout to start from"), "stairs"),
     ]
 
     var body: some View {
@@ -25,7 +29,8 @@ struct NewHomeView: View {
                     VStack(spacing: 10) {
                         SectionTitle("Name")
                         Card(padding: 16) {
-                            InputField(title: "What do you call it?", text: $name, prompt: "My home", focused: typing) {
+                            InputField(title: String(localized: "What do you call it?", comment: "New home: label of the name field"), text: $name,
+                                       prompt: String(localized: "My home", comment: "Name of the user's own home while it has none"), focused: typing) {
                                 TextField("", text: $name)
                                     .textInputAutocapitalization(.words)
                                     .focused($typing)
@@ -86,8 +91,8 @@ struct NewHomeView: View {
                                 .accessibilityAddTraits(!scan && template == option.id ? .isSelected : [])
                             }
                         }
-                        Footnote(text: scan ? "The camera opens next. Nothing here changes until you save the scan."
-                                 : "The editor opens next: drag rooms and lamps with a finger, pinch to zoom. Lamps and air conditioners stay simulated until you link them to your real devices.")
+                        Footnote(text: scan ? String(localized: "The camera opens next. Nothing here changes until you save the scan.")
+                                 : String(localized: "The editor opens next: drag rooms and lamps with a finger, pinch to zoom. Lamps and air conditioners stay simulated until you link them to your real devices."))
                     }
                     Button {
                         if scan { startScan() } else if model.hasCustomPlan { confirmReplace = true } else { create() }
@@ -97,12 +102,11 @@ struct NewHomeView: View {
                     }
                         .buttonStyle(PrimaryButtonStyle())
                         .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
-                        .confirmationDialog("Replace \(model.customPlanName ?? "your home")?", isPresented: $confirmReplace, titleVisibility: .visible) {
+                        .confirmationDialog(model.customPlanName.map { String(localized: "Replace \($0)?", comment: "New home: replace the user's own home; the placeholder is its name") }
+                                            ?? String(localized: "Replace your home?"), isPresented: $confirmReplace, titleVisibility: .visible) {
                             Button("Replace", role: .destructive) { create() }
                         } message: {
-                            Text(model.macName == nil
-                                 ? "This iPhone keeps one home of your own. Export the current one from the editor first if you want to keep it."
-                                 : "This iPhone keeps one home of your own, and \(model.macName ?? "your computer") gets the new one too.")
+                            Text(replaceMessage)
                         }
                 }
                 .padding(.horizontal, 18)
@@ -122,6 +126,17 @@ struct NewHomeView: View {
         .presentationBackground(Theme.background)
         .presentationDragIndicator(.visible)
         .preferredColorScheme(.dark)
+    }
+
+    private var replaceMessage: String {
+        guard let mac = model.macName else {
+            return Device.isPad
+                ? String(localized: "This iPad keeps one home of your own. Export the current one from the editor first if you want to keep it.")
+                : String(localized: "This iPhone keeps one home of your own. Export the current one from the editor first if you want to keep it.")
+        }
+        return Device.isPad
+            ? String(localized: "This iPad keeps one home of your own, and \(mac) gets the new one too.", comment: "The placeholder is the paired computer's name")
+            : String(localized: "This iPhone keeps one home of your own, and \(mac) gets the new one too.", comment: "The placeholder is the paired computer's name")
     }
 
     /// The scan asks before it replaces anything, once there is something to save.

@@ -80,6 +80,9 @@ final class WebHost: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         controller.removeAllUserScripts()
         var boot = bootProvider()
         boot["mode"] = mode
+        // The Mac's own menus and windows are English only so far: its web views stay English too
+        // rather than mixing two languages (the iPhone and iPad apps are translated).
+        if boot["lang"] == nil { boot["lang"] = "en" }
         let json = WebJSON.literal(boot)
         controller.addUserScript(WKUserScript(source: "window.__HOUSE_BOOT__ = \(json);",
                                               injectionTime: .atDocumentStart, forMainFrameOnly: true))

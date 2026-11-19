@@ -26,7 +26,8 @@
   way round and move it around: on the Mac drag to turn, two fingers on the trackpad to move, pinch to zoom.
   Lamps light the scene the way they light the room; an AC that is running blows visible air.
 - **Lights.** Tap to toggle, drag across a tile to dim, open a light for brightness, white temperature and colour.
-- **Air conditioners.** Power, target temperature, mode and fan speed, with the room temperature from a real sensor if you have one.
+- **Air conditioners.** Power, target temperature, mode and fan speed, with the room temperature from a real sensor if you have one,
+  and a timer that switches one off by itself.
 - **Scenes.** One tap sets every light and AC — "Cozy", "Movie", "Night", or your own.
 - **A visual editor.** Draw the rooms, drop in furniture, place lamps and ACs, and link each one to a real device.
 - **Your devices, wherever they live.** Smart Life / Tuya, Home Assistant (and the thousands of brands it runs),
@@ -39,9 +40,11 @@
 - **Widgets and controls.** The home in 3D on the iPhone's Home Screen and the Mac's desktop, scenes, lamps and
   air conditioners a tap away, Lock Screen and Control Center controls, and quick actions on the app icon.
   See [Widgets](#widgets).
-- **An iPhone app that needs no Mac.** Draw the home, connect Smart Life, Home Assistant, Hue and Apple Home and
+- **An iPhone and iPad app that needs no Mac.** Draw the home, connect Smart Life, Home Assistant, Hue and Apple Home and
   link the devices, all on the phone. Pair a Mac later and both stay in sync, whichever one you edit.
   See [iPhone app](#iphone-app).
+- **Ten languages** on the iPhone and iPad: English, Japanese, French, Spanish, German, Italian, Greek, Turkish,
+  Traditional Chinese and Russian, following the device or chosen under **Settings → Language**.
 - **Works without any hardware.** Until you sign in, every device is simulated, so you can try everything first.
 
 Both apps are a small native Swift shell (AppKit on the Mac, SwiftUI on the iPhone) around one

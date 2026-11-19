@@ -2,9 +2,10 @@
 // what the assistant may do, and watch what it does. The native shell owns the link
 // (AgentController.swift) and sends its status here; in a plain browser a stand-in
 // plays the same states so the page can be worked on with `vite dev`.
-import { h } from '../ui/dom.js';
+import { h, richText } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { isNative, post, incoming } from '../bridge.js';
+import { t, lang, locale, formatDuration } from '../i18n.js';
 import './console.css';
 
 const CLIENT_COLORS = {
@@ -14,10 +15,10 @@ const CLIENT_COLORS = {
 const clientColor = (name) => CLIENT_COLORS[name] || '#b9a6ff';
 
 const TABS = [
-  { id: 'chat', label: 'Any chat' },
+  { id: 'chat', label: t('Any chat') },
   { id: 'claude', label: 'Claude' },
   { id: 'chatgpt', label: 'ChatGPT' },
-  { id: 'code', label: 'Code & agents' },
+  { id: 'code', label: t('Code & agents') },
 ];
 
 export function bootConsole(root) {
@@ -35,49 +36,49 @@ export function bootConsole(root) {
     h('div.orb-core', icon('sparkles', 30, 1.8)));
   const pill = h('div.pill');
   const primary = h('button.primary', { onclick: () => send(status.state === 'live' || status.state === 'starting' ? 'agent.stop' : 'agent.start', { reach: status.reach }) });
-  const reachSeg = segmented([['internet', 'globe', 'Over the internet'], ['local', 'laptop', 'This Mac only']],
+  const reachSeg = segmented([['internet', 'globe', t('Over the internet')], ['local', 'laptop', t('This Mac only')]],
     (v) => send('agent.settings', { reach: v }));
   const callout = h('div.callout');
   const hero = h('header.hero', orb,
-    h('h1', 'AI Access'),
-    h('p.lede', 'Let ChatGPT, Claude or any AI assistant see and run your home — through a private link that lives only as long as you want it to.'),
+    h('h1', t('AI Access')),
+    h('p.lede', t('Let ChatGPT, Claude or any AI assistant see and run your home — through a private link that lives only as long as you want it to.')),
     pill, primary, reachSeg.el, callout);
 
   const urlText = h('span.url-text');
   const linkHint = h('p.hint');
   const chatActions = h('div.actions',
-    h('button.action', { onclick: (ev) => { copy(chatPrompt()); flash(ev.currentTarget, 'Copied'); } }, icon('chat', 16), h('span', 'Copy for a chat')),
-    h('button.action', { onclick: () => send('agent.open', { url: status.link }) }, icon('book', 16), h('span', 'Open the guide')));
+    h('button.action', { onclick: (ev) => { copy(chatPrompt()); flash(ev.currentTarget, t('Copied')); } }, icon('chat', 16), h('span', t('Copy for a chat'))),
+    h('button.action', { onclick: () => send('agent.open', { url: status.link }) }, icon('book', 16), h('span', t('Open the guide'))));
   const linkCard = h('section.card.link-card',
-    h('div.card-head', h('span.card-title', icon('key', 15), 'Your private link'),
-      h('button.ghost', { title: 'Make a new link; the current one stops working', onclick: () => { send('agent.stop'); setTimeout(() => send('agent.start', { reach: status.reach }), 250); } }, icon('rotate', 13), 'New link')),
+    h('div.card-head', h('span.card-title', icon('key', 15), t('Your private link')),
+      h('button.ghost', { title: t('Make a new link; the current one stops working'), onclick: () => { send('agent.stop'); setTimeout(() => send('agent.start', { reach: status.reach }), 250); } }, icon('rotate', 13), t('New link'))),
     h('div.url', urlText, copyButton(() => status.link)),
     chatActions, linkHint);
 
   const tabBar = h('div.tabs');
   const tabBody = h('div.tab-body');
-  const connectCard = h('section.card', h('div.card-head', h('span.card-title', icon('link', 15), 'Connect an assistant')), tabBar, tabBody);
+  const connectCard = h('section.card', h('div.card-head', h('span.card-title', icon('link', 15), t('Connect an assistant'))), tabBar, tabBody);
 
   const controlToggle = toggle((v) => send('agent.settings', { control: v }));
   const editToggle = toggle((v) => send('agent.settings', { edit: v }));
-  const stopSeg = segmented([['1h', null, '1 hour'], ['8h', null, '8 hours'], ['never', null, 'Never']], (v) => send('agent.settings', { autoStop: v }));
+  const stopSeg = segmented([['1h', null, t('1 hour')], ['8h', null, t('8 hours')], ['never', null, t('Never')]], (v) => send('agent.settings', { autoStop: v }));
   const permsCard = h('section.card',
-    h('div.card-head', h('span.card-title', icon('shield', 15), 'What it may do')),
-    row('sun', 'Lights, climate and scenes', 'Switch and dim lights, set air conditioners, run scenes', controlToggle.el),
-    row('box', 'Your 3D home', 'Rebuild rooms from photos, move furniture, add devices — always undoable', editToggle.el),
-    h('div.row.column', h('div.row-text', h('div.row-title', icon('clock', 15), 'Stop the link automatically')), stopSeg.el));
+    h('div.card-head', h('span.card-title', icon('shield', 15), t('What it may do'))),
+    row('sun', t('Lights, climate and scenes'), t('Switch and dim lights, set air conditioners, run scenes'), controlToggle.el),
+    row('box', t('Your 3D home'), t('Rebuild rooms from photos, move furniture, add devices — always undoable'), editToggle.el),
+    h('div.row.column', h('div.row-text', h('div.row-title', icon('clock', 15), t('Stop the link automatically'))), stopSeg.el));
 
   const feed = h('ul.feed');
-  const undo = h('button.ghost', { onclick: () => send('agent.undo') }, icon('undo', 13), 'Undo home edit');
-  const activityCard = h('section.card', h('div.card-head', h('span.card-title', icon('activity', 15), 'Activity'), undo), feed);
+  const undo = h('button.ghost', { onclick: () => send('agent.undo') }, icon('undo', 13), t('Undo home edit'));
+  const activityCard = h('section.card', h('div.card-head', h('span.card-title', icon('activity', 15), t('Activity')), undo), feed);
 
   const footer = h('footer.privacy',
-    h('div.privacy-title', icon('shield', 15), 'Private by design'),
+    h('div.privacy-title', icon('shield', 15), t('Private by design')),
     h('ul',
-      h('li', 'Runs on this Mac. No House Control server, no account, nothing stored anywhere else.'),
-      h('li', 'The link holds a 128-bit secret. Without it every address answers “not found”.'),
-      h('li', 'Stop ends it at once — the address itself stops existing. Each start makes a new one.'),
-      h('li', 'Device IDs and sign-ins never leave the Mac. Cloudflare only relays the encrypted connection.')));
+      h('li', t('Runs on this Mac. No House Control server, no account, nothing stored anywhere else.')),
+      h('li', t('The link holds a 128-bit secret. Without it every address answers “not found”.')),
+      h('li', t('Stop ends it at once — the address itself stops existing. Each start makes a new one.')),
+      h('li', t('Device IDs and sign-ins never leave the Mac. Cloudflare only relays the encrypted connection.'))));
 
   const page = h('div.agent', hero, linkCard, connectCard, permsCard, activityCard, footer);
   root.replaceChildren(page);
@@ -106,7 +107,7 @@ export function bootConsole(root) {
   }
 
   function copyButton(text) {
-    const b = h('button.copy', { title: 'Copy', onclick: () => { copy(text()); flash(b, 'Copied'); } }, icon('copy', 14), h('span', 'Copy'));
+    const b = h('button.copy', { title: t('Copy'), onclick: () => { copy(text()); flash(b, t('Copied')); } }, icon('copy', 14), h('span', t('Copy')));
     return b;
   }
 
@@ -126,11 +127,12 @@ export function bootConsole(root) {
   }
 
   function chatPrompt() {
-    return `You can control my home with House Control. Open this private link and follow its instructions: ${status.link}\n\n`;
+    // Pasted by the person as their own message, so in their language.
+    return `${t('You can control my home with House Control. Open this private link and follow its instructions: {link}', { link: status.link })}\n\n`;
   }
 
-  function codeBlock(text, label = 'Copy') {
-    const b = h('button.copy.small', { onclick: () => { copy(text); flash(b, 'Copied'); } }, icon('copy', 13), h('span', label));
+  function codeBlock(text, label = t('Copy')) {
+    const b = h('button.copy.small', { onclick: () => { copy(text); flash(b, t('Copied')); } }, icon('copy', 13), h('span', label));
     return h('div.code', h('code', text), b);
   }
 
@@ -142,57 +144,60 @@ export function bootConsole(root) {
   function renderTab() {
     for (const b of tabBar.children) b.classList.toggle('on', b.dataset.id === tab);
     const live = status.state === 'live';
-    const mcp = live ? status.mcp : 'Start AI Access to get the address';
-    const link = live ? status.link : 'Start AI Access to get the link';
+    const mcp = live ? status.mcp : t('Start AI Access to get the address');
+    const link = live ? status.link : t('Start AI Access to get the link');
     let body;
     if (tab === 'chat') {
       body = [
-        h('p', 'Works with assistants that can open web pages: ChatGPT, Claude, Gemini, Perplexity, Grok.'),
-        steps(h('span', h('b', 'Copy for a chat'), ' above and paste it into a new conversation.'),
-          h('span', 'Add what you want: ', h('em', '“dim the living room to 30% and cool the bedroom to 22°”'), '.'),
-          h('span', 'The assistant reads the guide behind the link and opens the matching action links. Watch them land below.')),
-        h('p.muted', 'For photos of your rooms and edits to the 3D model, connect it as a connector (Claude, ChatGPT) instead — that needs more than opening links.'),
+        h('p', t('Works with assistants that can open web pages: ChatGPT, Claude, Gemini, Perplexity, Grok.')),
+        steps(h('span', richText(t('**Copy for a chat** above and paste it into a new conversation.'))),
+          h('span', richText(t('Add what you want: {example}.'), { example: h('em', t('“dim the living room to 30% and cool the bedroom to 22°”')) })),
+          h('span', t('The assistant reads the guide behind the link and opens the matching action links. Watch them land below.'))),
+        h('p.muted', t('For photos of your rooms and edits to the 3D model, connect it as a connector (Claude, ChatGPT) instead — that needs more than opening links.')),
       ];
     } else if (tab === 'claude') {
       body = [
-        steps(h('span', 'In Claude open ', h('b', 'Settings → Connectors → Add custom connector'), '.'),
-          h('span', 'Name it ', h('b', 'House Control'), ' and paste this address:')),
+        steps(h('span', richText(t('In Claude open **Settings → Connectors → Add custom connector**.'))),
+          h('span', richText(t('Name it **House Control** and paste this address:')))),
         codeBlock(mcp),
-        steps(3, h('span', 'In a chat, turn it on from the tools menu and ask away — or attach photos: ', h('em', '“here is my living room, rebuild it in 3D”'), '.')),
+        steps(3, h('span', richText(t('In a chat, turn it on from the tools menu and ask away — or attach photos: {example}.'),
+          { example: h('em', t('“here is my living room, rebuild it in 3D”')) }))),
       ];
     } else if (tab === 'chatgpt') {
       body = [
-        steps(h('span', 'In ChatGPT open ', h('b', 'Settings → Apps & Connectors → Advanced'), ' and turn on ', h('b', 'Developer mode'), '.'),
-          h('span', h('b', 'Create'), ' a connector named ', h('b', 'House Control'), ' with this MCP address and no authentication:')),
+        steps(h('span', richText(t('In ChatGPT open **Settings → Apps & Connectors → Advanced** and turn on **Developer mode**.'))),
+          h('span', richText(t('**Create** a connector named **House Control** with this MCP address and no authentication:')))),
         codeBlock(mcp),
-        steps(3, h('span', 'In a chat choose Developer mode, add House Control, and talk to your home.')),
-        h('p.muted', 'No developer mode? “Copy for a chat” works in any ChatGPT conversation that can browse.'),
+        steps(3, h('span', t('In a chat choose Developer mode, add House Control, and talk to your home.'))),
+        h('p.muted', t('No developer mode? “Copy for a chat” works in any ChatGPT conversation that can browse.')),
       ];
     } else {
       body = [
         h('p', h('b', 'Claude Code')),
         codeBlock(live ? `claude mcp add --transport http house-control ${status.mcp}` : mcp),
-        h('p', h('b', 'Cursor, Windsurf, VS Code and other MCP clients')),
+        h('p', h('b', t('Cursor, Windsurf, VS Code and other MCP clients'))),
         codeBlock(live ? JSON.stringify({ mcpServers: { 'house-control': { url: status.mcp } } }) : mcp),
-        h('p', h('b', 'Any agent or script'), ' — plain HTTP with JSON. Tools: ', h('code.inline', 'GET …/api/tools'), ', run one: ', h('code.inline', 'POST …/api/<tool>'), ', OpenAPI: ', h('code.inline', '…/openapi.json'), '.'),
+        h('p', richText(t('**Any agent or script** — plain HTTP with JSON. Tools: {list}, run one: {run}, OpenAPI: {openapi}.'), {
+          list: h('code.inline', 'GET …/api/tools'), run: h('code.inline', 'POST …/api/<tool>'), openapi: h('code.inline', '…/openapi.json'),
+        })),
         codeBlock(link),
       ];
     }
     tabBody.replaceChildren(...body);
   }
 
-  for (const t of TABS) tabBar.append(h('button', { 'data-id': t.id, onclick: () => { tab = t.id; renderTab(); } }, t.label));
+  for (const item of TABS) tabBar.append(h('button', { 'data-id': item.id, onclick: () => { tab = item.id; renderTab(); } }, item.label));
 
   function ago(ms) {
     const s = Math.max(0, (Date.now() - ms) / 1000);
-    if (s < 45) return 'now';
-    if (s < 3600) return `${Math.round(s / 60)} min`;
-    return new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    if (s < 45) return t('now');
+    if (s < 3600) return formatDuration(s / 60);
+    return new Date(ms).toLocaleTimeString(lang === 'en' ? [] : locale, { hour: 'numeric', minute: '2-digit' });
   }
 
   function left(ms) {
     const m = Math.max(0, Math.round((ms - Date.now()) / 60000));
-    return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min left` : `${m} min left`;
+    return t('{time} left', { time: formatDuration(m) });
   }
 
   let shown = new Set();
@@ -203,8 +208,8 @@ export function bootConsole(root) {
     const visible = entries.filter((e, i) => !e.quiet || i === 0 || !entries[i - 1] || entries[i - 1].client !== e.client).slice(0, 40);
     if (!visible.length) {
       feed.replaceChildren(h('li.empty', icon('sparkles', 16), h('span', status.state === 'live'
-        ? 'Waiting for your assistant. What it reads and does shows up here, live.'
-        : 'Nothing yet. Start AI Access, give the link to an assistant, and watch it work here.')));
+        ? t('Waiting for your assistant. What it reads and does shows up here, live.')
+        : t('Nothing yet. Start AI Access, give the link to an assistant, and watch it work here.'))));
       return;
     }
     feed.replaceChildren(...visible.map((e) => {
@@ -224,30 +229,31 @@ export function bootConsole(root) {
     const s = status.state;
     page.dataset.state = s;
     const label = {
-      off: 'Off', starting: status.reach === 'local' ? 'Starting…' : 'Opening a private tunnel…',
-      live: status.stopsAt ? `Live · ${left(status.stopsAt)}` : 'Live',
-      error: 'Stopped', setup: 'One-time setup',
+      off: t('Off'), starting: status.reach === 'local' ? t('Starting…') : t('Opening a private tunnel…'),
+      live: status.stopsAt ? `${t('Live')} · ${left(status.stopsAt)}` : t('Live'),
+      error: t('Stopped'), setup: t('One-time setup'),
     }[s] || s;
-    pill.replaceChildren(h('i.dot'), h('span', label), ...(s === 'live' ? [h('span.pill-reach', status.reach === 'local' ? 'This Mac' : 'Internet')] : []));
-    primary.replaceChildren(...(s === 'live' ? [icon('stop', 15, 2.4), 'Stop AI Access'] : s === 'starting' ? [h('i.spinner'), 'Cancel'] : [icon('sparkles', 17, 2), 'Start AI Access']));
+    pill.replaceChildren(h('i.dot'), h('span', label), ...(s === 'live' ? [h('span.pill-reach', status.reach === 'local' ? t('This Mac') : t('Internet'))] : []));
+    primary.replaceChildren(...(s === 'live' ? [icon('stop', 15, 2.4), t('Stop AI Access')] : s === 'starting' ? [h('i.spinner'), t('Cancel')] : [icon('sparkles', 17, 2), t('Start AI Access')]));
     primary.classList.toggle('stop', s === 'live' || s === 'starting');
     reachSeg.set(status.reach);
     reachSeg.el.classList.toggle('locked', s === 'live' || s === 'starting');
 
     if (s === 'setup') {
-      const t = status.tunnel || {};
+      const tunnel = status.tunnel || {};
       callout.className = 'callout info';
       callout.replaceChildren(...[
-        h('div.callout-title', icon('download', 15), 'Get Cloudflare’s tunnel once'),
-        h('p', 'Over the internet, your Mac is reached through Cloudflare’s free quick tunnel (', h('code.inline', 'cloudflared'), ', about 20 MB, from Cloudflare’s GitHub). No Cloudflare account is needed.'),
-        t.error ? h('p.err', t.error) : null,
+        h('div.callout-title', icon('download', 15), t('Get Cloudflare’s tunnel once')),
+        h('p', richText(t('Over the internet, your Mac is reached through Cloudflare’s free quick tunnel ({tool}, about 20 MB, from Cloudflare’s GitHub). No Cloudflare account is needed.'),
+          { tool: h('code.inline', 'cloudflared') })),
+        tunnel.error ? h('p.err', tunnel.error) : null,
         h('div.callout-actions',
-          h('button.primary.small', { disabled: t.downloading || null, onclick: () => send('agent.install') }, t.downloading ? [h('i.spinner'), 'Downloading…'] : [icon('download', 14), 'Download']),
-          h('button.ghost', { onclick: () => send('agent.start', { reach: 'local' }) }, 'Use this Mac only')),
-        h('p.muted', 'Or in Terminal: ', h('code.inline', 'brew install cloudflared'))].filter(Boolean));
+          h('button.primary.small', { disabled: tunnel.downloading || null, onclick: () => send('agent.install') }, tunnel.downloading ? [h('i.spinner'), t('Downloading…')] : [icon('download', 14), t('Download')]),
+          h('button.ghost', { onclick: () => send('agent.start', { reach: 'local' }) }, t('Use this Mac only'))),
+        h('p.muted', richText(t('Or in Terminal: {command}'), { command: h('code.inline', 'brew install cloudflared') }))].filter(Boolean));
     } else if (s === 'error') {
       callout.className = 'callout bad';
-      callout.replaceChildren(h('div.callout-title', icon('close', 15), 'AI Access stopped'), h('p', status.error || 'Something went wrong.'));
+      callout.replaceChildren(h('div.callout-title', icon('close', 15), t('AI Access stopped')), h('p', status.error || t('Something went wrong.')));
     } else {
       callout.className = 'callout hidden';
       callout.replaceChildren();
@@ -263,8 +269,8 @@ export function bootConsole(root) {
     }
     chatActions.firstChild.hidden = local;
     linkHint.replaceChildren(...(local
-      ? ['Only apps on this Mac can open it: Claude Code, Cursor, VS Code, LM Studio, your own scripts. See ', h('b', 'Code & agents'), ' below.']
-      : ['Paste it into any assistant with your request — ', h('em', '“turn off every light except the bedroom”'), '.']));
+      ? richText(t('Only apps on this Mac can open it: Claude Code, Cursor, VS Code, LM Studio, your own scripts. See **{tab}** below.', { tab: t('Code & agents') }))
+      : richText(t('Paste it into any assistant with your request — {example}.'), { example: h('em', t('“turn off every light except the bedroom”')) })));
     if (s === 'live') {
       try {
         const u = new URL(status.link);

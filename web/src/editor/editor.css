@@ -565,3 +565,10 @@ html.ios.mode-editor body { background: var(--bg); }
 @media (prefers-reduced-motion: reduce) {
   .p-sheet, .p-modal, .editor.phone .canvas, .p-scrim { transition-duration: 1ms; }
 }
+
+/* A problem with a connection that needs the person (an expired Smart Life sign-in). */
+.notice { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 16px; padding: 14px 16px; border-radius: 14px;
+  background: rgba(255, 92, 72, 0.1); border: 1px solid rgba(255, 110, 90, 0.32); font-size: 12.5px; line-height: 1.45; }
+.notice .icon { color: #ff7a66; margin-top: 1px; }
+.notice b { display: block; margin-bottom: 3px; font-size: 13.5px; color: var(--text, #f3f5fa); }
+.notice span { color: rgba(222, 230, 247, 0.72); }

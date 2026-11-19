@@ -6,13 +6,14 @@ import * as THREE from 'three';
 import { loadConfig } from '../config.js';
 import { createStore } from '../store.js';
 import { createWorld } from '../three/world.js';
-import { h, clamp } from '../ui/dom.js';
+import { h, clamp, richText } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { lightColor } from '../three/lights.js';
 import { MODE_COLORS } from '../three/ac.js';
 import { post, incoming, isNative } from '../bridge.js';
+import { t, tc, tn, formatNumber } from '../i18n.js';
 
-const MODE_LABEL = { cool: 'Cool', heat: 'Heat', dry: 'Dry', fan: 'Fan', auto: 'Auto' };
+const MODE_LABEL = { cool: tc('ac mode', 'Cool'), heat: tc('ac mode', 'Heat'), dry: tc('ac mode', 'Dry'), fan: tc('ac mode', 'Fan'), auto: tc('ac mode', 'Auto') };
 const NAVY = new THREE.Color('#17274f');
 const tmp = new THREE.Color();
 const css = (c) => `#${c.getHexString()}`;
@@ -36,7 +37,7 @@ export async function bootIsland(root) {
     post('ready', { error: String(error?.message || error) });
     return;
   }
-  const store = createStore(config);
+  const store = createStore(config, { timers: false });
   const { state } = store;
   const roomName = new Map(config.rooms.map((r) => [r.id, r.name]));
 
@@ -47,7 +48,7 @@ export async function bootIsland(root) {
   const canvas = h('canvas', { tabindex: -1 });
   const title = h('div.isle-title', h('span.isle-badge', icon('home', 14)), h('b', config.name));
   const status = h('div.isle-status');
-  const power = h('button.isle-power', { 'aria-label': 'Everything on / off', onclick: toggleEverything }, icon('power', 15, 2.4));
+  const power = h('button.isle-power', { 'aria-label': t('Everything on / off'), onclick: toggleEverything }, icon('power', 15, 2.4));
   const scenes = h('div.isle-scenes');
   const list = h('div.isle-list');
   const body = h('div.isle-body',
@@ -83,10 +84,10 @@ export async function bootIsland(root) {
     const el = h('div.chip.ac',
       bubble,
       h('div.chip-text', h('div.chip-name', cfg.name), sub),
-      h('button.chip-step', { 'aria-label': 'Cooler', onclick: step(-1) }, icon('minus', 13, 2.4)),
+      h('button.chip-step', { 'aria-label': t('Cooler'), onclick: step(-1) }, icon('minus', 13, 2.4)),
       value,
-      h('button.chip-step', { 'aria-label': 'Warmer', onclick: step(1) }, icon('plus', 13, 2.4)),
-      h('button.chip-power', { 'aria-label': `${cfg.name} power`, onclick: () => store.setAC(cfg.id, { on: !state.acs[cfg.id].on }) }, icon('power', 13, 2.4)));
+      h('button.chip-step', { 'aria-label': t('Warmer'), onclick: step(1) }, icon('plus', 13, 2.4)),
+      h('button.chip-power', { 'aria-label': t('{name} power', { name: cfg.name }), onclick: () => store.setAC(cfg.id, { on: !state.acs[cfg.id].on }) }, icon('power', 13, 2.4)));
     let shownMode = null;
     list.append(el);
     rows.push(() => {
@@ -96,7 +97,7 @@ export async function bootIsland(root) {
       el.style.setProperty('--c', MODE_COLORS[s.mode]);
       if (shownMode !== s.mode) { bubble.replaceChildren(icon(s.mode, 15)); shownMode = s.mode; }
       value.textContent = `${s.target}°`;
-      sub.textContent = `${!s.on ? 'Off' : s.idle ? 'Idle' : MODE_LABEL[s.mode]} · ${s.roomTemp.toFixed(0)}° inside`;
+      sub.textContent = `${!s.on ? t('Off') : s.idle ? t('Idle') : MODE_LABEL[s.mode]} · ${t('{temp}° inside', { temp: formatNumber(s.roomTemp, 0) })}`;
     });
   }
 
@@ -145,8 +146,8 @@ export async function bootIsland(root) {
   }
 
   function lightLabel(cfg, s) {
-    if (!s.on) return 'Off';
-    return cfg.capabilities.includes('brightness') ? `${Math.round(s.brightness * 100)}%` : 'On';
+    if (!s.on) return t('Off');
+    return cfg.capabilities.includes('brightness') ? t('{percent}%', { percent: formatNumber(Math.round(s.brightness * 100)) }) : t('On');
   }
 
   function toggleEverything() {
@@ -223,7 +224,8 @@ export async function bootIsland(root) {
 
     status.replaceChildren(
       h('i.dot', { style: onCount || acOn ? {} : { background: 'rgba(255,255,255,.25)', boxShadow: 'none' } }),
-      h('b', onCount ? `${onCount} of ${lights.length}` : 'No'), ' lights on', acOn ? ` · ${acOn.target}°` : '');
+      ...richText(onCount ? tn(onCount, '**{n} of {total}** lights on', '**{n} of {total}** lights on', { total: lights.length }) : t('**No** lights on')),
+      acOn ? ` · ${acOn.target}°` : '');
     power.classList.toggle('on', onCount > 0 || Boolean(acOn));
     for (const [id, b] of sceneButtons) b.classList.toggle('active', store.sceneActive(id));
     for (const row of rows) row();
@@ -276,7 +278,7 @@ export async function bootIsland(root) {
     const ear = (iconName, text, color) => (source ? plainEar('sparkles', text, '#c3b2ff') : plainEar(iconName, text, color));
     if (state.scene && state.scene !== before.scene) {
       const s = config.scenes.find((x) => x.id === state.scene);
-      if (s) return { left: ear(s.icon, s.name, '#a9cbff'), right: 'Scene' };
+      if (s) return { left: ear(s.icon, s.name, '#a9cbff'), right: t('Scene') };
     }
     const lights = config.lights.filter((l) => {
       const [a, b] = [before.lights[l.id], state.lights[l.id]];
@@ -288,7 +290,7 @@ export async function bootIsland(root) {
     });
     if (acs.length === 1 && !lights.length) {
       const [cfg, s] = [acs[0], state.acs[acs[0].id]];
-      return { left: ear(s.mode, cfg.name, s.on ? MODE_COLORS[s.mode] : '#8fa3c7'), right: s.on ? `${s.target}°` : 'Off' };
+      return { left: ear(s.mode, cfg.name, s.on ? MODE_COLORS[s.mode] : '#8fa3c7'), right: s.on ? `${s.target}°` : t('Off') };
     }
     if (lights.length === 1 && !acs.length) {
       const [cfg, s] = [lights[0], state.lights[lights[0].id]];
@@ -296,7 +298,7 @@ export async function bootIsland(root) {
     }
     if (lights.length + acs.length > 1) {
       const on = Object.values(state.lights).filter((l) => l.on).length;
-      return { left: ear('home', config.name, on ? '#ffb46b' : '#8fa3c7'), right: on ? `${on} on` : 'All off' };
+      return { left: ear('home', config.name, on ? '#ffb46b' : '#8fa3c7'), right: on ? tn(on, '{n} on', '{n} on') : t('All off') };
     }
     return null;
   }

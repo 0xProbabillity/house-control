@@ -38,12 +38,24 @@ struct Card<Content: View>: View {
     }
 }
 
+/// What the app runs on, for the sentences that name it ("this iPhone", "this iPad"): each has
+/// a key of its own, so a translation never glues the device's name into a sentence.
+enum Device {
+    static let isPad = UIDevice.current.userInterfaceIdiom == .pad
+}
+
+/// The small caps title over a group of rows.
 struct SectionTitle: View {
-    let text: String
-    init(_ text: String) { self.text = text }
+    let text: Text
+    /// A title written in the code: it comes from the String Catalog.
+    init(_ key: LocalizedStringKey) { text = Text(key) }
+    /// A name from the user's data (a room), shown as it is.
+    init(verbatim name: String) { text = Text(verbatim: name) }
 
     var body: some View {
-        Text(text.uppercased())
+        // In capitals the way the language writes them (Greek drops its accents).
+        text
+            .textCase(.uppercase)
             .font(.system(size: 12, weight: .bold))
             .kerning(1.1)
             .foregroundStyle(Theme.faint)

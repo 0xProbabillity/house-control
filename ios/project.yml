@@ -14,13 +14,29 @@ configFiles:
 packages:
   HouseCore:
     path: ../core
+settings:
+  base:
+    # The text the app and the widgets show comes from the String Catalogs (Localizable,
+    # InfoPlist), English as the base; Xcode fills them from the code (docs/localization.md).
+    SWIFT_EMIT_LOC_STRINGS: YES
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+# The permission texts differ between the editions (the Smart Life one also scans with the
+# camera and saves to Photos), and InfoPlist.xcstrings is keyed by the Info.plist key, so each
+# edition has its own catalog: Resources/AppStore here, Resources/SmartLife in
+# project-smartlife.yml, which replaces this template's sources.
+targetTemplates:
+  Edition:
+    sources:
+      - path: Resources/AppStore
 targets:
   HouseControl:
     type: application
     platform: iOS
+    templates: [Edition]
     sources:
       - path: Sources
       - path: Resources
+        excludes: [AppStore, SmartLife]
       # The intent the "House Control" control runs to open the app: both sides have to know it.
       - path: ../widgets/Sources/OpenApp.swift
       # The web UI, built by `npm run build` in ../web; lands in the app as the folder "dist".
@@ -48,10 +64,12 @@ targets:
         LSApplicationCategoryType: public.app-category.lifestyle
         UILaunchScreen:
           UIColorName: LaunchBackground
-        # Portrait on an iPhone. iPhone Duo's inner screen takes any shape regardless, and only
-        # an app that can be resized gets all of it (and a place beside another app) rather
-        # than a phone-sized column in the middle.
-        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        # Any way up but upside down on an iPhone (held sideways the model and the controls sit
+        # side by side), any way on an iPad. iPhone Duo's inner screen takes any shape
+        # regardless, and only an app that can be resized gets all of it (and a place beside
+        # another app, as on an iPad) rather than a phone-sized column in the middle.
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         UIUserInterfaceStyle: Dark
         ITSAppUsesNonExemptEncryption: false
         NSLocalNetworkUsageDescription: House Control finds your Home Assistant and Hue Bridge on this Wi-Fi network, and your Mac or PC, to keep your floor plan the same on both.
@@ -71,7 +89,7 @@ targets:
         # Shared with the widgets: the home they draw, and the actions they queue.
         HOUSE_APP_GROUP: group.io.github.0xprobabillity.HouseControl3D
         PRODUCT_NAME: HouseControl
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SWIFT_VERSION: "5.0"
@@ -108,7 +126,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.0xprobabillity.HouseControl3D.Widgets
         HOUSE_APP_GROUP: group.io.github.0xprobabillity.HouseControl3D
         PRODUCT_NAME: HouseWidgets
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_VERSION: "5.0"
         GENERATE_INFOPLIST_FILE: NO
         SKIP_INSTALL: YES

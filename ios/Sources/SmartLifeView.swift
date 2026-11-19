@@ -71,7 +71,7 @@ struct SmartLifeView: View {
                 if await model.finishLogin(token: login.token, userCode: userCode) { return }
             }
             self.login = nil
-            problem = "The code expired before it was scanned. Show a new one."
+            problem = String(localized: "The code expired before it was scanned. Show a new one.", comment: "Smart Life: the sign-in QR code timed out")
         }
     }
 
@@ -81,10 +81,10 @@ struct SmartLifeView: View {
         VStack(spacing: 16) {
             Card(padding: 16) {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("User Code")
+                    Text("User Code", comment: "Smart Life: the account's User Code, as the Smart Life app calls it")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Theme.muted)
-                    TextField("", text: $userCode, prompt: Text("From the Smart Life app").foregroundStyle(Theme.faint))
+                    TextField("", text: $userCode, prompt: Text("From the Smart Life app", comment: "Smart Life: placeholder of the User Code field").foregroundStyle(Theme.faint))
                         .font(.system(size: 20, weight: .medium, design: .monospaced))
                         .foregroundStyle(Theme.text)
                         .textInputAutocapitalization(.never)
@@ -156,7 +156,9 @@ struct SmartLifeView: View {
                         IconBadge(symbol: "laptopcomputer", tint: Theme.green)
                         VStack(alignment: .leading, spacing: 4) {
                             Text("The code is on \(mac)").font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
-                            Text("Switch to Smart Life on this iPhone, tap the scanner on its Home tab and point it at the computer's screen. The code stays there while you are away; come back here when you have confirmed.")
+                            Text(Device.isPad
+                                 ? String(localized: "Switch to Smart Life on this iPad, tap the scanner on its Home tab and point it at the computer's screen. The code stays there while you are away; come back here when you have confirmed.")
+                                 : String(localized: "Switch to Smart Life on this iPhone, tap the scanner on its Home tab and point it at the computer's screen. The code stays there while you are away; come back here when you have confirmed."))
                                 .font(.system(size: 14)).foregroundStyle(Theme.muted)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -165,7 +167,8 @@ struct SmartLifeView: View {
             } else {
                 Card(padding: 16) {
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("Scan it with Smart Life on this iPhone")
+                        Text(Device.isPad ? String(localized: "Scan it with Smart Life on this iPad", comment: "Smart Life: “it” is the sign-in QR code")
+                             : String(localized: "Scan it with Smart Life on this iPhone", comment: "Smart Life: “it” is the sign-in QR code"))
                             .font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
                         step(1, "Save the code to Photos (below).")
                         step(2, "In Smart Life tap **+** → **Scan**, then the **photo** icon, and pick the code.")
@@ -196,13 +199,13 @@ struct SmartLifeView: View {
 
             if !onMac, let png = QRCode.png(for: login.content, scale: 16) {
                 Button { save(png) } label: {
-                    Label(saved == true ? "Saved to Photos" : "Save code to Photos",
+                    Label(saved == true ? String(localized: "Saved to Photos") : String(localized: "Save code to Photos", comment: "Smart Life: saves the sign-in QR code to Photos"),
                           systemImage: saved == true ? "checkmark.circle.fill" : "photo.badge.arrow.down")
                         .contentTransition(.symbolEffect(.replace))
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 if saved == false {
-                    ProblemLabel(text: "House Control may not add to Photos. Allow it in Settings → Privacy & Security → Photos, or share the code instead.")
+                    ProblemLabel(text: String(localized: "House Control may not add to Photos. Allow it in Settings → Privacy & Security → Photos, or share the code instead.", comment: "Smart Life; the path is in iOS Settings"))
                 }
             }
 
@@ -231,7 +234,7 @@ struct SmartLifeView: View {
 
     private func step(_ number: Int, _ text: LocalizedStringKey) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text("\(number)")
+            Text(verbatim: "\(number)")
                 .font(.system(size: 13, weight: .bold, design: .rounded))
                 .foregroundStyle(Theme.warm)
                 .frame(width: 24, height: 24)
@@ -278,8 +281,8 @@ struct SmartLifeView: View {
                 .font(.system(size: 24, weight: .bold))
                 .foregroundStyle(Theme.text)
             Text(model.linkedDevices == 0
-                 ? "Now link the lamps and air conditioners of your plan to your devices: Settings → Devices, or in the editor."
-                 : "\(model.linkedDevices) device\(model.linkedDevices == 1 ? "" : "s") in your floor plan \(model.linkedDevices == 1 ? "is" : "are") now the real thing.")
+                 ? String(localized: "Now link the lamps and air conditioners of your plan to your devices: Settings → Devices, or in the editor.")
+                 : String(localized: "\(model.linkedDevices) devices in your floor plan are now the real thing.", comment: "Smart Life connected: the number of lamps and ACs of the plan that now switch real devices"))
                 .font(.system(size: 15))
                 .foregroundStyle(Theme.muted)
                 .multilineTextAlignment(.center)
@@ -301,7 +304,7 @@ private struct QRImage: Transferable {
 
     static var transferRepresentation: some TransferRepresentation {
         DataRepresentation(exportedContentType: .png) { $0.png }
-            .suggestedFileName("Smart Life sign-in code.png")
+            .suggestedFileName(String(localized: "Smart Life sign-in code", comment: "File name of the shared QR code (without .png)") + ".png")
     }
 }
 #endif

@@ -101,7 +101,8 @@ struct HomeAssistantView: View {
             SectionTitle("Connect")
             Card(padding: 16) {
                 VStack(alignment: .leading, spacing: 14) {
-                    InputField(title: "Address", text: $url, prompt: "http://homeassistant.local:8123", focused: focus == .url) {
+                    InputField(title: String(localized: "Address", comment: "Home Assistant: label of the server address field"), text: $url,
+                               prompt: "http://homeassistant.local:8123", focused: focus == .url) {
                         TextField("", text: $url)
                             .keyboardType(.URL)
                             .textContentType(.URL)
@@ -109,7 +110,8 @@ struct HomeAssistantView: View {
                             .submitLabel(.next)
                             .onSubmit { focus = .token }
                     }
-                    InputField(title: "Long-lived access token", text: $token, prompt: "Paste it here", focused: focus == .token) {
+                    InputField(title: String(localized: "Long-lived access token", comment: "Home Assistant: label of the token field; Home Assistant's own name for it"), text: $token,
+                               prompt: String(localized: "Paste it here", comment: "Home Assistant: placeholder of the token field"), focused: focus == .token) {
                         SecureField("", text: $token)
                             .focused($focus, equals: .token)
                             .submitLabel(.go)
@@ -136,7 +138,9 @@ struct HomeAssistantView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            Footnote(text: "The token stays on this iPhone, in the Keychain, and goes to the computer you paired, over your encrypted link. Lights, switches, climate devices and temperature sensors can then be linked to your plan.")
+            Footnote(text: Device.isPad
+                ? String(localized: "The token stays on this iPad, in the Keychain, and goes to the computer you paired, over your encrypted link. Lights, switches, climate devices and temperature sensors can then be linked to your plan.")
+                : String(localized: "The token stays on this iPhone, in the Keychain, and goes to the computer you paired, over your encrypted link. Lights, switches, climate devices and temperature sensors can then be linked to your plan."))
         }
     }
 
@@ -197,14 +201,16 @@ struct HomeAssistantView: View {
                 } message: {
                     Text("Its devices go back to being simulated, here and on your paired computer.")
                 }
-            Footnote(text: "Connected on this iPhone or on your paired computer, it works on both: they share the connection over their encrypted link.")
+            Footnote(text: Device.isPad
+                ? String(localized: "Connected on this iPad or on your paired computer, it works on both: they share the connection over their encrypted link.", comment: "Home Assistant: “it” is the connection to the server")
+                : String(localized: "Connected on this iPhone or on your paired computer, it works on both: they share the connection over their encrypted link.", comment: "Home Assistant: “it” is the connection to the server"))
         }
         .transition(.opacity)
     }
 
     private var serverLine: String {
         let info = model.homeAssistantInfo
-        return [info["url"] as? String, (info["version"] as? String).flatMap { $0.isEmpty ? nil : "version \($0)" }]
+        return [info["url"] as? String, (info["version"] as? String).flatMap { $0.isEmpty ? nil : String(localized: "version \($0)", comment: "Home Assistant: the server's version, after its address") }]
             .compactMap { $0 }.joined(separator: " · ")
     }
 }
@@ -267,7 +273,7 @@ struct HueView: View {
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
                 if Task.isCancelled { return }
             }
-            problem = "Nobody pressed the button in time. Try again."
+            problem = String(localized: "Nobody pressed the button in time. Try again.", comment: "Hue: pairing timed out waiting for the bridge's button")
             pairing = nil
         }
     }
@@ -321,7 +327,8 @@ struct HueView: View {
         VStack(spacing: 10) {
             SectionTitle("Or by address")
             Card(padding: 16) {
-                InputField(title: "Bridge address", text: $host, prompt: "e.g. 192.168.1.20", focused: typing) {
+                InputField(title: String(localized: "Bridge address", comment: "Hue: label of the bridge's IP address field"), text: $host,
+                           prompt: String(localized: "e.g. 192.168.1.20", comment: "Hue: placeholder of the bridge address field; keep the address"), focused: typing) {
                     TextField("", text: $host)
                         .keyboardType(.numbersAndPunctuation)
                         .focused($typing)
@@ -332,7 +339,9 @@ struct HueView: View {
             Button { start(["host": host.trimmingCharacters(in: .whitespaces), "name": "Hue Bridge"]) } label: { Text("Pair") }
                 .buttonStyle(SecondaryButtonStyle())
                 .disabled(host.trimmingCharacters(in: .whitespaces).isEmpty)
-            Footnote(text: "No account needed: the bridge lets one app in when its button is pressed. The key it gives stays on this iPhone and your paired computer.")
+            Footnote(text: Device.isPad
+                ? String(localized: "No account needed: the bridge lets one app in when its button is pressed. The key it gives stays on this iPad and your paired computer.")
+                : String(localized: "No account needed: the bridge lets one app in when its button is pressed. The key it gives stays on this iPhone and your paired computer."))
         }
     }
 
@@ -351,7 +360,7 @@ struct HueView: View {
             Text("Press the round button on the bridge")
                 .font(.system(size: 22, weight: .bold)).foregroundStyle(Theme.text)
                 .multilineTextAlignment(.center)
-            Text("\(bridge["name"] as? String ?? "Hue Bridge") · waiting \(secondsLeft) s")
+            Text("\(bridge["name"] as? String ?? "Hue Bridge") · waiting \(secondsLeft) s", comment: "Hue: while waiting for the bridge's button; the placeholders are the bridge's name and the seconds left")
                 .font(.system(size: 15)).foregroundStyle(Theme.muted)
                 .contentTransition(.numericText(countsDown: true))
                 .animation(.default, value: secondsLeft)

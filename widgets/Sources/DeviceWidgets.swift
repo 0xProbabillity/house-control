@@ -96,7 +96,7 @@ struct LightWidgetView: View {
                 }
                 .buttonStyle(.plain)
                 .containerBackground(for: .widget) { Color.clear }
-                .accessibilityLabel("\(light.name), \(light.on ? "on" : "off")")
+                .accessibilityLabel(Words.spoken(light.name, on: light.on))
             } else {
                 card(light, home)
             }
@@ -148,7 +148,7 @@ struct LightWidgetView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(light.name), \(light.on ? "on" : "off")")
+        .accessibilityLabel(Words.spoken(light.name, on: light.on))
         .containerBackground(for: .widget) {
             ZStack {
                 WidgetBackdrop()
@@ -191,12 +191,14 @@ struct RoomWidgetView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(room.name).font(.system(size: 16, weight: .semibold)).foregroundStyle(Palette.text)
-                        Text(on == 0 ? "All off" : "\(on) of \(lights.count) on")
+                        Text(on == 0 ? String(localized: "All off", comment: "Room widget: every lamp of the room is off")
+                             : String(localized: "\(on) of \(lights.count) on", comment: "Room widget: how many of the room's lamps are on, e.g. “2 of 3 on”"))
                             .font(.system(size: 11.5, weight: .medium)).foregroundStyle(on == 0 ? Palette.faint : Palette.warm)
                     }
                     Spacer()
                     Button(intent: ToggleRoomIntent(roomID: room.id, on: on == 0)) {
-                        Text(on == 0 ? "All on" : "All off")
+                        Text(on == 0 ? String(localized: "All on", comment: "Room widget: button that switches every lamp of the room on")
+                             : String(localized: "room.allOff.button", defaultValue: "All off", comment: "Room widget: button that switches every lamp of the room off"))
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(Palette.text)
                             .padding(.horizontal, 12)
@@ -232,7 +234,7 @@ private struct RoomClimate: View {
             ClimateDial(ac: ac, lineWidth: 5).frame(width: 40, height: 40)
             VStack(alignment: .leading, spacing: 1) {
                 Text(ac.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Palette.text)
-                Text(ac.on ? "\(ac.modeName) to \(ac.targetText)" : "Off")
+                Text(ac.on ? String(localized: "\(ac.modeName) to \(ac.targetText)", comment: "Widget: an AC's mode and set-point, e.g. “Cool to 23°”") : Words.acOff)
                     .font(.system(size: 11, weight: .medium)).foregroundStyle(ac.on ? ac.tint : Palette.faint)
             }
             Spacer()
@@ -319,7 +321,7 @@ struct ClimateWidgetView: View {
                         .font(.system(size: 34, weight: .light))
                         .foregroundStyle(ac.on ? Palette.text : Palette.muted)
                         .contentTransition(.numericText(value: ac.target))
-                    Text("target").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(Palette.faint)
+                    Text("target", comment: "Climate widget: under the AC's set-point temperature; small, lowercase").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(Palette.faint)
                 }
             }
             .frame(width: 118)
@@ -327,14 +329,14 @@ struct ClimateWidgetView: View {
                 Text(ac.name).font(.system(size: 15, weight: .semibold)).foregroundStyle(Palette.text).lineLimit(1)
                 Text(home.room(ac.room)?.name ?? "").font(.system(size: 11.5, weight: .medium)).foregroundStyle(Palette.faint)
                 HStack(spacing: 6) {
-                    chip(ac.on ? ac.modeName : "Off", ac.on ? ac.modeSymbol : "power", ac.tint)
-                    if ac.on { chip("Fan \(ac.fan)", "fan", Palette.muted) }
+                    chip(ac.on ? ac.modeName : Words.acOff, ac.on ? ac.modeSymbol : "power", ac.tint)
+                    if ac.on { chip(String(localized: "Fan \(ac.fanName)", comment: "Climate widget: the fan speed, e.g. “Fan Auto”"), "fan", Palette.muted) }
                 }
                 .padding(.top, 2)
                 if let room = ac.roomText {
                     HStack(spacing: 4) {
                         Image(systemName: "thermometer.medium").font(.system(size: 11, weight: .semibold))
-                        Text("Room \(room)").font(.system(size: 12, weight: .semibold))
+                        Text("Room \(room)", comment: "Widget: the room's temperature, e.g. “Room 24.5°”").font(.system(size: 12, weight: .semibold))
                     }
                     .foregroundStyle(Palette.muted)
                 }
@@ -373,9 +375,9 @@ struct ClimateWidgetView: View {
             Label(ac.name, systemImage: ac.on ? ac.modeSymbol : "air.conditioner.horizontal")
                 .font(.system(size: 13, weight: .semibold))
                 .widgetAccentable()
-            Text(ac.on ? "\(ac.modeName) to \(ac.targetText)" : "Off")
+            Text(ac.on ? String(localized: "\(ac.modeName) to \(ac.targetText)", comment: "Widget: an AC's mode and set-point, e.g. “Cool to 23°”") : Words.acOff)
                 .font(.system(size: 13, weight: .medium))
-            if let room = ac.roomText { Text("Room \(room)").font(.system(size: 12)).foregroundStyle(.secondary) }
+            if let room = ac.roomText { Text("Room \(room)", comment: "Widget: the room's temperature, e.g. “Room 24.5°”").font(.system(size: 12)).foregroundStyle(.secondary) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .containerBackground(for: .widget) { Color.clear }
@@ -413,7 +415,7 @@ struct StatusWidgetView: View {
                 Gauge(value: Double(home.lightsOn), in: 0...Double(max(1, home.lights.count))) {
                     Image(systemName: "lightbulb.fill")
                 } currentValueLabel: {
-                    Text("\(home.lightsOn)")
+                    Text(verbatim: "\(home.lightsOn)")
                 }
                 .gaugeStyle(.accessoryCircularCapacity)
                 .containerBackground(for: .widget) { AccessoryWidgetBackground() }
@@ -430,10 +432,10 @@ struct StatusWidgetView: View {
                         .widgetAccentable()
                     Text(home.lightsLine).font(.system(size: 13, weight: .medium))
                     if let ac = home.acsOn.first {
-                        Text("\(ac.modeName) \(ac.targetText)\(ac.roomText.map { " · room \($0)" } ?? "")")
+                        Text(verbatim: "\(ac.modeName) \(ac.targetText)" + (ac.roomText.map { " · " + String(localized: "room \($0)", comment: "Widget: the room's temperature after the AC's set-point, e.g. “Cool 23° · room 24.5°”") } ?? ""))
                             .font(.system(size: 12)).foregroundStyle(.secondary)
                     } else if let scene = home.activeScene {
-                        Text("Scene: \(scene.name)").font(.system(size: 12)).foregroundStyle(.secondary)
+                        Text("Scene: \(scene.name)", comment: "Widget: the scene now applied").font(.system(size: 12)).foregroundStyle(.secondary)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -444,7 +446,9 @@ struct StatusWidgetView: View {
     }
 
     private func inline(long: Bool) -> String {
-        var parts = [home.lightsOn == 0 ? "Lights off" : "\(home.lightsOn) \(long ? "lights " : "")on"]
+        var parts = [home.lightsOn == 0 ? String(localized: "Lights off", comment: "Control Center: every lamp is off; short")
+                     : long ? String(localized: "\(home.lightsOn) lights on", comment: "Control Center: how many lamps are on; short")
+                     : String(localized: "\(home.lightsOn) on", comment: "Control Center: how many lamps are on, before the AC's set-point (“6 on · AC 23°”); very short")]
         if let ac = home.acsOn.first { parts.append("\(ac.modeName) \(ac.targetText)") }
         return "⌂ " + parts.joined(separator: " · ")
     }
@@ -453,7 +457,7 @@ struct StatusWidgetView: View {
 
 /// Shown when the home has nothing of the kind the widget is for.
 struct EmptyHome: View {
-    let text: String
+    let text: LocalizedStringKey
 
     var body: some View {
         VStack(spacing: 6) {

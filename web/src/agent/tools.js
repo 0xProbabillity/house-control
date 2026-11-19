@@ -2,7 +2,7 @@
 // an AI reads from the link, and the plain action links for chat assistants that can only
 // open pages. Runs in the panel page, where the state of every device lives; the native
 // shell only carries requests here (see AgentGateway.swift).
-import { AC_MODES, AC_FANS } from '../store.js';
+import { AC_MODES, AC_FANS, AC_TIMER_MAX } from '../store.js';
 import { applyOperations, replacePlan, redactPlan, furnitureCatalog, PlanEditError, SCENE_ICONS, WALLS } from './plan-edit.js';
 import { LIGHT_KINDS, FLOOR_KINDS, isLinked } from '../config.js';
 
@@ -43,7 +43,9 @@ export function createAgent({ store, config, raw, render, onAction }) {
   function acState(cfg, s = state.acs[cfg.id]) {
     const room = `room ${s.roomTemp.toFixed(1)}°C`;
     if (!s.on) return `off (${room})`;
-    return `on, ${s.mode}, target ${s.target}°C, fan ${s.fan} (${room})`;
+    const left = store.timerLeft(cfg.id);
+    const timer = left ? `, switches itself off in ${left} min` : '';
+    return `on, ${s.mode}, target ${s.target}°C, fan ${s.fan} (${room})${timer}`;
   }
 
   const lightJSON = (cfg) => ({
@@ -56,6 +58,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
     min: cfg.min, max: cfg.max, modes: store.acFeatures(cfg.id).modes, fans: store.acFeatures(cfg.id).fans,
     on: state.acs[cfg.id].on, target: state.acs[cfg.id].target, mode: state.acs[cfg.id].mode,
     fan: state.acs[cfg.id].fan, roomTemp: state.acs[cfg.id].roomTemp,
+    offInMinutes: store.timerLeft(cfg.id) || null,
   });
 
   function overview() {
@@ -191,14 +194,27 @@ export function createAgent({ store, config, raw, render, onAction }) {
         if (!f.fans.includes(args.fan)) fail(`${cfg.name} fan speeds: ${f.fans.join(', ')}.`);
         patch.fan = args.fan;
       }
+      // An auto-off timer (from house-control-windows#2 by Andy Oliveira): minutes, or hours.
+      const timerArg = args.timer_minutes ?? (args.timer_hours != null ? Number(args.timer_hours) * 60 : null);
+      let timer = null;
+      if (timerArg != null) {
+        timer = Math.round(Number(timerArg));
+        if (!Number.isFinite(timer) || timer < 0) fail('timer_minutes must be a number of minutes (0 cancels the timer).');
+        if (timer > AC_TIMER_MAX) fail(`A timer can run for up to ${AC_TIMER_MAX / 60} hours.`);
+        if (args.on === false && timer > 0) fail('An AC that is switched off has no timer to set.');
+      }
       // "Set the bedroom AC to 22" means it should be running.
       if (args.on != null) patch.on = Boolean(args.on);
-      else if (Object.keys(patch).length) patch.on = true;
-      if (!Object.keys(patch).length) continue;
-      store.setAC(cfg.id, patch);
+      else if (Object.keys(patch).length || timer > 0) patch.on = true;
+      if (!Object.keys(patch).length && timer == null) continue;
+      if (Object.keys(patch).length) store.setAC(cfg.id, patch);
+      if (timer != null) {
+        store.setTimer(cfg.id, timer);
+        notes.push(timer ? `${cfg.name} switches itself off in ${timer} min.` : `${cfg.name}: timer cancelled.`);
+      }
       changed.push(cfg);
     }
-    if (!changed.length) fail('Nothing to change: pass "on", "temperature", "mode" or "fan".');
+    if (!changed.length) fail('Nothing to change: pass "on", "temperature", "mode", "fan" or "timer_minutes".');
     return { changed, notes };
   }
 
@@ -298,6 +314,8 @@ export function createAgent({ store, config, raw, render, onAction }) {
           temperature: { type: 'number', description: 'Target in °C' },
           mode: { type: 'string', enum: AC_MODES },
           fan: { type: 'string', enum: AC_FANS },
+          timer_minutes: { type: 'number', description: 'Switch the unit off by itself after this many minutes (up to 720; it is switched on if it was off). 0 cancels the timer.' },
+          timer_hours: { type: 'number', description: 'The same timer in hours (e.g. 1.5), for when that is how the person said it.' },
         },
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },

@@ -48,8 +48,8 @@ extension HomeSnapshot.Light {
     var level: Double { capabilities.contains("brightness") ? brightness : 1 }
 
     var stateText: String {
-        guard on else { return "Off" }
-        return capabilities.contains("brightness") ? "\(Int((brightness * 100).rounded()))%" : "On"
+        guard on else { return Words.lightOff }
+        return capabilities.contains("brightness") ? (brightness).formatted(.percent.precision(.fractionLength(0))) : Words.lightOn
     }
 }
 
@@ -64,7 +64,31 @@ extension HomeSnapshot.AC {
         }
     }
 
-    var modeName: String { mode.prefix(1).uppercased() + mode.dropFirst() }
+    var modeName: String { Self.modeName(mode) }
+
+    /// An AC mode's name, as the panel's mode buttons say it.
+    static func modeName(_ mode: String) -> String {
+        switch mode {
+        case "cool": String(localized: "ac.mode.cool", defaultValue: "Cool", comment: "Air conditioner mode: cooling")
+        case "heat": String(localized: "ac.mode.heat", defaultValue: "Heat", comment: "Air conditioner mode: heating")
+        case "dry": String(localized: "ac.mode.dry", defaultValue: "Dry", comment: "Air conditioner mode: dehumidifying")
+        case "fan": String(localized: "ac.mode.fan", defaultValue: "Fan", comment: "Air conditioner mode: fan only, no cooling or heating")
+        case "auto": String(localized: "ac.mode.auto", defaultValue: "Auto", comment: "Air conditioner mode: automatic")
+        default: mode.prefix(1).uppercased() + mode.dropFirst()
+        }
+    }
+
+    /// The fan speed's name.
+    var fanName: String {
+        switch fan {
+        case "auto": String(localized: "ac.fan.auto", defaultValue: "Auto", comment: "Air conditioner fan speed: automatic")
+        case "low": String(localized: "ac.fan.low", defaultValue: "Low", comment: "Air conditioner fan speed")
+        case "medium": String(localized: "ac.fan.medium", defaultValue: "Medium", comment: "Air conditioner fan speed")
+        case "high": String(localized: "ac.fan.high", defaultValue: "High", comment: "Air conditioner fan speed")
+        case "turbo": String(localized: "ac.fan.turbo", defaultValue: "Turbo", comment: "Air conditioner fan speed: the strongest")
+        default: fan
+        }
+    }
 
     var tint: Color {
         guard on else { return Palette.muted }
@@ -95,7 +119,8 @@ extension HomeSnapshot.Scene {
 extension HomeSnapshot {
     /// "6 of 11 lights on", "All lights off".
     var lightsLine: String {
-        lightsOn == 0 ? "All lights off" : "\(lightsOn) of \(lights.count) \(lights.count == 1 ? "light" : "lights") on"
+        lightsOn == 0 ? String(localized: "All lights off", comment: "Widget: every lamp of the home is off")
+            : String(localized: "\(lightsOn) of \(lights.count) lights on", comment: "Widget: how many of the home's lamps are on, e.g. “6 of 11 lights on”")
     }
 
     var climateLine: String? {
@@ -144,12 +169,30 @@ extension View {
 }
 
 /// A small caps label above a group ("SCENES", "LIVING").
+/// The words the widgets and controls say about a device's state. A lamp's and an AC's "Off"
+/// are separate keys: many languages give them different forms.
+enum Words {
+    static var lightOn: String { String(localized: "light.on", defaultValue: "On", comment: "A lamp's state: switched on") }
+    static var lightOff: String { String(localized: "light.off", defaultValue: "Off", comment: "A lamp's state: switched off") }
+    static var lightsOn: String { String(localized: "lights.on", defaultValue: "On", comment: "Every lamp of the home: switched on (plural)") }
+    static var lightsOff: String { String(localized: "lights.off", defaultValue: "Off", comment: "Every lamp of the home: switched off (plural)") }
+    static var acOff: String { String(localized: "ac.off", defaultValue: "Off", comment: "An air conditioner's state: switched off") }
+
+    /// What VoiceOver says for a lamp: its name and whether it is on.
+    static func spoken(_ name: String, on: Bool) -> String {
+        on ? String(localized: "\(name), on", comment: "VoiceOver: a lamp that is on; the placeholder is its name")
+            : String(localized: "\(name), off", comment: "VoiceOver: a lamp that is off; the placeholder is its name")
+    }
+}
+
 struct Caption: View {
-    let text: String
-    init(_ text: String) { self.text = text }
+    let text: LocalizedStringKey
+    init(_ text: LocalizedStringKey) { self.text = text }
 
     var body: some View {
-        Text(text.uppercased())
+        // In capitals the way the language writes them (Greek drops its accents).
+        Text(text)
+            .textCase(.uppercase)
             .font(.system(size: 10.5, weight: .bold))
             .kerning(0.9)
             .foregroundStyle(Palette.faint)

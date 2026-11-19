@@ -5,7 +5,17 @@ import HouseCore
 /// One entry of the menu that opens when the app's icon is pressed and held.
 struct QuickAction: Identifiable, Hashable {
     enum Group: String, CaseIterable {
-        case scenes = "Scenes", home = "Whole home", lights = "Lights", climate = "Air conditioners"
+        case scenes, home, lights, climate
+
+        /// The header over the group in Settings › Quick Actions.
+        var title: String {
+            switch self {
+            case .scenes: String(localized: "Scenes", comment: "Quick Actions: header over the scenes")
+            case .home: String(localized: "Whole home", comment: "Quick Actions: header over All Lights On/Off")
+            case .lights: String(localized: "Lights", comment: "Quick Actions: header over the lamps")
+            case .climate: String(localized: "Air conditioners", comment: "Quick Actions: header over the air conditioners")
+            }
+        }
     }
 
     /// "scene:cozy", "lights:off", "lights:on", "light:<id>", "ac:<id>": stored, and carried by the icon's menu item.
@@ -31,10 +41,11 @@ struct QuickAction: Identifiable, Hashable {
     /// Everything the home offers, in the order the editor lists it.
     static func catalog(for home: HomeSnapshot) -> [QuickAction] {
         var out = home.scenes.map {
-            QuickAction(id: "scene:\($0.id)", title: $0.name, subtitle: "Scene", symbol: $0.symbol, group: .scenes)
+            QuickAction(id: "scene:\($0.id)", title: $0.name, subtitle: String(localized: "Scene", comment: "Quick action on the app icon: under a scene's name"),
+                        symbol: $0.symbol, group: .scenes)
         }
-        out.append(QuickAction(id: "lights:off", title: "All Lights Off", subtitle: home.name, symbol: "lightbulb.slash", group: .home))
-        out.append(QuickAction(id: "lights:on", title: "All Lights On", subtitle: home.name, symbol: "lightbulb.2.fill", group: .home))
+        out.append(QuickAction(id: "lights:off", title: String(localized: "All Lights Off", comment: "Quick action on the app icon"), subtitle: home.name, symbol: "lightbulb.slash", group: .home))
+        out.append(QuickAction(id: "lights:on", title: String(localized: "All Lights On", comment: "Quick action on the app icon"), subtitle: home.name, symbol: "lightbulb.2.fill", group: .home))
         for light in home.lights {
             out.append(QuickAction(id: "light:\(light.id)", title: light.name, subtitle: home.room(light.room)?.name,
                                    symbol: light.symbol, group: .lights))
@@ -132,6 +143,28 @@ enum QuickActionCenter {
 
 /// Hands SwiftUI's scenes a delegate that hears about the icon's menu.
 final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // Before launching ends, or the answer to a timer's notification would be lost.
+        MainActor.assumeIsolated { ACTimerReminders.shared.install() }
+        return true
+    }
+
+    /// While true the app stays upright (the LiDAR scan projects its pins for a portrait screen).
+    @MainActor static var portraitOnly = false {
+        didSet {
+            guard portraitOnly != oldValue else { return }
+            for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
+                scene.windows.first?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+                if portraitOnly { scene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait)) }
+            }
+        }
+    }
+
+    func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+        MainActor.assumeIsolated { Self.portraitOnly ? .portrait : .all }
+    }
+
     func application(_ application: UIApplication, configurationForConnecting session: UISceneSession,
                      options: UIScene.ConnectionOptions) -> UISceneConfiguration {
         if let item = options.shortcutItem { MainActor.assumeIsolated { QuickActionCenter.receive(item) } }
@@ -177,7 +210,7 @@ struct QuickActionsView: View {
                 .onMove { quick.chosen.move(fromOffsets: $0, toOffset: $1) }
                 .onDelete { quick.chosen.remove(atOffsets: $0) }
             } header: {
-                header("On the icon · \(quick.chosen.count) of \(QuickActions.limit)")
+                header(String(localized: "On the icon · \(quick.chosen.count) of \(QuickActions.limit)", comment: "Quick Actions: header over the chosen ones, e.g. “On the icon · 3 of 4”"))
             } footer: {
                 Text("Press and hold House Control on the Home Screen. Drag to reorder, swipe to remove.")
                     .font(.system(size: 13)).foregroundStyle(Theme.faint)
@@ -188,7 +221,7 @@ struct QuickActionsView: View {
                     Section {
                         ForEach(items) { row($0, chosen: false) }
                     } header: {
-                        header(group.rawValue)
+                        header(group.title)
                     }
                 }
             }
@@ -202,7 +235,7 @@ struct QuickActionsView: View {
     }
 
     private func header(_ text: String) -> some View {
-        Text(text.uppercased()).font(.system(size: 12, weight: .bold)).kerning(1.1).foregroundStyle(Theme.faint)
+        Text(text.localizedUppercase).font(.system(size: 12, weight: .bold)).kerning(1.1).foregroundStyle(Theme.faint)
     }
 
     private func row(_ action: QuickAction, chosen: Bool) -> some View {

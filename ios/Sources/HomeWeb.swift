@@ -73,6 +73,10 @@ final class HomeWeb: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         var payload = boot()
         payload["mode"] = mode
         payload["platform"] = "ios"
+        // The app's language (the user's choice, else the device's), for the page's own text.
+        payload["lang"] = AppLanguage.code
+        // An iPad lays the controls out for its larger screen.
+        payload["device"] = UIDevice.current.userInterfaceIdiom == .pad ? "pad" : "phone"
         controller.addUserScript(WKUserScript(source: "window.__HOUSE_BOOT__ = \(WebJSON.literal(payload));",
                                               injectionTime: .atDocumentStart, forMainFrameOnly: true))
         controller.addUserScript(WKUserScript(source: Self.errorReporter, injectionTime: .atDocumentStart, forMainFrameOnly: true))

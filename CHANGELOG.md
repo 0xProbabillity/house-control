@@ -3,6 +3,28 @@
 What changed in each release of House Control. The Mac app is on
 [Releases](https://github.com/0xProbabillity/house-control/releases); the iPhone app is on the App Store and TestFlight.
 
+## 1.6.0 — 2026-11-19 (TestFlight, team only)
+
+### iPad, ten languages and an AC that switches itself off
+
+- **iPad.** House Control runs on the iPad at full size, any way up: held upright the model sits above the controls
+  with four tiles to a row, held sideways they sit side by side. Split View and Slide Over work too. The iPhone can
+  now be turned sideways as well.
+- **Ten languages.** The app, its widgets and Control Center buttons speak English, Japanese, French, Spanish,
+  German, Italian, Greek, Turkish, Traditional Chinese and Russian, and follow the iPhone's language. Pick another one
+  under **Settings → Language**. The demo homes are translated too; your own home keeps its names.
+- **Auto-off timer for air conditioners.** In an AC's sheet, **Timer** switches it off by itself after 30 minutes to
+  8 hours; the tile counts down. On the Mac it runs in the menu bar; on the iPhone a notification comes when it runs
+  out, and its **Switch Off** button switches the AC off without opening the app (opening the app does it too).
+  AI assistants can set it as well (`timer_minutes` in `set_air_conditioners`). Thanks to Andy Oliveira for the idea
+  and the first version (house-control-windows#2).
+- **Colour lights fit on the screen** ([#25](https://github.com/0xProbabillity/house-control/issues/25)): on most
+  iPhones the colour swatches were cut off under a colour light's controls. The 3D model now makes room for the
+  sheet, and on a small screen the sheet scrolls.
+- **Mac: Smart Life sign-in expired.** When Smart Life stops accepting the Mac's sign-in, Settings says
+  **Sign-in expired**, the menu bar icon's menu offers **Smart Life Sign-In Expired — Reconnect…**, and the
+  editor's Smart Life page shows a new QR login with the User Code filled in.
+
 ## 1.5.3 — 2026-11-17 (TestFlight, team only)
 
 ### Smart Life no longer gets stuck on "sign invalid"

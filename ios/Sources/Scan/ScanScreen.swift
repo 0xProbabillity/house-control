@@ -27,11 +27,15 @@ struct ScanScreen: View {
         .animation(.easeInOut(duration: 0.3), value: controller?.phase)
         .preferredColorScheme(.dark)
         .onAppear {
+            AppDelegate.portraitOnly = true
             if controller == nil, let replay = model.scanReplay {
                 controller = ScanController(homeName: model.scanName, replaying: replay)
             }
         }
-        .onDisappear { controller?.close() }
+        .onDisappear {
+            controller?.close()
+            AppDelegate.portraitOnly = false
+        }
     }
 
     private func begin() {
@@ -64,10 +68,14 @@ private struct ScanIntroView: View {
     let start: () -> Void
 
     private let tips: [(symbol: String, title: String, detail: String)] = [
-        ("lightbulb.max.fill", "Turn the lights on", "RoomPlan sees walls best in a well lit room. Open the doors you will walk through."),
-        ("figure.walk", "Walk along the walls", "Slowly, the camera at chest height, pointing at the walls, the floor and the furniture."),
-        ("arrow.forward.to.line", "One room at a time", "Tap Next room in the doorway: every room lands in the same plan, lined up."),
-        ("plus.circle.fill", "Pin your devices as you go", "Point the circle at a lamp or an air conditioner and tap +, then pick the real device."),
+        ("lightbulb.max.fill", String(localized: "Turn the lights on", comment: "Scan tips: title"),
+         String(localized: "RoomPlan sees walls best in a well lit room. Open the doors you will walk through.", comment: "Scan tips; RoomPlan is Apple's scanning technology, keep the name")),
+        ("figure.walk", String(localized: "Walk along the walls", comment: "Scan tips: title"),
+         String(localized: "Slowly, the camera at chest height, pointing at the walls, the floor and the furniture.", comment: "Scan tips")),
+        ("arrow.forward.to.line", String(localized: "One room at a time", comment: "Scan tips: title"),
+         String(localized: "Tap Next room in the doorway: every room lands in the same plan, lined up.", comment: "Scan tips; Next room is the scan screen's button")),
+        ("plus.circle.fill", String(localized: "Pin your devices as you go", comment: "Scan tips: title"),
+         String(localized: "Point the circle at a lamp or an air conditioner and tap +, then pick the real device.", comment: "Scan tips; + is the scan screen's button")),
     ]
 
     var body: some View {
@@ -121,12 +129,14 @@ private struct ScanIntroView: View {
             }
             VStack(spacing: 10) {
                 if !ScanController.isSupported {
-                    ProblemLabel(text: "Scanning needs an iPhone with a LiDAR camera: the Pro models since iPhone 12 Pro.")
+                    ProblemLabel(text: Device.isPad
+                                 ? String(localized: "Scanning needs an iPad with a LiDAR camera: the iPad Pro models since 2020.")
+                                 : String(localized: "Scanning needs an iPhone with a LiDAR camera: the Pro models since iPhone 12 Pro."))
                 } else if camera == .denied || camera == .restricted {
-                    ProblemLabel(text: "House Control may not use the camera. Allow it in Settings, then come back.")
+                    ProblemLabel(text: String(localized: "House Control may not use the camera. Allow it in Settings, then come back."))
                 }
                 Button(action: start) {
-                    Label(camera == .denied || camera == .restricted ? "Open Settings" : "Start scanning",
+                    Label(camera == .denied || camera == .restricted ? String(localized: "Open Settings") : String(localized: "Start scanning"),
                           systemImage: camera == .denied ? "gear" : "viewfinder")
                 }
                 .buttonStyle(PrimaryButtonStyle())
@@ -142,7 +152,7 @@ private struct ScanIntroView: View {
 
 struct BetaBadge: View {
     var body: some View {
-        Text("BETA")
+        Text("BETA", comment: "Small badge next to a feature still in beta; short, in capitals")
             .font(.system(size: 10.5, weight: .heavy))
             .kerning(0.8)
             .foregroundStyle(Theme.warm)
@@ -183,7 +193,8 @@ private struct ScanLiveView: View {
             VStack(spacing: 12) {
                 topBar
                 if controller.hot {
-                    Label("The iPhone is getting warm: finish this room soon", systemImage: "thermometer.high")
+                    Label(Device.isPad ? String(localized: "The iPad is getting warm: finish this room soon")
+                                       : String(localized: "The iPhone is getting warm: finish this room soon"), systemImage: "thermometer.high")
                         .font(.system(size: 13.5, weight: .semibold)).foregroundStyle(Theme.warm)
                         .padding(.horizontal, 14).padding(.vertical, 9)
                         .background(.ultraThinMaterial, in: Capsule())
@@ -251,7 +262,8 @@ private struct ScanLiveView: View {
             Spacer()
             HStack(spacing: 8) {
                 StatusDot(color: controller.capturing ? Theme.green : Theme.warm, pulsing: controller.capturing)
-                Text(controller.switching ? "Saving room \(controller.roomsDone + 1)…" : "Room \(controller.roomsDone + 1)")
+                Text(controller.switching ? String(localized: "Saving room \(controller.roomsDone + 1)…", comment: "Scan: the room's number")
+                     : String(localized: "Room \(controller.roomsDone + 1)", comment: "Scan: the room being scanned, by number"))
                     .font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.text)
                     .contentTransition(.numericText())
                 BetaBadge()
@@ -262,13 +274,13 @@ private struct ScanLiveView: View {
             Spacer()
             HStack(spacing: 5) {
                 Image(systemName: "lightbulb.fill").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.warm)
-                Text("\(controller.tags.count)").font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.text)
+                Text(verbatim: "\(controller.tags.count)").font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.text)
                     .contentTransition(.numericText())
             }
             .frame(minWidth: 40, minHeight: 40)
             .padding(.horizontal, controller.tags.isEmpty ? 0 : 6)
             .background(.ultraThinMaterial, in: Capsule())
-            .accessibilityLabel("\(controller.tags.count) devices pinned")
+            .accessibilityLabel(Text("\(controller.tags.count) devices pinned", comment: "VoiceOver: how many devices were pinned during the scan"))
         }
         .padding(.top, 6)
     }
@@ -320,7 +332,7 @@ private struct ScanLiveView: View {
 }
 
 private struct SideButton: View {
-    let title: String
+    let title: LocalizedStringKey
     let symbol: String
     let busy: Bool
     let action: () -> Void
@@ -376,7 +388,8 @@ private struct BuildingOverlay: View {
             VStack(spacing: 16) {
                 ProgressView().controlSize(.large).tint(Theme.text)
                 Text("Drawing your floor plan").font(.system(size: 20, weight: .semibold)).foregroundStyle(Theme.text)
-                Text(rooms == 1 ? "Squaring up the room and its furniture" : "Squaring up \(rooms) rooms and lining them up")
+                Text(rooms == 1 ? String(localized: "Squaring up the room and its furniture", comment: "Scan: while the plan is drawn")
+                     : String(localized: "Squaring up \(rooms) rooms and lining them up", comment: "Scan: while the plan is drawn; always 2 or more rooms"))
                     .font(.system(size: 14.5)).foregroundStyle(Theme.muted)
             }
         }
@@ -435,13 +448,15 @@ private struct ScanDevicePicker: View {
             List {
                 Section {
                     Picker("Kind", selection: $kind) {
-                        Text("Lamp").tag("light")
-                        Text("Air conditioner").tag("ac")
+                        Text("Lamp", comment: "Scan: kind of a pinned device").tag("light")
+                        Text("Air conditioner", comment: "Scan: kind of a pinned device").tag("ac")
                     }
                     .pickerStyle(.segmented)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                    row(nil, name: "\(ScanController.genericName(kind)) — link later", detail: "Simulated until you link it",
+                    row(nil, name: kind == "ac" ? String(localized: "Air conditioner — link later", comment: "Scan: keep the pinned device unlinked for now")
+                                                 : String(localized: "Lamp — link later", comment: "Scan: keep the pinned device unlinked for now"),
+                        detail: String(localized: "Simulated until you link it"),
                         symbol: kind == "ac" ? "air.conditioner.horizontal" : "lightbulb")
                 }
                 ForEach(["smartlife", "homeassistant", "hue", "homekit"], id: \.self) { service in
@@ -463,8 +478,9 @@ private struct ScanDevicePicker: View {
                     }
                 } else if candidates.isEmpty {
                     Section {
-                        Text(search.isEmpty ? "No \(kind == "ac" ? "air conditioner" : "lamp") among your connected devices."
-                                            : "Nothing matches “\(search)”.").foregroundStyle(Theme.muted)
+                        Text(!search.isEmpty ? String(localized: "Nothing matches “\(search)”.", comment: "Search found nothing; the placeholder is what was typed")
+                             : kind == "ac" ? String(localized: "No air conditioner among your connected devices.")
+                             : String(localized: "No lamp among your connected devices.")).foregroundStyle(Theme.muted)
                     }
                 }
                 Section {
@@ -504,8 +520,10 @@ private struct ScanDevicePicker: View {
 
     private func detail(_ device: RealDevice) -> String? {
         var parts = [device.detail]
-        if !device.online { parts.append("offline") }
-        if let user = controller.taggedDevices[device.ref], device.ref != current { parts.append("pinned as \(user)") }
+        if !device.online { parts.append(String(localized: "offline", comment: "Device picker: a device that does not answer, in a list after its room")) }
+        if let user = controller.taggedDevices[device.ref], device.ref != current {
+            parts.append(String(localized: "pinned as \(user)", comment: "Scan: the device is pinned already; the placeholder is the pin's name"))
+        }
         let line = parts.filter { !$0.isEmpty }.joined(separator: " · ")
         return line.isEmpty ? nil : line
     }

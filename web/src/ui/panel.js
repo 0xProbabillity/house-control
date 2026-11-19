@@ -1,16 +1,19 @@
 // The control panel that lives in the menu bar popover: header, scenes, rooms,
 // device tiles and the detail sheets for a light or an AC.
 import * as THREE from 'three';
-import { h, clamp, createSlider, createColorPad, openMenu } from './dom.js';
+import { h, clamp, createSlider, createColorPad, openMenu, richText } from './dom.js';
 import { icon } from './icons.js';
 import { lightColor } from '../three/lights.js';
 import { MODE_COLORS } from '../three/ac.js';
-import { AC_SWINGS } from '../store.js';
+import { AC_SWINGS, AC_TIMER_STEPS } from '../store.js';
+import { t, tc, tn, formatDuration, formatNumber } from '../i18n.js';
 import { haptic, isPhone } from '../bridge.js';
 
-const MODE_LABEL = { cool: 'Cool', heat: 'Heat', dry: 'Dry', fan: 'Fan', auto: 'Auto' };
-const FAN_LABEL = { auto: 'Auto', low: 'Low', medium: 'Medium', high: 'High', turbo: 'Turbo' };
-const SWING_LABEL = { swing: 'Swing', l1: 'L1', l2: 'L2', l3: 'L3', l4: 'L4', l5: 'L5', off: 'Off' };
+// t() knows the language when this module loads, so the labels are translated once, here.
+const MODE_LABEL = { cool: tc('ac mode', 'Cool'), heat: tc('ac mode', 'Heat'), dry: tc('ac mode', 'Dry'), fan: tc('ac mode', 'Fan'), auto: tc('ac mode', 'Auto') };
+const FAN_LABEL = { auto: tc('fan speed', 'Auto'), low: tc('fan speed', 'Low'), medium: tc('fan speed', 'Medium'), high: tc('fan speed', 'High'), turbo: tc('fan speed', 'Turbo') };
+// L1–L5 are the louvre positions as an AC's remote names them: not translated.
+const SWING_LABEL = { swing: tc('airflow', 'Swing'), l1: 'L1', l2: 'L2', l3: 'L3', l4: 'L4', l5: 'L5', off: tc('airflow', 'Off') };
 const SWATCHES = ['#ff5a4f', '#ff9a3c', '#ffd84a', '#5fe08a', '#42d6e8', '#4f8dff', '#8b5cff', '#ff5fc4'];
 
 const TEMP_GRADIENT = 'linear-gradient(90deg, #2f7df6 0%, #58b4f5 34%, #f3e2c0 62%, #f6a54a 82%, #f0762c 100%)';
@@ -22,13 +25,13 @@ const tmp = new THREE.Color();
 const css = (c) => `#${c.getHexString()}`;
 
 function lightStatus(cfg, s) {
-  if (!s.on) return 'Off';
-  return cfg.capabilities.includes('brightness') ? `${Math.round(s.brightness * 100)}%` : 'On';
+  if (!s.on) return t('Off');
+  return cfg.capabilities.includes('brightness') ? t('{percent}%', { percent: formatNumber(Math.round(s.brightness * 100)) }) : t('On');
 }
 
 function acTemperatureColor(target, cfg) {
-  const t = clamp((target - cfg.min) / (cfg.max - cfg.min), 0, 1);
-  return tmp.set('#1c4fc0').lerp(new THREE.Color('#8a3d12'), t).clone();
+  const f = clamp((target - cfg.min) / (cfg.max - cfg.min), 0, 1);
+  return tmp.set('#1c4fc0').lerp(new THREE.Color('#8a3d12'), f).clone();
 }
 
 export function createPanel(root, config, store, { onFocus, onMenu }) {
@@ -44,11 +47,11 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   const canvas = h('canvas', { tabindex: -1 });
   const tooltip = h('div.tooltip');
   const homeSub = h('div.home-sub');
-  const power = h('button.round.power', { title: 'Everything on / off', 'aria-label': 'Toggle everything', onclick: toggleEverything }, icon('power', 21, 2.2));
-  const gear = h('button.round', { title: 'Settings and floor plans', 'aria-label': 'Settings and floor plans', onclick: () => onMenu(gear) }, icon('settings', 17));
+  const power = h('button.round.power', { title: t('Everything on / off'), 'aria-label': t('Toggle everything'), onclick: toggleEverything }, icon('power', 21, 2.2));
+  const gear = h('button.round', { title: t('Settings and floor plans'), 'aria-label': t('Settings and floor plans'), onclick: () => onMenu(gear) }, icon('settings', 17));
   // Shown while an AI assistant has a link to this home (AI Access on the Mac).
-  const aiBadge = h('button.ai-badge', { hidden: true, title: 'An AI assistant has access — click to manage', 'aria-label': 'AI access',
-    onclick: () => onMenu(aiBadge, 'agent') }, icon('sparkles', 13, 2.2), h('span', 'AI'));
+  const aiBadge = h('button.ai-badge', { hidden: true, title: t('An AI assistant has access — click to manage'), 'aria-label': t('AI access'),
+    onclick: () => onMenu(aiBadge, 'agent') }, icon('sparkles', 13, 2.2), h('span', t('AI')));
 
   const scenes = h('div.scenes');
   const rooms = h('div.rooms');
@@ -57,8 +60,8 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   const panel = h('section.panel',
     scenes, rooms,
     h('div.list-head', listTitle,
-      h('button.pill', { onclick: () => bulk(true) }, 'All on'),
-      h('button.pill', { onclick: () => bulk(false) }, 'All off')),
+      h('button.pill', { onclick: () => bulk(true) }, t('All on')),
+      h('button.pill', { onclick: () => bulk(false) }, t('All off'))),
     h('div.devices', grid));
   const sheet = h('section.sheet.hidden');
   sheet.inert = true;
@@ -66,7 +69,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
 
   // A home on several floors: one button per floor under the 3D model, lowest first.
   const floorButtons = new Map();
-  const floors = h('div.floors', { role: 'group', 'aria-label': 'Floors', hidden: !multiLevel },
+  const floors = h('div.floors', { role: 'group', 'aria-label': t('Floors'), hidden: !multiLevel },
     config.levels.map((l) => {
       const count = h('span.count.zero', '0');
       const b = h('button.floor', { 'aria-label': l.name, onclick: () => { haptic('tick'); showLevel(l.id); } }, h('span', l.name), count);
@@ -76,8 +79,8 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
 
   // Back from wherever the camera was moved to; only there while it is somewhere else.
   const viewReset = h('button.view-reset', {
-    title: 'Reset view',
-    'aria-label': 'Reset view',
+    title: t('Reset view'),
+    'aria-label': t('Reset view'),
     onclick: () => { haptic('tick'); world?.resetView(); },
   }, icon('fit', 15, 2));
 
@@ -105,7 +108,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   /* ---------- rooms ---------- */
 
   const roomButtons = new Map();
-  for (const r of [{ id: 'all', name: 'All' }, ...config.rooms]) {
+  for (const r of [{ id: 'all', name: t('All') }, ...config.rooms]) {
     const count = h('span.count.zero', '0');
     const b = h('button.room', { onclick: () => { haptic('tick'); selectRoom(r.id); } }, r.name, count);
     roomButtons.set(r.id, { b, count });
@@ -166,7 +169,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     const sub = h('div.tile-sub');
     // A phone has no room for the button: touching and holding the tile opens the sheet there.
     const more = hasSheet && !isPhone
-      ? h('button.tile-more', { 'aria-label': `${cfg.name} settings`, onclick: (e) => { e.stopPropagation(); openSheet({ kind: 'light', id: cfg.id }); } }, icon('sliders', 15))
+      ? h('button.tile-more', { 'aria-label': t('{name} settings', { name: cfg.name }), onclick: (e) => { e.stopPropagation(); openSheet({ kind: 'light', id: cfg.id }); } }, icon('sliders', 15))
       : null;
     const el = h(`div.tile${dimmable ? '.dimmable' : ''}`, { role: 'button', tabindex: 0, 'aria-label': cfg.name },
       h('div.bubble', icon(cfg.capabilities.length ? cfg.type : 'plug', 19)),
@@ -249,10 +252,10 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
       bubble,
       h('div.tile-text', h('div.tile-name', cfg.name), sub),
       h('div.stepper',
-        h('button', { 'aria-label': 'Cooler', onclick: step(-1) }, icon('minus', 15, 2.2)),
+        h('button', { 'aria-label': t('Cooler'), onclick: step(-1) }, icon('minus', 15, 2.2)),
         value,
-        h('button', { 'aria-label': 'Warmer', onclick: step(1) }, icon('plus', 15, 2.2))),
-      h('button.mini-power', { 'aria-label': `${cfg.name} power`, onclick: (e) => { e.stopPropagation(); haptic('medium'); store.setAC(cfg.id, { on: !state.acs[cfg.id].on }); } }, icon('power', 16, 2.2)));
+        h('button', { 'aria-label': t('Warmer'), onclick: step(1) }, icon('plus', 15, 2.2))),
+      h('button.mini-power', { 'aria-label': t('{name} power', { name: cfg.name }), onclick: (e) => { e.stopPropagation(); haptic('medium'); store.setAC(cfg.id, { on: !state.acs[cfg.id].on }); } }, icon('power', 16, 2.2)));
     el.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') openSheet({ kind: 'ac', id: cfg.id }); });
     let shownMode = null;
     return {
@@ -264,7 +267,12 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
         el.style.setProperty('--c', MODE_COLORS[s.mode]);
         if (shownMode !== s.mode) { bubble.replaceChildren(icon(s.mode, 19)); shownMode = s.mode; }
         value.textContent = `${s.target}°`;
-        sub.textContent = `${!s.on ? 'Off' : s.idle ? 'Idle' : MODE_LABEL[s.mode]} · Room ${s.roomTemp.toFixed(isPhone ? 0 : 1)}°`;
+        const left = store.timerLeft(cfg.id);
+        const status = !s.on ? t('Off') : s.idle ? t('Idle') : MODE_LABEL[s.mode];
+        // A running timer takes the room temperature's place: it is what matters until then.
+        if (left) sub.replaceChildren(`${status} · `, icon('timer', 11, 2.4), formatDuration(left));
+        else sub.textContent = `${status} · ${t('Room {temp}°', { temp: formatNumber(s.roomTemp, isPhone ? 0 : 1) })}`;
+        el.classList.toggle('timed', Boolean(left));
       },
     };
   }
@@ -281,7 +289,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
   function layoutTiles() {
     const nodes = [];
     let i = 0;
-    const add = (t) => { t.el.style.setProperty('--i', i++); nodes.push(t.el); };
+    const add = (tile) => { tile.el.style.setProperty('--i', i++); nodes.push(tile.el); };
     // On several floors the one on show comes first, each under its own heading.
     const levels = [...config.levels].sort((a, b) => (b.id === ui.level) - (a.id === ui.level));
     for (const level of levels) {
@@ -296,9 +304,9 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
       }
       if (multiLevel && ui.room === 'all' && nodes.length > before) nodes.splice(before, 0, h('div.level-label', level.name));
     }
-    if (!nodes.length) nodes.push(h('div.group-label', 'No devices in this room yet'));
+    if (!nodes.length) nodes.push(h('div.group-label', t('No devices in this room yet')));
     else if (isPhone && config.lights.some((l) => l.capabilities.length && inScope(l))) {
-      nodes.push(h('div.grid-hint', 'Touch and hold a light for brightness and colour'));
+      nodes.push(h('div.grid-hint', t('Touch and hold a light for brightness and colour')));
     }
     grid.replaceChildren(...nodes);
     grid.parentElement.scrollTop = 0;
@@ -312,14 +320,16 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     ui.sheet = target;
     sheetView = target.kind === 'ac' ? acSheet(target.id) : lightSheet(target.id);
     sheet.replaceChildren(...sheetView.nodes);
+    sheet.scrollTop = 0;
     panel.classList.add('hidden');
     sheet.classList.remove('hidden');
     panel.inert = true;
     sheet.inert = false;
     card.classList.add('detail');
     hideTooltip();
-    onFocus(target.kind === 'ac' ? target : { kind: 'room', id: store.lightCfg.get(target.id).room });
     update();
+    fitSheet();
+    onFocus(target.kind === 'ac' ? target : { kind: 'room', id: store.lightCfg.get(target.id).room });
   }
 
   function closeSheet() {
@@ -331,14 +341,49 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     panel.inert = false;
     sheet.inert = true;
     card.classList.remove('detail');
+    fitSheet();
     onFocus(ui.room === 'all' ? null : { kind: 'room', id: ui.room });
     update();
     return true;
   }
 
+  // On a phone the sheet sits under the 3D model, and a colour light's (or an AC's with every
+  // function) is taller than the room the model leaves it on most iPhones: the model gives up
+  // what the sheet needs, down to a floor, and whatever still does not fit scrolls. A layout that
+  // fixes where the controls start (beside the model, or a Duo's crease or fold) only scrolls.
+  const STAGE_FLOOR = 0.3;
+  const STAGE_FLOOR_PX = 210;
+  let fitted = null;
+  function fitSheet() {
+    const html = document.documentElement;
+    const own = isPhone && ui.sheet && !html.classList.contains('split') && !html.classList.contains('table')
+      && !html.style.getPropertyValue('--split-start');
+    card.style.removeProperty('--stage-h');
+    if (!own) { fitted = null; return; }
+    const stage = clip.querySelector('.stage');
+    const full = stage.offsetHeight;
+    const top = sheet.offsetTop;
+    // The sheet's own height, as tall as its content: pinned to the bottom it would only fill the gap.
+    const { bottom, height } = sheet.style;
+    sheet.style.bottom = 'auto';
+    sheet.style.height = 'auto';
+    const natural = sheet.offsetHeight;
+    sheet.style.bottom = bottom;
+    sheet.style.height = height;
+    const room = card.clientHeight - top;
+    if (natural <= room) { fitted = null; return; }
+    const floor = Math.max(STAGE_FLOOR_PX, Math.round(card.clientHeight * STAGE_FLOOR));
+    fitted = Math.max(floor, Math.round(full - (natural - room)));
+    if (fitted < full) card.style.setProperty('--stage-h', `${fitted}px`);
+  }
+  const markMore = () => sheet.classList.toggle('more', sheet.scrollHeight - sheet.scrollTop - sheet.clientHeight > 2);
+  sheet.addEventListener('scroll', markMore, { passive: true });
+  new ResizeObserver(markMore).observe(sheet);
+  window.addEventListener('resize', () => { if (ui.sheet) fitSheet(); });
+
   function sheetHead(name, sub, powerBtn) {
     return h('div.sheet-head',
-      h('button.round', { 'aria-label': 'Back', onclick: closeSheet }, icon('back', 19, 2.2)),
+      h('button.round', { 'aria-label': t('Back'), onclick: closeSheet }, icon('back', 19, 2.2)),
       h('div.sheet-title', h('div.sheet-name', name), sub),
       powerBtn);
   }
@@ -368,9 +413,23 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     const s = () => state.acs[id];
     const set = (patch) => store.setAC(id, patch);
     const sub = h('div.sheet-sub');
-    const powerBtn = h('button.round.power', { 'aria-label': 'Power', onclick: () => { haptic('medium'); set({ on: !s().on }); } }, icon('power', 21, 2.2));
+    const powerBtn = h('button.round.power', { 'aria-label': t('Power'), onclick: () => { haptic('medium'); set({ on: !s().on }); } }, icon('power', 21, 2.2));
     const big = bigNumber('°C');
-    const eco = h('button.toggle-chip', { onclick: () => { haptic('light'); set({ eco: !s().eco }); } }, icon('leaf', 17), 'Eco Mode', h('span.switch'));
+    const eco = h('button.toggle-chip', { onclick: () => { haptic('light'); set({ eco: !s().eco }); } }, icon('leaf', 17), t('Eco Mode'), h('span.switch'));
+    // The auto-off timer: a choice of how long, or the time left and a way to cancel it.
+    const timerValue = h('span.timer-value');
+    const timer = h('button.toggle-chip.timer-chip', {
+      'aria-haspopup': 'menu',
+      onclick: () => {
+        haptic('light');
+        const left = store.timerLeft(id);
+        const items = AC_TIMER_STEPS.map((m) => ({ label: formatDuration(m), action: () => { haptic('light'); store.setTimer(id, m); } }));
+        if (left) items.push('-', { label: t('Cancel timer'), action: () => { haptic('light'); store.setTimer(id, 0); } });
+        timer.classList.add('open');
+        openMenu(clip, timer, items, { title: t('Switch off in'), onClose: () => timer.classList.remove('open') });
+      },
+    }, icon('timer', 17), timerValue);
+    const chips = h('div.chips', eco, timer);
     const slider = createSlider({
       min: cfg.min, max: cfg.max, value: s().target, gradient: TEMP_GRADIENT,
       labels: [`${cfg.min}°`, `${cfg.max}°`],
@@ -404,22 +463,22 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
       };
     };
 
-    const mode = option('mode', 'Mode', MODE_LABEL, () => features().modes, null);
-    const fan = option('fan', isPhone ? 'Fan' : 'Fan speed', FAN_LABEL, () => features().fans, 'fan');
-    const swing = option('swing', 'Airflow', SWING_LABEL, () => AC_SWINGS, 'wind');
+    const mode = option('mode', t('Mode'), MODE_LABEL, () => features().modes, null);
+    const fan = option('fan', isPhone ? tc('fan speed', 'Fan') : t('Fan speed'), FAN_LABEL, () => features().fans, 'fan');
+    const swing = option('swing', t('Airflow'), SWING_LABEL, () => AC_SWINGS, 'wind');
     const sleepValue = h('div.option-value');
     const sleep = h('button.option', { onclick: () => { haptic('light'); set({ sleep: !s().sleep }); } },
-      icon('moon', 24, 1.6), h('span.corner.dot'), h('div.option-label', 'Sleep'), sleepValue);
+      icon('moon', 24, 1.6), h('span.corner.dot'), h('div.option-label', t('Sleep')), sleepValue);
     const options = h('div.options', mode.el, fan.el, sleep, swing.el);
 
     return {
       nodes: [
         sheetHead(cfg.name, sub, powerBtn),
-        h('div.readout', big.el, eco),
+        h('div.readout', big.el, chips),
         h('div.slider-row',
-          h('button.round', { 'aria-label': 'Cooler', onclick: () => { haptic('tick'); set({ on: true, target: s().target - 1 }); } }, icon('minus', 18, 2.2)),
+          h('button.round', { 'aria-label': t('Cooler'), onclick: () => { haptic('tick'); set({ on: true, target: s().target - 1 }); } }, icon('minus', 18, 2.2)),
           slider.el,
-          h('button.round', { 'aria-label': 'Warmer', onclick: () => { haptic('tick'); set({ on: true, target: s().target + 1 }); } }, icon('plus', 18, 2.2))),
+          h('button.round', { 'aria-label': t('Warmer'), onclick: () => { haptic('tick'); set({ on: true, target: s().target + 1 }); } }, icon('plus', 18, 2.2))),
         options,
       ],
       update() {
@@ -429,16 +488,25 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
         const shown = [[mode.el, f.modes.length > 0], [fan.el, f.fans.length > 0], [sleep, f.sleep], [swing.el, f.swing]];
         for (const [el, on] of shown) el.hidden = !on;
         eco.hidden = !f.eco;
-        options.style.gridTemplateColumns = `repeat(${shown.filter(([, on]) => on).length || 1}, 1fr)`;
+        const left = store.timerLeft(id);
+        timer.classList.toggle('on', Boolean(left));
+        timerValue.textContent = left ? t('Off in {time}', { time: formatDuration(left) }) : t('Timer');
+        timer.setAttribute('aria-label', left ? t('Timer: off in {time}', { time: formatDuration(left) }) : t('Auto-off timer'));
+        options.style.gridTemplateColumns = `repeat(${shown.filter(([, on]) => on).length || 1}, minmax(0, 1fr))`;
         powerBtn.classList.toggle('on', a.on);
-        sub.replaceChildren(icon('thermo', 14), 'Room ', h('b', `${a.roomTemp.toFixed(1)}°C`),
+        sub.replaceChildren(icon('thermo', 14), ...richText(t('Room **{temp}°C**', { temp: formatNumber(a.roomTemp, 1) })),
           h('span.live', { style: { background: a.on ? MODE_COLORS[a.mode] : 'rgba(255,255,255,.25)', boxShadow: a.on && !a.idle ? `0 0 8px ${MODE_COLORS[a.mode]}` : 'none' } }));
         big.set(a.target, !a.on);
         slider.set(a.target);
         eco.classList.toggle('on', a.eco);
         mode.update(); fan.update(); swing.update();
         sleep.classList.toggle('active', a.sleep);
-        sleepValue.textContent = a.sleep ? 'On' : 'Off';
+        sleepValue.textContent = a.sleep ? t('On') : t('Off');
+        // A value too long for its tile (some languages' mode names) steps down a size.
+        for (const v of options.querySelectorAll('.option-value, .option-label')) {
+          v.classList.remove('tight');
+          if (v.scrollWidth > v.clientWidth + 1) v.classList.add('tight');
+        }
       },
     };
   }
@@ -449,7 +517,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     const set = (patch) => store.setLight(id, patch);
     const caps = cfg.capabilities;
     const sub = h('div.sheet-sub');
-    const powerBtn = h('button.round.power', { 'aria-label': 'Power', onclick: () => toggleLight(id) }, icon('power', 21, 2.2));
+    const powerBtn = h('button.round.power', { 'aria-label': t('Power'), onclick: () => toggleLight(id) }, icon('power', 21, 2.2));
     const big = bigNumber('%');
     const nodes = [sheetHead(cfg.name, sub, powerBtn), h('div.readout', big.el)];
     const sliders = {};
@@ -460,9 +528,9 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
         onInput: (v) => set({ on: true, brightness: v / 100 }),
       });
       nodes.push(h('div.slider-row',
-        h('button.round', { 'aria-label': 'Dimmer', onclick: () => { haptic('tick'); set({ on: true, brightness: s().brightness - 0.1 }); } }, icon('dim', 18)),
+        h('button.round', { 'aria-label': t('Dimmer'), onclick: () => { haptic('tick'); set({ on: true, brightness: s().brightness - 0.1 }); } }, icon('dim', 18)),
         sliders.brightness.el,
-        h('button.round', { 'aria-label': 'Brighter', onclick: () => { haptic('tick'); set({ on: true, brightness: s().brightness + 0.1 }); } }, icon('bright', 18))));
+        h('button.round', { 'aria-label': t('Brighter'), onclick: () => { haptic('tick'); set({ on: true, brightness: s().brightness + 0.1 }); } }, icon('bright', 18))));
     }
     let kelvinLabel = null;
     if (caps.includes('temp')) {
@@ -471,7 +539,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
         min: 2200, max: 6500, step: 100, value: s().temp, gradient: KELVIN_GRADIENT, compact: true, detent: 500,
         onInput: (v) => set({ on: true, temp: v }),
       });
-      nodes.push(h('div.field-label', h('span', 'Colour temperature'), kelvinLabel), h('div.slider-row', sliders.temp.el));
+      nodes.push(h('div.field-label', h('span', t('Colour temperature')), kelvinLabel), h('div.slider-row', sliders.temp.el));
     }
     let swatches = [];
     let pad = null;
@@ -479,11 +547,13 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     if (caps.includes('color')) {
       colorLabel = h('span');
       pad = createColorPad({ value: s().color, onInput: (c) => set({ on: true, color: c }) });
-      swatches = SWATCHES.map((c) => h('button.swatch', { 'aria-label': `Colour ${c}`, vars: { '--sw': c }, onclick: () => { haptic('light'); set({ on: true, color: c }); } }));
-      nodes.push(h('div.field-label', h('span', 'Colour'), colorLabel), pad.el, h('div.swatches', swatches));
+      swatches = SWATCHES.map((c) => h('button.swatch', { 'aria-label': t('Colour {hex}', { hex: c }), vars: { '--sw': c }, onclick: () => { haptic('light'); set({ on: true, color: c }); } }));
+      nodes.push(h('div.field-label', h('span', t('Colour')), colorLabel), pad.el, h('div.swatches', swatches));
     } else {
       nodes.push(h('div.sheet-note', icon(cfg.type, 20),
-        `${roomName.get(cfg.room)} · drag across a light tile to dim it, or ${isPhone ? 'tap' : 'click'} the lamp in the 3D view to toggle.`));
+        isPhone
+          ? t('{room} · drag across a light tile to dim it, or tap the lamp in the 3D view to toggle.', { room: roomName.get(cfg.room) })
+          : t('{room} · drag across a light tile to dim it, or click the lamp in the 3D view to toggle.', { room: roomName.get(cfg.room) })));
     }
 
     return {
@@ -491,14 +561,14 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
       update() {
         const l = s();
         powerBtn.classList.toggle('on', l.on);
-        sub.replaceChildren(roomName.get(cfg.room), ' · ', h('b', l.on ? 'On' : 'Off'));
+        sub.replaceChildren(roomName.get(cfg.room), ' · ', h('b', l.on ? t('On') : t('Off')));
         big.set(caps.includes('brightness') ? Math.round(l.brightness * 100) : l.on ? 100 : 0, !l.on);
         sliders.brightness?.set(Math.round(l.brightness * 100));
         sliders.temp?.set(l.temp);
         if (kelvinLabel) kelvinLabel.textContent = l.color ? '—' : `${l.temp} K`;
         swatches.forEach((el, i) => el.classList.toggle('selected', l.color?.toLowerCase() === SWATCHES[i]));
         pad?.set(l.color);
-        if (colorLabel) colorLabel.textContent = l.color ? l.color.toUpperCase() : 'White';
+        if (colorLabel) colorLabel.textContent = l.color ? l.color.toUpperCase() : t('White');
       },
     };
   }
@@ -520,7 +590,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     } else {
       const cfg = store.acCfg.get(hit.id);
       const s = state.acs[hit.id];
-      name = cfg.name; status = s.on ? `${s.idle ? 'Idle' : MODE_LABEL[s.mode]} ${s.target}°` : 'Off'; on = s.on && !s.idle; color = MODE_COLORS[s.mode];
+      name = cfg.name; status = s.on ? t('{mode} {temp}°', { mode: s.idle ? t('Idle') : MODE_LABEL[s.mode], temp: s.target }) : t('Off'); on = s.on && !s.idle; color = MODE_COLORS[s.mode];
     }
     tooltip.replaceChildren(h('i.dot'), name, h('span', status));
     tooltip.classList.toggle('on', on);
@@ -562,8 +632,8 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
 
     homeSub.replaceChildren(
       h('span.live', { style: anyOn ? {} : { background: 'rgba(255,255,255,.25)', boxShadow: 'none' } }),
-      h('b', onCount ? `${onCount} of ${lights.length}` : 'No'), ' lights on',
-      acsOn.length ? ` · AC ${acsOn[0].target}°` : '');
+      ...richText(onCount ? tn(onCount, '**{n} of {total}** lights on', '**{n} of {total}** lights on', { total: lights.length }) : t('**No** lights on')),
+      acsOn.length ? ` · ${t('AC {temp}°', { temp: acsOn[0].target })}` : '');
     power.classList.toggle('on', anyOn);
 
     for (const [id, b] of sceneButtons) b.classList.toggle('active', store.sceneActive(id));
@@ -584,9 +654,10 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
 
     const scoped = config.lights.filter(inScope);
     const scopedOn = scoped.filter((l) => state.lights[l.id].on).length;
-    listTitle.replaceChildren(h('b', ui.room === 'all' ? 'Whole home' : roomName.get(ui.room)), ` · ${scopedOn} of ${scoped.length} on`);
+    listTitle.replaceChildren(h('b', ui.room === 'all' ? t('Whole home') : roomName.get(ui.room)),
+      ` · ${tn(scopedOn, '{n} of {total} on', '{n} of {total} on', { total: scoped.length })}`);
 
-    for (const t of tiles.values()) t.update();
+    for (const tile of tiles.values()) tile.update();
     sheetView?.update();
     const m = css(mood());
     card.style.setProperty('--mood', m);
@@ -615,8 +686,11 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     get room() { return ui.room; },
     setNotch(x) { card.style.setProperty('--notch-x', `${x}px`); },
     setAgentLive(live) { aiBadge.hidden = !live; },
+    /** Where the controls start changed: an open sheet takes the room it needs again. */
+    refit() { if (ui.sheet) fitSheet(); },
     /** The stage and the controls moved (a Duo folded or opened): the controls settle in place. */
     relayout() {
+      fitSheet();
       card.classList.remove('relayout');
       void card.offsetWidth; // restarts the animation
       card.classList.add('relayout');

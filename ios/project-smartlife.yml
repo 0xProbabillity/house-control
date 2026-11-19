@@ -6,6 +6,11 @@
 #   xcodegen generate --spec project-smartlife.yml
 # scripts/build-ios.sh and scripts/ios-sim.sh build it unless EDITION=appstore.
 include: [project.yml]
+# This edition's permission texts (InfoPlist.xcstrings) instead of the App Store edition's.
+targetTemplates:
+  Edition:
+    sources:REPLACE:
+      - path: Resources/SmartLife
 targets:
   HouseControl:
     dependencies:

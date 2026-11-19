@@ -99,7 +99,7 @@ struct HouseModel: View {
         self.padding = padding
         self.interactive = interactive
         self.boost = boost
-        summary = "\(home.name): \(home.lightsLine)"
+        summary = "\(home.name): \(home.lightsLine)" // VoiceOver: the home's name and its lamps
     }
 
     var body: some View {
@@ -358,7 +358,7 @@ struct HouseModel: View {
                     mark.frame(width: max(30, dot * 5), height: max(30, dot * 5)).contentShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("\(l.name), \(l.on ? "on" : "off")")
+                .accessibilityLabel(Words.spoken(l.name, on: l.on))
                 .position(p)
             } else {
                 mark.position(p)

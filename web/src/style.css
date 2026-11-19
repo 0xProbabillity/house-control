@@ -583,6 +583,20 @@ html.native .card { width: auto; height: auto; box-shadow:
 /* ---------- sheets ---------- */
 
 .sheet { padding: 0 20px 18px; }
+/* Taller than the room under the model (a small phone, a folded Duo): the sheet scrolls.
+   Its sliders and colour pad keep every touch they start for themselves. */
+html.ios .sheet {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+/* More below: the last row fades out at the edge, as a list does. */
+html.ios .sheet.more {
+  -webkit-mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 28px), transparent 100%);
+}
+html.ios .sheet::-webkit-scrollbar { display: none; }
+html.ios .sheet > * { flex-shrink: 0; }
 
 .sheet-head { display: flex; align-items: center; gap: 10px; flex: none; }
 .sheet-title { flex: 1; min-width: 0; }
@@ -621,6 +635,17 @@ html.native .card { width: auto; height: auto; box-shadow:
 @media (hover: hover) { .toggle-chip:hover { background: var(--glass-hi); } }
 .toggle-chip .icon { color: var(--muted); transition: color 220ms; }
 .toggle-chip.on .icon { color: #6ee7a0; }
+/* Eco and the auto-off timer, one above the other beside the big number. */
+.chips { display: flex; flex-direction: column; align-items: stretch; gap: 8px; flex: none; max-width: 58%; }
+.chips > [hidden] { display: none; }
+.timer-chip { padding: 0 14px; justify-content: flex-start; }
+.timer-chip .timer-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.timer-chip.on { background: rgba(61, 139, 255, 0.16); border-color: rgba(96, 165, 250, 0.4); color: #cfe2ff; }
+.timer-chip.on .icon { color: #7fb4ff; }
+.timer-chip.open { background: var(--glass-hi); }
+.tile-sub .icon { display: inline-block; vertical-align: -1px; margin: 0 3px 0 0; }
+.tile.timed .tile-sub .icon { color: #7fb4ff; }
+.menu-title { padding: 8px 12px 4px; font-size: 11.5px; font-weight: 600; color: var(--muted); }
 .switch { width: 38px; height: 23px; border-radius: 12px; background: rgba(255, 255, 255, 0.16); position: relative; transition: background 240ms; }
 .switch::after {
   content: ''; position: absolute; top: 2.5px; left: 2.5px; width: 18px; height: 18px; border-radius: 50%;
@@ -703,6 +728,10 @@ html.native .card { width: auto; height: auto; box-shadow:
 .option.active .corner.dot { background: #6fb0ff; box-shadow: 0 0 10px #6fb0ff; }
 .option-label { margin-top: auto; font-size: 12px; color: var(--muted); }
 .option-value { margin-top: 2px; font-size: 13px; font-weight: 650; }
+/* A long word (Greek, Russian…) gets a smaller size before it is cut off; the grid never grows past the sheet. */
+.option { min-width: 0; }
+.option-label, .option-value { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.option-value.tight, .option-label.tight { font-size: 11.5px; letter-spacing: -0.01em; }
 
 .menu {
   position: absolute;
@@ -843,8 +872,12 @@ html.ios .field-label { margin-top: 18px; }
 html.ios .option { height: 108px; border-radius: 22px; padding: 14px 12px; }
 html.ios .option-label { font-size: 13px; }
 html.ios .option-value { font-size: 14.5px; }
+html.ios .option-value.tight { font-size: 12.5px; letter-spacing: -0.015em; }
+html.ios .option-label.tight { font-size: 11.5px; letter-spacing: -0.015em; }
 html.ios .toggle-chip { height: 48px; font-size: 14px; }
-html.ios .pad { max-height: 150px; border-radius: 18px; }
+html.ios .chips .toggle-chip { height: 42px; }
+html.ios .menu-title { font-size: 13px; padding: 10px 14px 4px; }
+html.ios .pad { flex: 1 0 116px; max-height: 150px; border-radius: 18px; }
 html.ios .swatch { height: 36px; border-radius: 12px; }
 html.ios .swatches { margin-top: 12px; }
 html.ios .sheet-note { font-size: 13px; }
@@ -897,6 +930,11 @@ html.ios.table .panel, html.ios.table .sheet { top: calc(var(--split-end) + 12px
 @container (min-width: 560px) {
   html.ios .grid { grid-template-columns: repeat(3, 1fr); }
   html.ios .scene { height: 74px; font-size: 13px; }
+}
+/* An iPad held upright: the model takes more of the height, and the list gets a fourth column. */
+html.ios.ipad .card { --stage-h: var(--split-start, min(56%, 820px)); }
+@container (min-width: 760px) {
+  html.ios .grid { grid-template-columns: repeat(4, 1fr); }
 }
 /* A wide sheet keeps its controls at a hand's width, centred. */
 @media (min-width: 600px) {

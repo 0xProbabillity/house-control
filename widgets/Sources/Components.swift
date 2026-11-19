@@ -29,7 +29,8 @@ struct SceneTile: View {
                 .strokeBorder(active ? Color.white.opacity(0.28) : Palette.line))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(scene.name) scene\(active ? ", active" : "")")
+        .accessibilityLabel(active ? String(localized: "\(scene.name) scene, active", comment: "VoiceOver: the scene now applied; the placeholder is its name")
+                            : String(localized: "\(scene.name) scene", comment: "VoiceOver: a scene button; the placeholder is its name"))
     }
 
     private var background: AnyShapeStyle {
@@ -60,7 +61,7 @@ struct AllLightsButton: View {
                 .widgetAccentable(anyOn)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(anyOn ? "Turn every light off" : "Turn every light on")
+        .accessibilityLabel(anyOn ? String(localized: "Turn every light off") : String(localized: "Turn every light on"))
     }
 }
 
@@ -85,7 +86,7 @@ struct LightTile: View {
                         .font(.system(size: 12.5, weight: .semibold))
                         .foregroundStyle(Palette.text)
                         .lineLimit(1)
-                    Text(room.map { "\($0) · \(light.stateText)" } ?? light.stateText)
+                    Text(verbatim: room.map { "\($0) · \(light.stateText)" } ?? light.stateText)
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(light.on ? light.glow.opacity(0.95) : Palette.faint)
                         .lineLimit(1)
@@ -99,7 +100,7 @@ struct LightTile: View {
                 .strokeBorder(light.on ? light.glow.opacity(0.35) : Palette.line))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(light.name), \(light.on ? "on" : "off")")
+        .accessibilityLabel(Words.spoken(light.name, on: light.on))
     }
 
     private var tileBackground: AnyShapeStyle {
@@ -159,7 +160,8 @@ struct ClimateButtons: View {
                     .widgetAccentable(ac.on)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(ac.on ? "Turn \(ac.name) off" : "Turn \(ac.name) on")
+            .accessibilityLabel(ac.on ? String(localized: "Turn \(ac.name) off", comment: "VoiceOver: power button of an air conditioner; the placeholder is its name")
+                                : String(localized: "Turn \(ac.name) on", comment: "VoiceOver: power button of an air conditioner; the placeholder is its name"))
             step(1, "plus")
         }
     }
@@ -175,7 +177,8 @@ struct ClimateButtons: View {
         }
         .buttonStyle(.plain)
         .disabled(delta < 0 ? ac.target <= ac.min : ac.target >= ac.max)
-        .accessibilityLabel(delta < 0 ? "Cooler" : "Warmer")
+        .accessibilityLabel(delta < 0 ? String(localized: "Cooler", comment: "VoiceOver: lowers the AC's set-point by a degree")
+                            : String(localized: "Warmer", comment: "VoiceOver: raises the AC's set-point by a degree"))
     }
 }
 
@@ -227,11 +230,11 @@ struct ClimateLine: View {
                     .font(.system(size: size * 0.9, weight: .bold))
                     .foregroundStyle(ac.tint)
                     .widgetAccentable()
-                Text(ac.on ? "\(ac.modeName) \(ac.targetText)" : "AC off")
+                Text(verbatim: ac.on ? "\(ac.modeName) \(ac.targetText)" : String(localized: "AC off", comment: "Widget: the air conditioner is off; short"))
                     .font(.system(size: size, weight: .semibold))
                     .foregroundStyle(Palette.text)
                 if let room = ac.roomText {
-                    Text("· \(room) inside")
+                    Text("· \(room) inside", comment: "Widget: the room's temperature after the AC's state, e.g. “· 24.5° inside”")
                         .font(.system(size: size, weight: .medium))
                         .foregroundStyle(Palette.faint)
                 }

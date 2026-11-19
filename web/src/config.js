@@ -1,5 +1,6 @@
 // Loads and normalises a floor plan ("home.json"). Everything the 3D scene and the UI
 // know about the apartment comes from this one document, so swapping the file swaps the home.
+import { t, tc } from './i18n.js';
 
 const LIGHT_TYPES = ['ceiling', 'pendant', 'spots', 'floor', 'table', 'strip'];
 const WALLS = ['north', 'south', 'east', 'west'];
@@ -37,21 +38,38 @@ export const SLAB = 0.3; // thickness of the floor between two levels, metres
 
 export function levelsOf(raw) {
   const list = Array.isArray(raw?.levels) ? raw.levels.filter((l) => l && typeof l.id === 'string' && l.id) : [];
-  return list.length ? list : [{ id: 'main', name: 'Ground floor' }];
+  return list.length ? list : [{ id: 'main', name: t('Ground floor') }];
+}
+
+// The demo homes that come with the app (web/public/plans) are written in English. Shown in
+// another language their names are too (tc('demo', …), keys taken from those files by
+// tools/l10n/web-keys.mjs); a person's own plan ("custom") is never translated.
+export const DEMO_PLANS = ['home', 'studio', 'house'];
+
+function translateDemo(raw) {
+  const plan = structuredClone(raw);
+  const name = (item) => { if (item && typeof item.name === 'string') item.name = tc('demo', item.name); }; // l10n-dynamic
+  name(plan);
+  for (const key of ['levels', 'rooms', 'lights', 'acs', 'scenes']) if (Array.isArray(plan[key])) plan[key].forEach(name);
+  return plan;
 }
 
 // The plan exactly as written on disk (the editor works on this form).
 export async function loadRawConfig() {
   const boot = window.__HOUSE_BOOT__;
-  if (boot?.config) return boot.config;
+  // The native app hands over the plan itself for the person's own home (and for a demo the
+  // iPhone's editor opens); `plan` says which one it is.
+  if (boot?.config) return DEMO_PLANS.includes(boot.plan) ? translateDemo(boot.config) : boot.config;
   const plan = (boot?.plan !== 'custom' && boot?.plan) || new URLSearchParams(location.search).get('plan') || 'home';
   const res = await fetch(`./plans/${plan}.json`);
-  if (!res.ok) throw new ConfigError(`Plan "${plan}" not found (HTTP ${res.status})`);
+  if (!res.ok) throw new ConfigError(t('Plan "{plan}" not found (HTTP {status})', { plan, status: res.status }));
+  let json;
   try {
-    return await res.json();
+    json = await res.json();
   } catch (e) {
-    throw new ConfigError(`Plan "${plan}" is not valid JSON: ${e.message}`);
+    throw new ConfigError(t('Plan "{plan}" is not valid JSON: {error}', { plan, error: e.message }));
   }
+  return DEMO_PLANS.includes(plan) ? translateDemo(json) : json;
 }
 
 export async function loadConfig() {
@@ -65,13 +83,13 @@ function need(cond, msg) {
 const isPoint = (p) => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite);
 
 export function normalize(raw) {
-  need(raw && typeof raw === 'object', 'Plan must be a JSON object');
-  need(Array.isArray(raw.rooms) && raw.rooms.length > 0, 'Plan needs at least one room in "rooms"');
+  need(raw && typeof raw === 'object', t('Plan must be a JSON object'));
+  need(Array.isArray(raw.rooms) && raw.rooms.length > 0, t('Plan needs at least one room in "rooms"'));
 
   const ids = new Set();
-  const unique = (id, what) => {
-    need(typeof id === 'string' && id, `${what} is missing an "id"`);
-    need(!ids.has(id), `Duplicate id "${id}"`);
+  const unique = (id, missing) => {
+    need(typeof id === 'string' && id, missing);
+    need(!ids.has(id), t('Duplicate id "{id}"', { id }));
     ids.add(id);
   };
 
@@ -79,7 +97,7 @@ export function normalize(raw) {
   const levelIds = new Set();
   let elevation = 0;
   const levels = levelsOf(raw).map((l) => {
-    need(!levelIds.has(l.id), `Duplicate floor id "${l.id}"`);
+    need(!levelIds.has(l.id), t('Duplicate floor id "{id}"', { id: l.id }));
     levelIds.add(l.id);
     const H = Number.isFinite(l.wallHeight) && l.wallHeight > 0 ? l.wallHeight : wallHeight;
     const level = { id: l.id, name: l.name || l.id, wallHeight: H, elevation };
@@ -87,34 +105,37 @@ export function normalize(raw) {
     return level;
   });
   const ground = levels[0].id;
-  const levelOf = (item, what) => {
+  // `unknown`: the error for an item on a floor the plan does not have, made from that floor's id.
+  const levelOf = (item, unknown) => {
     if (item.level == null) return ground;
-    need(levelIds.has(item.level), `${what} is on unknown floor "${item.level}"`);
+    need(levelIds.has(item.level), unknown(item.level));
     return item.level;
   };
 
   const rooms = raw.rooms.map((r) => {
-    unique(r.id, 'A room');
+    unique(r.id, t('A room is missing an "id"'));
     need(Array.isArray(r.rect) && r.rect.length === 4 && r.rect.every(Number.isFinite),
-      `Room "${r.id}" needs "rect": [x, z, width, depth]`);
+      t('Room "{id}" needs "rect": [x, z, width, depth]', { id: r.id }));
     const [x, z, w, d] = r.rect;
-    need(w > 0 && d > 0, `Room "${r.id}" has an empty rect`);
-    return { id: r.id, name: r.name || r.id, x, z, w, d, floor: r.floor || 'oak', level: levelOf(r, `Room "${r.id}"`) };
+    need(w > 0 && d > 0, t('Room "{id}" has an empty rect', { id: r.id }));
+    const level = levelOf(r, (floor) => t('Room "{id}" is on unknown floor "{floor}"', { id: r.id, floor }));
+    return { id: r.id, name: r.name || r.id, x, z, w, d, floor: r.floor || 'oak', level };
   });
   const roomIds = new Set(rooms.map((r) => r.id));
   const roomLevel = new Map(rooms.map((r) => [r.id, r.level]));
 
   const openings = (raw.openings || []).map((o, i) => {
-    need(isPoint(o.from) && isPoint(o.to), `Opening #${i + 1} needs "from" and "to" points`);
-    need(o.from[0] === o.to[0] || o.from[1] === o.to[1], `Opening #${i + 1} must be axis-aligned`);
-    return { type: o.type || 'door', from: o.from, to: o.to, sill: o.sill ?? 0.85, head: o.head ?? 2.1, level: levelOf(o, `Opening #${i + 1}`) };
+    need(isPoint(o.from) && isPoint(o.to), t('Opening #{n} needs "from" and "to" points', { n: i + 1 }));
+    need(o.from[0] === o.to[0] || o.from[1] === o.to[1], t('Opening #{n} must be axis-aligned', { n: i + 1 }));
+    const level = levelOf(o, (floor) => t('Opening #{n} is on unknown floor "{floor}"', { n: i + 1, floor }));
+    return { type: o.type || 'door', from: o.from, to: o.to, sill: o.sill ?? 0.85, head: o.head ?? 2.1, level };
   });
 
   const lights = (raw.lights || []).map((l) => {
-    unique(l.id, 'A light');
-    need(roomIds.has(l.room), `Light "${l.id}" refers to unknown room "${l.room}"`);
-    need(LIGHT_TYPES.includes(l.type), `Light "${l.id}" has unknown type "${l.type}" (use ${LIGHT_TYPES.join(', ')})`);
-    need(isPoint(l.pos), `Light "${l.id}" needs "pos": [x, z]`);
+    unique(l.id, t('A light is missing an "id"'));
+    need(roomIds.has(l.room), t('Light "{id}" refers to unknown room "{room}"', { id: l.id, room: l.room }));
+    need(LIGHT_TYPES.includes(l.type), t('Light "{id}" has unknown type "{type}" (use {types})', { id: l.id, type: l.type, types: LIGHT_TYPES.join(', ') }));
+    need(isPoint(l.pos), t('Light "{id}" needs "pos": [x, z]', { id: l.id }));
     return {
       ...l,
       name: l.name || l.id,
@@ -125,20 +146,20 @@ export function normalize(raw) {
   });
 
   const acs = (raw.acs || []).map((a) => {
-    unique(a.id, 'An AC');
-    need(roomIds.has(a.room), `AC "${a.id}" refers to unknown room "${a.room}"`);
-    need(isPoint(a.pos), `AC "${a.id}" needs "pos": [x, z]`);
-    need(WALLS.includes(a.wall), `AC "${a.id}" needs "wall": one of ${WALLS.join(', ')}`);
+    unique(a.id, t('An AC is missing an "id"'));
+    need(roomIds.has(a.room), t('AC "{id}" refers to unknown room "{room}"', { id: a.id, room: a.room }));
+    need(isPoint(a.pos), t('AC "{id}" needs "pos": [x, z]', { id: a.id }));
+    need(WALLS.includes(a.wall), t('AC "{id}" needs "wall": one of {walls}', { id: a.id, walls: WALLS.join(', ') }));
     return { ...a, name: a.name || a.id, y: a.y ?? 2.2, min: a.min ?? 16, max: a.max ?? 30, level: roomLevel.get(a.room) };
   });
 
   const scenes = (raw.scenes || []).map((s) => {
-    need(typeof s.id === 'string' && s.id, 'A scene is missing an "id"');
+    need(typeof s.id === 'string' && s.id, t('A scene is missing an "id"'));
     return { id: s.id, name: s.name || s.id, icon: s.icon || 'sun', lights: s.lights || {}, acs: s.acs || {}, toggle: s.toggle === true };
   });
 
   const furniture = (raw.furniture || []).map((f, i) => {
-    const level = levelOf(f, `Furniture #${i + 1}`);
+    const level = levelOf(f, (floor) => t('Furniture #{n} is on unknown floor "{floor}"', { n: i + 1, floor }));
     // Stairs climb to the floor above unless told otherwise.
     const H = levels.find((l) => l.id === level).wallHeight;
     return f.type === 'stairs' && f.height == null ? { ...f, level, height: H + SLAB } : { ...f, level };
@@ -158,7 +179,7 @@ export function normalize(raw) {
   }
 
   return {
-    name: raw.name || 'Home',
+    name: raw.name || t('Home'),
     wallHeight,
     interiorWallHeight: raw.interiorWallHeight ?? 1.25,
     camera: { azimuth: raw.camera?.azimuth ?? 34, elevation: raw.camera?.elevation ?? 47 },

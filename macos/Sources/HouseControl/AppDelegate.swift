@@ -62,6 +62,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel = PanelController(host: host)
         panel.onVisibilityChange = { [weak self] visible in self?.setPolling(visible) }
         hub.onStale = { [weak self] in self?.poll() }
+        // Smart Life stopped taking this Mac's sign-in, or took it again after a new login.
+        smartLife.onSmartLifeExpiredChange = { [weak self] _ in
+            guard let self else { return }
+            self.refreshSettings()
+            self.editor?.host.call("smartLifeChanged", self.smartLife.smartLifeInfo)
+            self.editor?.host.call("servicesChanged", self.hub.servicesInfo)
+        }
         widgets.onActions = { [weak self] run, adopt in
             guard let self else { return }
             if !run.isEmpty { self.panel.host.call("widget", run) }
@@ -187,6 +194,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settingsItem.target = self
             settingsItem.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
             menu.addItem(.separator())
+            if smartLife.isSmartLifeExpired {
+                // Every Smart Life command fails until then: say so where it is seen first.
+                let item = menu.addItem(withTitle: "Smart Life Sign-In Expired — Reconnect…", action: #selector(reconnectSmartLife), keyEquivalent: "")
+                item.target = self
+                item.image = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: nil)
+            }
             menu.addItem(withTitle: "Edit Home…", action: #selector(openEditor), keyEquivalent: "").target = self
             menu.addItem(withTitle: "Load Floor Plan…", action: #selector(loadPlan), keyEquivalent: "").target = self
             menu.addItem(withTitle: "Reveal Plan File", action: #selector(revealPlan), keyEquivalent: "").target = self
@@ -380,6 +393,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openEditor() { showEditor(section: nil) }
+    @objc private func reconnectSmartLife() { showEditor(section: "service:smartlife") }
 
     /// `section` ("connections", "service:hue", …) opens the editor on that screen.
     private func showEditor(section: String?) {
@@ -845,7 +859,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let homeKit = entry("homekit")
         model.connections = [
             .init(id: "smartlife", name: "Smart Life", symbol: "bolt.horizontal.fill", tint: .orange,
-                  detail: connected("smartlife") ? "Signed in" : "Not signed in", connected: connected("smartlife")),
+                  detail: smartLife.isSmartLifeExpired ? "Sign-in expired: scan the QR code again"
+                    : connected("smartlife") ? "Signed in" : "Not signed in",
+                  connected: connected("smartlife"), expired: smartLife.isSmartLifeExpired),
             .init(id: "homeassistant", name: "Home Assistant", symbol: "house.and.flag.fill", tint: .blue,
                   detail: connected("homeassistant") ? entry("homeassistant")["name"] as? String ?? "Connected" : "Not connected",
                   connected: connected("homeassistant")),

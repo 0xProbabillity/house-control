@@ -1,4 +1,5 @@
 import { haptic } from '../bridge.js';
+import { t } from '../i18n.js';
 
 // Minimal hyperscript helper: h('div.class', { onclick, style, ... }, ...children)
 export function h(spec, props, ...children) {
@@ -21,6 +22,23 @@ export function h(spec, props, ...children) {
     el.append(c instanceof Node ? c : document.createTextNode(String(c)));
   }
   return el;
+}
+
+/**
+ * A (translated) text as children for h(): `**…**` around the parts drawn in bold, and
+ * `{name}` placeholders filled with the nodes in `nodes` (an <em> example, say):
+ *   richText(t('Add what you want: {example}.'), { example: h('em', t('“dim the lights”')) })
+ */
+export function richText(text, nodes = {}) {
+  const out = [];
+  String(text).split(/\*\*(.+?)\*\*/).forEach((piece, i) => {
+    if (i % 2) { out.push(h('b', piece)); return; }
+    piece.split(/\{(\w+)\}/).forEach((bit, j) => {
+      if (j % 2) out.push(bit in nodes ? nodes[bit] : `{${bit}}`);
+      else if (bit) out.push(bit);
+    });
+  });
+  return out;
 }
 
 export const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -79,8 +97,9 @@ export function createSlider({ min, max, step = 1, value, gradient, compact = fa
 }
 
 // Popup menu anchored to an element, opening upwards (the tiles sit at the bottom of the card).
-export function openMenu(host, anchor, items, { onClose } = {}) {
-  const menu = h('div.menu');
+export function openMenu(host, anchor, items, { onClose, title } = {}) {
+  const menu = h('div.menu', { role: 'menu' });
+  if (title) menu.append(h('div.menu-title', title));
   let closed = false;
   const close = () => {
     if (closed) return;
@@ -158,7 +177,7 @@ const PAD_MIN_SAT = 0.12;
 
 export function createColorPad({ value, onInput }) {
   const thumb = h('div.pad-thumb');
-  const el = h('div.pad', { role: 'slider', tabindex: 0, 'aria-label': 'Colour' }, thumb);
+  const el = h('div.pad', { role: 'slider', tabindex: 0, 'aria-label': t('Colour') }, thumb);
   let dragging = false;
 
   const place = (x, y, hex) => {
