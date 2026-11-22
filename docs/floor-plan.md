@@ -139,10 +139,15 @@ Decoration only. Every piece has `type`, `pos` (`[x, z]` of its centre), an opti
 | `island` | `width`, `stools` |
 | `kitchen` | `width`, `upper` (wall cabinets, `true` by default) |
 | `bed` | `width`, `color` |
-| `wardrobe`, `bookshelf` | `width`, `height` |
+| `wardrobe` | `width`, `height`, `color` (cabinet) |
+| `bookshelf` | `width`, `height`, `color` (shelves and frame) |
 | `plant` | `height` |
 | `stairs` | `width`, `depth` (its length), `height` (up to the floor above by default). They climb away from the front |
 | `fridge`, `nightstand`, `bathtub`, `toilet` | — |
+
+Set `color` to a hex value such as `"#426e68"`. In the editor, select the furniture and enter the value in **Colour (hex, optional)**.
+Leave the field blank or omit `color` in JSON to keep the wardrobe's off-white finish or the bookshelf's wood finish.
+The wardrobe door seams and bookshelf books keep their original colours.
 
 ## `lights`
 
