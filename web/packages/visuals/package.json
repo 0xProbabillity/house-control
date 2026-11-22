@@ -1,0 +1,18 @@
+{
+  "name": "@house-control/visuals",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared floor-plan model and Three.js renderer for House Control applications",
+  "exports": {
+    ".": "./src/index.js",
+    "./config": "./src/config.js",
+    "./three/*": "./src/three/*.js"
+  },
+  "peerDependencies": {
+    "three": "^0.186.1"
+  },
+  "files": [
+    "src"
+  ]
+}

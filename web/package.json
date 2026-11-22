@@ -4,9 +4,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "test:visuals": "node --test test/visuals.test.mjs"
   },
   "dependencies": {
+    "@house-control/visuals": "file:packages/visuals",
     "lucide": "^0.544.0",
     "three": "^0.186.1"
   },

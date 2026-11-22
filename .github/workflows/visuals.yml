@@ -1,0 +1,24 @@
+name: Shared web visuals
+on:
+  push:
+    branches: [refactor/shared-js-visuals]
+  pull_request:
+    paths:
+      - 'web/**'
+      - '.github/workflows/visuals.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run test:visuals
+      - run: npm run build
