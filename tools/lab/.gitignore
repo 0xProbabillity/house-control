@@ -2,3 +2,4 @@
 .hue/
 .ha/
 node_modules/
+.homebridge/

@@ -27,6 +27,7 @@ enum SettingsRoute: Hashable, Identifiable {
     case quickActions
     case homeAssistant
     case hue
+    case homebridge
     case devices
     case language
 
@@ -38,6 +39,7 @@ enum SettingsRoute: Hashable, Identifiable {
         case "smartlife" where AppModel.includesSmartLife: self = .smartLife
         case "homeassistant": self = .homeAssistant
         case "hue": self = .hue
+        case "homebridge": self = .homebridge
         default: return nil
         }
     }
@@ -91,6 +93,9 @@ final class AppModel {
     // Home Assistant and Hue (shared by the Mac), Apple Home (this phone's own)
     private(set) var homeAssistantName: String?
     private(set) var hueName: String?
+    private(set) var homebridgeName: String?
+    /// Homebridge's session ran out and needs the owner to sign in again (two-factor accounts).
+    private(set) var homebridgeExpired = false
     private(set) var homeKit: HomeKitStatus = .off
     @ObservationIgnored let homeKitService = HomeKitService()
 
@@ -217,6 +222,7 @@ final class AppModel {
         case "quickactions": showSettings = true; settingsPath = [.quickActions]
         case "homeassistant": showSettings = true; settingsPath = [.homeAssistant]
         case "hue": showSettings = true; settingsPath = [.hue]
+        case "homebridge": showSettings = true; settingsPath = [.homebridge]
         case "devices": showSettings = true; settingsPath = [.devices]
         case "language": showSettings = true; settingsPath = [.language]
         case "editor": showEditor = true; openEditor()
@@ -531,7 +537,11 @@ final class AppModel {
         case "services.discover":
             let service = message["service"] as? String ?? ""
             Task { @MainActor in
-                let found = service == "hue" ? await ServiceDiscovery.hueBridges() : await ServiceDiscovery.homeAssistants()
+                let found = switch service {
+                case "hue": await ServiceDiscovery.hueBridges()
+                case "homebridge": await ServiceDiscovery.homebridges()
+                default: await ServiceDiscovery.homeAssistants()
+                }
                 reply(["found": found])
             }
         case "homeassistant.connect":
@@ -552,6 +562,18 @@ final class AppModel {
                     } else {
                         reply(["waiting": true])
                     }
+                } catch {
+                    reply(["error": error.localizedDescription])
+                }
+            }
+        case "homebridge.connect":
+            Task { @MainActor in
+                do {
+                    try await connectHomebridge(url: message["url"] as? String ?? "", username: message["username"] as? String ?? "",
+                                                password: message["password"] as? String ?? "", code: message["code"] as? String)
+                    reply(hub.servicesInfo)
+                } catch is HomebridgeService.CodeRequired {
+                    reply(["needsCode": true])
                 } catch {
                     reply(["error": error.localizedDescription])
                 }
@@ -844,7 +866,7 @@ final class AppModel {
     }
     #endif
 
-    // MARK: - Home Assistant, Hue, Apple Home
+    // MARK: - Home Assistant, Hue, Homebridge, Apple Home
 
     func connectHomeAssistant(url: String, token: String) async throws {
         try await hub.connectHomeAssistant(url: url, token: token)
@@ -862,6 +884,13 @@ final class AppModel {
         connectionsChanged()
         Haptics.shared.play("success")
         return true
+    }
+
+    /// Throws `HomebridgeService.CodeRequired` when the account asks for a two-factor code.
+    func connectHomebridge(url: String, username: String, password: String, code: String?) async throws {
+        try await hub.connectHomebridge(url: url, username: username, password: password, code: code)
+        connectionsChanged()
+        Haptics.shared.play("success")
     }
 
     func disconnect(service: String) {
@@ -884,15 +913,19 @@ final class AppModel {
     /// True when at least one platform's devices can be linked.
     var hasAnyConnection: Bool {
         if case .ready = homeKit { return true }
-        return smartLifeConnected || homeAssistantName != nil || hueName != nil
+        return smartLifeConnected || homeAssistantName != nil || hueName != nil || homebridgeName != nil
     }
     var hueInfo: [String: Any] { hub.hue.info }
+    var homebridgeInfo: [String: Any] { hub.homebridge.info }
 
     private func refreshConnections() {
         let ha = hub.homeAssistant.info
         homeAssistantName = ha["connected"] as? Bool == true ? (ha["name"] as? String ?? "Home Assistant") : nil
         let hue = hub.hue.info
         hueName = hue["connected"] as? Bool == true ? (hue["name"] as? String ?? "Hue Bridge") : nil
+        let homebridge = hub.homebridge.info
+        homebridgeName = homebridge["connected"] as? Bool == true ? (homebridge["name"] as? String ?? "Homebridge") : nil
+        homebridgeExpired = homebridge["expired"] as? Bool == true
         let info = homeKitService.info
         if !homeKitService.isEnabled {
             homeKit = .off

@@ -13,39 +13,39 @@
   },
   {
     "key": "(saved — leave empty to keep)",
-    "at": "web/src/editor/editor.js:1515"
+    "at": "web/src/editor/editor.js:1552"
   },
   {
     "key": "{device} (offline)",
-    "at": "web/src/editor/connections.js:314",
+    "at": "web/src/editor/connections.js:388",
     "placeholders": [
       "device"
     ]
   },
   {
     "key": "{device} saved a newer plan. Saving here replaces it.",
-    "at": "web/src/editor/editor.js:1927",
+    "at": "web/src/editor/editor.js:1967",
     "placeholders": [
       "device"
     ]
   },
   {
     "key": "{floor} · click for its settings",
-    "at": "web/src/editor/editor.js:347",
-    "placeholders": [
-      "floor"
-    ]
-  },
-  {
-    "key": "{floor} is empty",
     "at": "web/src/editor/editor.js:357",
     "placeholders": [
       "floor"
     ]
   },
   {
+    "key": "{floor} is empty",
+    "at": "web/src/editor/editor.js:367",
+    "placeholders": [
+      "floor"
+    ]
+  },
+  {
     "key": "{floor} shows faintly under this floor, with its stairs, so walls and stairs line up.",
-    "at": "web/src/editor/editor.js:1260",
+    "at": "web/src/editor/editor.js:1282",
     "placeholders": [
       "floor"
     ]
@@ -67,14 +67,14 @@
   },
   {
     "key": "{length} m",
-    "at": "web/src/editor/editor.js:523",
+    "at": "web/src/editor/editor.js:534",
     "placeholders": [
       "length"
     ]
   },
   {
     "key": "{mode} {temp}°",
-    "at": "web/src/ui/panel.js:593",
+    "at": "web/src/ui/panel.js:604",
     "placeholders": [
       "mode",
       "temp"
@@ -83,7 +83,7 @@
   },
   {
     "key": "{n} ACs",
-    "at": "web/src/editor/editor.js:462",
+    "at": "web/src/editor/editor.js:473",
     "plural": true,
     "one": "{n} AC",
     "placeholders": [
@@ -92,7 +92,7 @@
   },
   {
     "key": "{n} connected",
-    "at": "web/src/editor/connections.js:70",
+    "at": "web/src/editor/connections.js:71",
     "plural": true,
     "one": "{n} connected",
     "placeholders": [
@@ -101,7 +101,7 @@
   },
   {
     "key": "{n} devices",
-    "at": "web/src/editor/connections.js:89",
+    "at": "web/src/editor/connections.js:91",
     "plural": true,
     "one": "{n} device",
     "placeholders": [
@@ -110,7 +110,7 @@
   },
   {
     "key": "{n} devices from {device}",
-    "at": "web/src/editor/connections.js:83",
+    "at": "web/src/editor/connections.js:84",
     "plural": true,
     "one": "{n} device from {device}",
     "placeholders": [
@@ -120,7 +120,7 @@
   },
   {
     "key": "{n} devices from your iPhone",
-    "at": "web/src/editor/connections.js:84",
+    "at": "web/src/editor/connections.js:85",
     "plural": true,
     "one": "{n} device from your iPhone",
     "placeholders": [
@@ -129,7 +129,7 @@
   },
   {
     "key": "{n} devices in your account",
-    "at": "web/src/editor/editor.js:1433",
+    "at": "web/src/editor/editor.js:1470",
     "plural": true,
     "one": "{n} device in your account",
     "placeholders": [
@@ -138,7 +138,7 @@
   },
   {
     "key": "{n} floors",
-    "at": "web/src/editor/editor.js:459",
+    "at": "web/src/editor/editor.js:470",
     "plural": true,
     "one": "{n} floor",
     "placeholders": [
@@ -147,7 +147,7 @@
   },
   {
     "key": "{n} lights",
-    "at": "web/src/editor/editor.js:461",
+    "at": "web/src/editor/editor.js:472",
     "plural": true,
     "one": "{n} light",
     "placeholders": [
@@ -156,7 +156,7 @@
   },
   {
     "key": "{n} linked to real devices",
-    "at": "web/src/editor/editor.js:463",
+    "at": "web/src/editor/editor.js:474",
     "plural": true,
     "one": "{n} linked to real devices",
     "placeholders": [
@@ -172,7 +172,7 @@
   },
   {
     "key": "{n} of {total} on",
-    "at": "web/src/ui/panel.js:658",
+    "at": "web/src/ui/panel.js:669",
     "plural": true,
     "one": "{n} of {total} on",
     "placeholders": [
@@ -192,7 +192,7 @@
   },
   {
     "key": "{n} rooms",
-    "at": "web/src/editor/editor.js:460",
+    "at": "web/src/editor/editor.js:471",
     "plural": true,
     "one": "{n} room",
     "placeholders": [
@@ -201,7 +201,7 @@
   },
   {
     "key": "{n} rooms copied from {floor}",
-    "at": "web/src/editor/editor.js:325",
+    "at": "web/src/editor/editor.js:335",
     "plural": true,
     "one": "{n} room copied from {floor}",
     "placeholders": [
@@ -211,7 +211,7 @@
   },
   {
     "key": "{n} rules",
-    "at": "web/src/editor/editor.js:525",
+    "at": "web/src/editor/editor.js:536",
     "plural": true,
     "one": "{n} rule",
     "placeholders": [
@@ -220,21 +220,21 @@
   },
   {
     "key": "{name} · room",
-    "at": "web/src/editor/connections.js:413",
+    "at": "web/src/editor/connections.js:487",
     "placeholders": [
       "name"
     ]
   },
   {
     "key": "{name} added",
-    "at": "web/src/editor/editor.js:264",
+    "at": "web/src/editor/editor.js:274",
     "placeholders": [
       "name"
     ]
   },
   {
     "key": "{name} copy",
-    "at": "web/src/editor/editor.js:644",
+    "at": "web/src/editor/editor.js:663",
     "placeholders": [
       "name"
     ],
@@ -249,21 +249,21 @@
   },
   {
     "key": "{name} removed · ⌘Z brings it back",
-    "at": "web/src/editor/editor.js:282",
+    "at": "web/src/editor/editor.js:292",
     "placeholders": [
       "name"
     ]
   },
   {
     "key": "{name} removed · Undo brings it back",
-    "at": "web/src/editor/editor.js:282",
+    "at": "web/src/editor/editor.js:292",
     "placeholders": [
       "name"
     ]
   },
   {
     "key": "{name} settings",
-    "at": "web/src/ui/panel.js:172",
+    "at": "web/src/ui/panel.js:175",
     "placeholders": [
       "name"
     ]
@@ -293,21 +293,21 @@
   },
   {
     "key": "{room} · drag across a light tile to dim it, or click the lamp in the 3D view to toggle.",
-    "at": "web/src/ui/panel.js:556",
+    "at": "web/src/ui/panel.js:567",
     "placeholders": [
       "room"
     ]
   },
   {
     "key": "{room} · drag across a light tile to dim it, or tap the lamp in the 3D view to toggle.",
-    "at": "web/src/ui/panel.js:555",
+    "at": "web/src/ui/panel.js:566",
     "placeholders": [
       "room"
     ]
   },
   {
     "key": "{room} AC",
-    "at": "web/src/editor/editor.js:591",
+    "at": "web/src/editor/editor.js:610",
     "placeholders": [
       "room"
     ],
@@ -315,14 +315,14 @@
   },
   {
     "key": "{service} disconnected",
-    "at": "web/src/editor/connections.js:138",
+    "at": "web/src/editor/connections.js:140",
     "placeholders": [
       "service"
     ]
   },
   {
     "key": "{service}: {id} (not found now)",
-    "at": "web/src/editor/connections.js:332",
+    "at": "web/src/editor/connections.js:406",
     "placeholders": [
       "id",
       "service"
@@ -344,7 +344,7 @@
   },
   {
     "key": "{width} × {depth} m",
-    "at": "web/src/editor/editor.js:518",
+    "at": "web/src/editor/editor.js:529",
     "placeholders": [
       "depth",
       "width"
@@ -385,7 +385,7 @@
   },
   {
     "key": "⌥ while dragging",
-    "at": "web/src/editor/editor.js:1220"
+    "at": "web/src/editor/editor.js:1242"
   },
   {
     "key": "1 hour",
@@ -393,7 +393,7 @@
   },
   {
     "key": "3D",
-    "at": "web/src/editor/editor.js:1673",
+    "at": "web/src/editor/editor.js:1712",
     "note": "Button that shows the 3D view."
   },
   {
@@ -406,7 +406,7 @@
   },
   {
     "key": "A gap or a window in a wall",
-    "at": "web/src/editor/editor.js:1348"
+    "at": "web/src/editor/editor.js:1385"
   },
   {
     "key": "A Hue Bridge on this network. No account needed",
@@ -414,39 +414,39 @@
   },
   {
     "key": "A light is missing an \"id\"",
-    "at": "web/src/config.js:135"
+    "at": "web/src/config.js:162"
   },
   {
     "key": "A room is missing an \"id\"",
-    "at": "web/src/config.js:116"
+    "at": "web/src/config.js:141"
   },
   {
     "key": "A scene is missing an \"id\"",
-    "at": "web/src/config.js:157"
+    "at": "web/src/config.js:187"
   },
   {
     "key": "A tap turns on the lights set to On; the next tap, while any of them is on, turns them off again.",
-    "at": "web/src/editor/editor.js:1378"
+    "at": "web/src/editor/editor.js:1415"
   },
   {
     "key": "A temperature sensor in the same room. Without one, the AC’s own reading is used, or the temperature is estimated.",
-    "at": "web/src/editor/connections.js:404"
+    "at": "web/src/editor/connections.js:478"
   },
   {
     "key": "AC",
-    "at": "web/src/editor/editor.js:447",
+    "at": "web/src/editor/editor.js:458",
     "note": "Short for air conditioner."
   },
   {
     "key": "AC \"{id}\" needs \"pos\": [x, z]",
-    "at": "web/src/config.js:151",
+    "at": "web/src/config.js:181",
     "placeholders": [
       "id"
     ]
   },
   {
     "key": "AC \"{id}\" needs \"wall\": one of {walls}",
-    "at": "web/src/config.js:152",
+    "at": "web/src/config.js:182",
     "placeholders": [
       "id",
       "walls"
@@ -454,7 +454,7 @@
   },
   {
     "key": "AC \"{id}\" refers to unknown room \"{room}\"",
-    "at": "web/src/config.js:150",
+    "at": "web/src/config.js:180",
     "placeholders": [
       "id",
       "room"
@@ -462,7 +462,7 @@
   },
   {
     "key": "AC {temp}°",
-    "at": "web/src/ui/panel.js:636",
+    "at": "web/src/ui/panel.js:647",
     "placeholders": [
       "temp"
     ]
@@ -502,23 +502,23 @@
   },
   {
     "key": "Access ID",
-    "at": "web/src/editor/editor.js:1528"
+    "at": "web/src/editor/editor.js:1565"
   },
   {
     "key": "Access ID / Client ID",
-    "at": "web/src/editor/editor.js:1513"
+    "at": "web/src/editor/editor.js:1550"
   },
   {
     "key": "Access Secret",
-    "at": "web/src/editor/editor.js:1529"
+    "at": "web/src/editor/editor.js:1566"
   },
   {
     "key": "Access Secret / Client Secret",
-    "at": "web/src/editor/editor.js:1515"
+    "at": "web/src/editor/editor.js:1552"
   },
   {
     "key": "Access token",
-    "at": "web/src/editor/connections.js:194"
+    "at": "web/src/editor/connections.js:196"
   },
   {
     "key": "Activity",
@@ -526,7 +526,7 @@
   },
   {
     "key": "Add",
-    "at": "web/src/editor/editor.js:1665"
+    "at": "web/src/editor/editor.js:1704"
   },
   {
     "key": "Add a door",
@@ -534,7 +534,7 @@
   },
   {
     "key": "Add a floor",
-    "at": "web/src/editor/editor.js:350"
+    "at": "web/src/editor/editor.js:360"
   },
   {
     "key": "Add a lamp",
@@ -546,11 +546,11 @@
   },
   {
     "key": "Add a room first",
-    "at": "web/src/editor/editor.js:587"
+    "at": "web/src/editor/editor.js:598"
   },
   {
     "key": "Add a room to start.",
-    "at": "web/src/editor/editor.js:358"
+    "at": "web/src/editor/editor.js:368"
   },
   {
     "key": "Add a scene",
@@ -558,11 +558,15 @@
   },
   {
     "key": "Add a window",
-    "at": "web/src/editor/editor.js:438"
+    "at": "web/src/editor/editor.js:449"
   },
   {
     "key": "Add an air conditioner",
     "at": "web/src/editor/editor.js:25"
+  },
+  {
+    "key": "Add an outlet",
+    "at": "web/src/editor/editor.js:446"
   },
   {
     "key": "Add furniture",
@@ -570,11 +574,11 @@
   },
   {
     "key": "Add stairs",
-    "at": "web/src/editor/editor.js:439"
+    "at": "web/src/editor/editor.js:450"
   },
   {
     "key": "Add to the plan",
-    "at": "web/src/editor/editor.js:1689"
+    "at": "web/src/editor/editor.js:1728"
   },
   {
     "key": "Add what you want: {example}.",
@@ -585,11 +589,11 @@
   },
   {
     "key": "Address",
-    "at": "web/src/editor/connections.js:193"
+    "at": "web/src/editor/connections.js:195"
   },
   {
     "key": "Advanced: Tuya Cloud project instead",
-    "at": "web/src/editor/editor.js:1526"
+    "at": "web/src/editor/editor.js:1563"
   },
   {
     "key": "AI",
@@ -597,7 +601,7 @@
   },
   {
     "key": "AI access",
-    "at": "web/src/ui/panel.js:53"
+    "at": "web/src/ui/panel.js:56"
   },
   {
     "key": "AI Access",
@@ -617,42 +621,42 @@
   },
   {
     "key": "Air conditioner",
-    "at": "web/src/editor/editor.js:436"
+    "at": "web/src/editor/editor.js:447"
   },
   {
     "key": "Air conditioners",
-    "at": "web/src/editor/connections.js:17"
+    "at": "web/src/editor/connections.js:18"
   },
   {
     "key": "Airflow",
-    "at": "web/src/ui/panel.js:468"
+    "at": "web/src/ui/panel.js:479"
   },
   {
     "key": "airflow|Off",
-    "at": "web/src/ui/panel.js:16",
+    "at": "web/src/ui/panel.js:19",
     "context": "airflow",
     "text": "Off",
     "note": "AC louvre position: fixed, not swinging. Not the power state."
   },
   {
     "key": "airflow|Swing",
-    "at": "web/src/ui/panel.js:16",
+    "at": "web/src/ui/panel.js:19",
     "context": "airflow",
     "text": "Swing",
     "note": "AC louvre position: sweeping up and down."
   },
   {
     "key": "All",
-    "at": "web/src/ui/panel.js:111",
+    "at": "web/src/ui/panel.js:114",
     "note": "Room filter: every room of the home."
   },
   {
     "key": "All ACs",
-    "at": "web/src/editor/editor.js:1385"
+    "at": "web/src/editor/editor.js:1422"
   },
   {
     "key": "All lights (default)",
-    "at": "web/src/editor/editor.js:1381"
+    "at": "web/src/editor/editor.js:1418"
   },
   {
     "key": "All off",
@@ -660,15 +664,19 @@
   },
   {
     "key": "All on",
-    "at": "web/src/ui/panel.js:63"
+    "at": "web/src/ui/panel.js:66"
   },
   {
     "key": "An AC is missing an \"id\"",
-    "at": "web/src/config.js:149"
+    "at": "web/src/config.js:179"
   },
   {
     "key": "An AI assistant has access — click to manage",
-    "at": "web/src/ui/panel.js:53"
+    "at": "web/src/ui/panel.js:56"
+  },
+  {
+    "key": "An outlet switches on and off. It sits on the wall of its room nearest to where you put it; choose Lamp to show a lamp plugged into it as a lamp.",
+    "at": "web/src/editor/editor.js:1332"
   },
   {
     "key": "Any chat",
@@ -676,7 +684,7 @@
   },
   {
     "key": "Apple lets only iPhone, iPad and App Store apps use HomeKit, so the iPhone app switches these devices. On the Mac they show what you set, but stay simulated.",
-    "at": "web/src/editor/connections.js:297"
+    "at": "web/src/editor/connections.js:370"
   },
   {
     "key": "Armchair",
@@ -684,31 +692,31 @@
   },
   {
     "key": "Arrange",
-    "at": "web/src/editor/editor.js:1252"
+    "at": "web/src/editor/editor.js:1274"
   },
   {
     "key": "Arrows · ⇧ arrows",
-    "at": "web/src/editor/editor.js:1219"
+    "at": "web/src/editor/editor.js:1241"
   },
   {
     "key": "Asking for the devices…",
-    "at": "web/src/editor/connections.js:110"
+    "at": "web/src/editor/connections.js:112"
   },
   {
     "key": "Auto-off timer",
-    "at": "web/src/ui/panel.js:494"
+    "at": "web/src/ui/panel.js:505"
   },
   {
     "key": "Azimuth, °",
-    "at": "web/src/editor/editor.js:1211"
+    "at": "web/src/editor/editor.js:1233"
   },
   {
     "key": "Back",
-    "at": "web/src/ui/panel.js:386"
+    "at": "web/src/ui/panel.js:397"
   },
   {
     "key": "Basement",
-    "at": "web/src/editor/editor.js:256"
+    "at": "web/src/editor/editor.js:266"
   },
   {
     "key": "Bathtub",
@@ -724,31 +732,31 @@
   },
   {
     "key": "Bridge",
-    "at": "web/src/editor/connections.js:244"
+    "at": "web/src/editor/connections.js:246"
   },
   {
     "key": "Bridge address",
-    "at": "web/src/editor/connections.js:273"
+    "at": "web/src/editor/connections.js:275"
   },
   {
     "key": "Brighter",
-    "at": "web/src/ui/panel.js:533"
+    "at": "web/src/ui/panel.js:544"
   },
   {
     "key": "brightness",
-    "at": "web/src/editor/connections.js:19"
+    "at": "web/src/editor/connections.js:20"
   },
   {
     "key": "Brightness, temperature and colour per light are kept from the plan file; edit them there for fine control.",
-    "at": "web/src/editor/editor.js:1383"
+    "at": "web/src/editor/editor.js:1420"
   },
   {
     "key": "Browser preview: the plan was downloaded instead of applied",
-    "at": "web/src/editor/editor.js:1542"
+    "at": "web/src/editor/editor.js:1579"
   },
   {
     "key": "Building",
-    "at": "web/src/editor/editor.js:1206"
+    "at": "web/src/editor/editor.js:1228"
   },
   {
     "key": "Cancel",
@@ -756,11 +764,11 @@
   },
   {
     "key": "Cancel timer",
-    "at": "web/src/ui/panel.js:427"
+    "at": "web/src/ui/panel.js:438"
   },
   {
     "key": "Ceiling height, m",
-    "at": "web/src/editor/editor.js:1246"
+    "at": "web/src/editor/editor.js:1268"
   },
   {
     "key": "Ceiling light",
@@ -776,11 +784,11 @@
   },
   {
     "key": "Close",
-    "at": "web/src/editor/editor.js:1703"
+    "at": "web/src/editor/editor.js:1742"
   },
   {
     "key": "Close details",
-    "at": "web/src/editor/editor.js:1893"
+    "at": "web/src/editor/editor.js:1932"
   },
   {
     "key": "Code & agents",
@@ -792,30 +800,30 @@
   },
   {
     "key": "colour",
-    "at": "web/src/editor/connections.js:19"
+    "at": "web/src/editor/connections.js:20"
   },
   {
     "key": "Colour",
-    "at": "web/src/editor/editor.js:1313"
+    "at": "web/src/editor/editor.js:1350"
   },
   {
     "key": "Colour (hex, optional)",
-    "at": "web/src/editor/editor.js:1341"
+    "at": "web/src/editor/editor.js:1378"
   },
   {
     "key": "Colour {hex}",
-    "at": "web/src/ui/panel.js:550",
+    "at": "web/src/ui/panel.js:561",
     "placeholders": [
       "hex"
     ]
   },
   {
     "key": "Colour temperature",
-    "at": "web/src/ui/panel.js:542"
+    "at": "web/src/ui/panel.js:553"
   },
   {
     "key": "Connect",
-    "at": "web/src/editor/connections.js:182"
+    "at": "web/src/editor/connections.js:184"
   },
   {
     "key": "Connect an assistant",
@@ -823,34 +831,34 @@
   },
   {
     "key": "Connected",
-    "at": "web/src/editor/connections.js:89"
+    "at": "web/src/editor/connections.js:91"
   },
   {
     "key": "Connected to {name}",
-    "at": "web/src/editor/connections.js:176",
+    "at": "web/src/editor/connections.js:178",
     "placeholders": [
       "name"
     ]
   },
   {
     "key": "Connected, but no lamps, air conditioners or temperature sensors were found.",
-    "at": "web/src/editor/connections.js:114"
+    "at": "web/src/editor/connections.js:116"
   },
   {
     "key": "Connected, but this account has no devices yet.",
-    "at": "web/src/editor/editor.js:1431"
+    "at": "web/src/editor/editor.js:1468"
   },
   {
     "key": "Connecting works inside the House Control app (this is the browser preview).",
-    "at": "web/src/editor/connections.js:101"
+    "at": "web/src/editor/connections.js:103"
   },
   {
     "key": "Connecting…",
-    "at": "web/src/editor/connections.js:182"
+    "at": "web/src/editor/connections.js:184"
   },
   {
     "key": "Connections",
-    "at": "web/src/editor/connections.js:69"
+    "at": "web/src/editor/connections.js:70"
   },
   {
     "key": "Cooler",
@@ -866,7 +874,7 @@
   },
   {
     "key": "Copy {floor}",
-    "at": "web/src/editor/editor.js:360",
+    "at": "web/src/editor/editor.js:370",
     "placeholders": [
       "floor"
     ]
@@ -877,14 +885,14 @@
   },
   {
     "key": "Copy the rooms of {floor}",
-    "at": "web/src/editor/editor.js:1259",
+    "at": "web/src/editor/editor.js:1281",
     "placeholders": [
       "floor"
     ]
   },
   {
     "key": "Copy the rooms of {floor}, or start with one room as big as it and divide it up.",
-    "at": "web/src/editor/editor.js:358",
+    "at": "web/src/editor/editor.js:368",
     "placeholders": [
       "floor"
     ]
@@ -895,7 +903,7 @@
   },
   {
     "key": "Could not read the file: {error}",
-    "at": "web/src/editor/editor.js:1597",
+    "at": "web/src/editor/editor.js:1636",
     "placeholders": [
       "error"
     ]
@@ -906,15 +914,15 @@
   },
   {
     "key": "Data center",
-    "at": "web/src/editor/editor.js:1530"
+    "at": "web/src/editor/editor.js:1567"
   },
   {
     "key": "Decoration only",
-    "at": "web/src/editor/editor.js:1335"
+    "at": "web/src/editor/editor.js:1372"
   },
   {
     "key": "Default camera",
-    "at": "web/src/editor/editor.js:1210"
+    "at": "web/src/editor/editor.js:1232"
   },
   {
     "key": "Demo · Apartment",
@@ -930,7 +938,7 @@
   },
   {
     "key": "Demo mode",
-    "at": "web/src/editor/connections.js:70"
+    "at": "web/src/editor/connections.js:71"
   },
   {
     "key": "demo|All off",
@@ -1214,7 +1222,7 @@
   },
   {
     "key": "Depth",
-    "at": "web/src/editor/editor.js:1290"
+    "at": "web/src/editor/editor.js:1312"
   },
   {
     "key": "Desk",
@@ -1222,15 +1230,15 @@
   },
   {
     "key": "Details",
-    "at": "web/src/editor/editor.js:1661"
+    "at": "web/src/editor/editor.js:1700"
   },
   {
     "key": "device",
-    "at": "web/src/editor/editor.js:1435"
+    "at": "web/src/editor/editor.js:1472"
   },
   {
     "key": "Device",
-    "at": "web/src/editor/connections.js:380"
+    "at": "web/src/editor/connections.js:454"
   },
   {
     "key": "Device IDs and sign-ins never leave the Mac. Cloudflare only relays the encrypted connection.",
@@ -1238,11 +1246,11 @@
   },
   {
     "key": "Dimmer",
-    "at": "web/src/ui/panel.js:531"
+    "at": "web/src/ui/panel.js:542"
   },
   {
     "key": "Dimming",
-    "at": "web/src/editor/editor.js:1311"
+    "at": "web/src/editor/editor.js:1348"
   },
   {
     "key": "Dining table",
@@ -1250,15 +1258,15 @@
   },
   {
     "key": "Discard changes",
-    "at": "web/src/editor/editor.js:1697"
+    "at": "web/src/editor/editor.js:1736"
   },
   {
     "key": "Disconnect",
-    "at": "web/src/editor/connections.js:131"
+    "at": "web/src/editor/connections.js:133"
   },
   {
     "key": "Done",
-    "at": "web/src/editor/editor.js:1683"
+    "at": "web/src/editor/editor.js:1722"
   },
   {
     "key": "Door",
@@ -1278,27 +1286,27 @@
   },
   {
     "key": "Drag it along a wall. To turn it, drag it onto a wall that runs the other way: it snaps to that wall and turns with it (hold ⌥ not to snap). Drag the dots at its ends to make it wider.",
-    "at": "web/src/editor/editor.js:1357"
+    "at": "web/src/editor/editor.js:1394"
   },
   {
     "key": "Drag it along a wall. To turn it, drag it onto a wall that runs the other way: it snaps to that wall and turns with it. Drag the dots at its ends to make it wider.",
-    "at": "web/src/editor/editor.js:1356"
+    "at": "web/src/editor/editor.js:1393"
   },
   {
     "key": "Drag the dots on its corners and sides to resize it; edges snap to other rooms (hold ⌥ not to). Rooms that share an edge get an interior wall there; add a door or an “open” gap to connect them.",
-    "at": "web/src/editor/editor.js:1292"
+    "at": "web/src/editor/editor.js:1314"
   },
   {
     "key": "Drag the dots on its corners and sides to resize it. Rooms that share an edge get an interior wall there; add a door or an “open” gap to connect them.",
-    "at": "web/src/editor/editor.js:1291"
+    "at": "web/src/editor/editor.js:1313"
   },
   {
     "key": "Drag the empty plan · Space-drag",
-    "at": "web/src/editor/editor.js:1217"
+    "at": "web/src/editor/editor.js:1239"
   },
   {
     "key": "Dragging the unit on the plan snaps it to the nearest wall of its room.",
-    "at": "web/src/editor/editor.js:1330"
+    "at": "web/src/editor/editor.js:1367"
   },
   {
     "key": "Dresser",
@@ -1306,33 +1314,33 @@
   },
   {
     "key": "Duplicate",
-    "at": "web/src/editor/editor.js:1287"
+    "at": "web/src/editor/editor.js:1309"
   },
   {
     "key": "Duplicate · turn 90° · turn 15°",
-    "at": "web/src/editor/editor.js:1218"
+    "at": "web/src/editor/editor.js:1240"
   },
   {
     "key": "Duplicate floor id \"{id}\"",
-    "at": "web/src/config.js:100",
+    "at": "web/src/config.js:125",
     "placeholders": [
       "id"
     ]
   },
   {
     "key": "Duplicate id \"{id}\"",
-    "at": "web/src/config.js:92",
+    "at": "web/src/config.js:117",
     "placeholders": [
       "id"
     ]
   },
   {
     "key": "Duplicated",
-    "at": "web/src/editor/editor.js:649"
+    "at": "web/src/editor/editor.js:668"
   },
   {
     "key": "e.g. {example}",
-    "at": "web/src/editor/connections.js:261",
+    "at": "web/src/editor/connections.js:263",
     "placeholders": [
       "example"
     ]
@@ -1347,12 +1355,12 @@
   },
   {
     "key": "Eco Mode",
-    "at": "web/src/ui/panel.js:418",
+    "at": "web/src/ui/panel.js:429",
     "note": "AC energy-saving mode."
   },
   {
     "key": "Edit {floor}",
-    "at": "web/src/editor/editor.js:347",
+    "at": "web/src/editor/editor.js:357",
     "placeholders": [
       "floor"
     ]
@@ -1367,14 +1375,18 @@
   },
   {
     "key": "Elevation, °",
-    "at": "web/src/editor/editor.js:1212"
+    "at": "web/src/editor/editor.js:1234"
   },
   {
     "key": "Empty: the home’s wall height ({height} m). Floors stack in this order; the 3D view shows one floor at a time, with the floors under it.",
-    "at": "web/src/editor/editor.js:1251",
+    "at": "web/src/editor/editor.js:1273",
     "placeholders": [
       "height"
     ]
+  },
+  {
+    "key": "Every accessory its plugins bring: Govee, Xiaomi, Nest, Sonoff…",
+    "at": "web/src/editor/connections.js:15"
   },
   {
     "key": "Everything it runs: Zigbee, Matter, Nest, Xiaomi, Sonoff…",
@@ -1386,47 +1398,47 @@
   },
   {
     "key": "Export…",
-    "at": "web/src/editor/editor.js:124"
+    "at": "web/src/editor/editor.js:127"
   },
   {
     "key": "Fan speed",
-    "at": "web/src/ui/panel.js:467"
+    "at": "web/src/ui/panel.js:478"
   },
   {
     "key": "fan speed|Auto",
-    "at": "web/src/ui/panel.js:14",
+    "at": "web/src/ui/panel.js:17",
     "context": "fan speed",
     "text": "Auto",
     "note": "AC fan speed chosen by the unit."
   },
   {
     "key": "fan speed|Fan",
-    "at": "web/src/ui/panel.js:467",
+    "at": "web/src/ui/panel.js:478",
     "context": "fan speed",
     "text": "Fan",
     "note": "Short label (iPhone) of the AC fan-speed control; \"Fan speed\" on wider screens."
   },
   {
     "key": "fan speed|High",
-    "at": "web/src/ui/panel.js:14",
+    "at": "web/src/ui/panel.js:17",
     "context": "fan speed",
     "text": "High"
   },
   {
     "key": "fan speed|Low",
-    "at": "web/src/ui/panel.js:14",
+    "at": "web/src/ui/panel.js:17",
     "context": "fan speed",
     "text": "Low"
   },
   {
     "key": "fan speed|Medium",
-    "at": "web/src/ui/panel.js:14",
+    "at": "web/src/ui/panel.js:17",
     "context": "fan speed",
     "text": "Medium"
   },
   {
     "key": "fan speed|Turbo",
-    "at": "web/src/ui/panel.js:14",
+    "at": "web/src/ui/panel.js:17",
     "context": "fan speed",
     "text": "Turbo"
   },
@@ -1440,23 +1452,23 @@
   },
   {
     "key": "Fixture",
-    "at": "web/src/editor/editor.js:1303"
+    "at": "web/src/editor/editor.js:1339"
   },
   {
     "key": "Floor",
-    "at": "web/src/editor/editor.js:350",
+    "at": "web/src/editor/editor.js:360",
     "note": "A storey of the building (ground floor, first floor), not the flooring."
   },
   {
     "key": "Floor {n}",
-    "at": "web/src/editor/editor.js:256",
+    "at": "web/src/editor/editor.js:266",
     "placeholders": [
       "n"
     ]
   },
   {
     "key": "floor {n} of {total}",
-    "at": "web/src/editor/editor.js:1233",
+    "at": "web/src/editor/editor.js:1255",
     "placeholders": [
       "n",
       "total"
@@ -1464,11 +1476,11 @@
   },
   {
     "key": "Floor above",
-    "at": "web/src/editor/editor.js:1257"
+    "at": "web/src/editor/editor.js:1279"
   },
   {
     "key": "Floor above · below",
-    "at": "web/src/editor/editor.js:1221"
+    "at": "web/src/editor/editor.js:1243"
   },
   {
     "key": "Floor lamp",
@@ -1476,11 +1488,11 @@
   },
   {
     "key": "Flooring",
-    "at": "web/src/editor/editor.js:1281"
+    "at": "web/src/editor/editor.js:1303"
   },
   {
     "key": "Floors",
-    "at": "web/src/editor/editor.js:105",
+    "at": "web/src/editor/editor.js:108",
     "note": "Storeys of the building."
   },
   {
@@ -1489,7 +1501,7 @@
   },
   {
     "key": "Forget this list",
-    "at": "web/src/editor/connections.js:289"
+    "at": "web/src/editor/connections.js:362"
   },
   {
     "key": "Fourth floor",
@@ -1497,7 +1509,7 @@
   },
   {
     "key": "Free and needs no Tuya developer account: this is the same sign-in the Home Assistant integration uses. The session is stored only on this Mac.",
-    "at": "web/src/editor/editor.js:1507"
+    "at": "web/src/editor/editor.js:1544"
   },
   {
     "key": "Fridge",
@@ -1505,15 +1517,15 @@
   },
   {
     "key": "From X",
-    "at": "web/src/editor/editor.js:1351"
+    "at": "web/src/editor/editor.js:1388"
   },
   {
     "key": "From your iPhone",
-    "at": "web/src/editor/connections.js:286"
+    "at": "web/src/editor/connections.js:359"
   },
   {
     "key": "From Z",
-    "at": "web/src/editor/editor.js:1351"
+    "at": "web/src/editor/editor.js:1388"
   },
   {
     "key": "Furniture",
@@ -1521,7 +1533,7 @@
   },
   {
     "key": "Furniture #{n} is on unknown floor \"{floor}\"",
-    "at": "web/src/config.js:162",
+    "at": "web/src/config.js:192",
     "placeholders": [
       "floor",
       "n"
@@ -1533,49 +1545,53 @@
   },
   {
     "key": "Global settings of this plan",
-    "at": "web/src/editor/editor.js:1203"
+    "at": "web/src/editor/editor.js:1225"
   },
   {
     "key": "Ground floor",
-    "at": "web/src/config.js:41"
+    "at": "web/src/config.js:66"
   },
   {
     "key": "Head, m",
-    "at": "web/src/editor/editor.js:1354",
+    "at": "web/src/editor/editor.js:1391",
     "note": "Window head: the height of the top of the window, in metres."
   },
   {
     "key": "Height",
-    "at": "web/src/editor/editor.js:1324"
+    "at": "web/src/editor/editor.js:1361"
   },
   {
     "key": "Height (auto if empty)",
-    "at": "web/src/editor/editor.js:1306"
+    "at": "web/src/editor/editor.js:1343"
   },
   {
     "key": "Home",
-    "at": "web/src/config.js:182",
+    "at": "web/src/config.js:212",
     "note": "The person's home (also the default name of a new plan)."
   },
   {
     "key": "Home name",
-    "at": "web/src/editor/editor.js:100"
+    "at": "web/src/editor/editor.js:103"
   },
   {
     "key": "Home settings",
-    "at": "web/src/editor/editor.js:533"
+    "at": "web/src/editor/editor.js:544"
+  },
+  {
+    "key": "Homebridge ended the session and asks for a two-factor code. Sign in again to keep controlling its devices.",
+    "at": "web/src/editor/connections.js:327"
   },
   {
     "key": "HomeKit and Matter accessories, through your iPhone",
-    "at": "web/src/editor/connections.js:15"
+    "at": "web/src/editor/connections.js:16"
   },
   {
     "key": "How it works",
-    "at": "web/src/editor/connections.js:292"
+    "at": "web/src/editor/connections.js:365"
   },
   {
     "key": "Icon",
-    "at": "web/src/editor/editor.js:1371"
+    "at": "web/src/editor/editor.js:1408"
   },
   {
     "key": "icon|Bed",
@@ -1649,7 +1665,7 @@
   },
   {
     "key": "id: {id}",
-    "at": "web/src/editor/editor.js:1277",
+    "at": "web/src/editor/editor.js:1299",
     "placeholders": [
       "id"
     ]
@@ -1661,7 +1677,7 @@
   },
   {
     "key": "Import…",
-    "at": "web/src/editor/editor.js:123"
+    "at": "web/src/editor/editor.js:126"
   },
   {
     "key": "In a chat choose Developer mode, add House Control, and talk to your home.",
@@ -1684,11 +1700,11 @@
   },
   {
     "key": "In Home Assistant, open your profile (your name at the bottom left) → Security.",
-    "at": "web/src/editor/connections.js:196"
+    "at": "web/src/editor/connections.js:198"
   },
   {
     "key": "In the Smart Life app open Me → ⚙ Settings → Account and Security and copy the User Code at the bottom.",
-    "at": "web/src/editor/editor.js:1501"
+    "at": "web/src/editor/editor.js:1538"
   },
   {
     "key": "India",
@@ -1696,7 +1712,7 @@
   },
   {
     "key": "Inner walls shown, m",
-    "at": "web/src/editor/editor.js:1208"
+    "at": "web/src/editor/editor.js:1230"
   },
   {
     "key": "Internet",
@@ -1704,15 +1720,15 @@
   },
   {
     "key": "Items",
-    "at": "web/src/editor/editor.js:1664"
+    "at": "web/src/editor/editor.js:1703"
   },
   {
     "key": "Its lamps, air conditioners and thermometers appear here. Link them like any other device.",
-    "at": "web/src/editor/connections.js:296"
+    "at": "web/src/editor/connections.js:369"
   },
   {
     "key": "Keep editing",
-    "at": "web/src/editor/editor.js:1698"
+    "at": "web/src/editor/editor.js:1737"
   },
   {
     "key": "Kitchen island",
@@ -1724,23 +1740,23 @@
   },
   {
     "key": "Lamp",
-    "at": "web/src/editor/editor.js:435"
+    "at": "web/src/editor/editor.js:445"
   },
   {
     "key": "Lamps and ACs stay simulated until you link them: pick one on the plan, then choose its device under “Real device”. One home can mix them all.",
-    "at": "web/src/editor/connections.js:100"
+    "at": "web/src/editor/connections.js:102"
   },
   {
     "key": "Leave all three off for a lamp on a plain smart plug: it is then a simple on/off switch.",
-    "at": "web/src/editor/editor.js:1314"
+    "at": "web/src/editor/editor.js:1351"
   },
   {
     "key": "Leave as is",
-    "at": "web/src/editor/editor.js:1369"
+    "at": "web/src/editor/editor.js:1406"
   },
   {
     "key": "Length, m",
-    "at": "web/src/editor/editor.js:1341"
+    "at": "web/src/editor/editor.js:1378"
   },
   {
     "key": "Let ChatGPT, Claude or any AI assistant see and run your home — through a private link that lives only as long as you want it to.",
@@ -1748,11 +1764,11 @@
   },
   {
     "key": "Light",
-    "at": "web/src/editor/editor.js:1300"
+    "at": "web/src/editor/editor.js:1336"
   },
   {
     "key": "Light \"{id}\" has unknown type \"{type}\" (use {types})",
-    "at": "web/src/config.js:137",
+    "at": "web/src/config.js:164",
     "placeholders": [
       "id",
       "type",
@@ -1761,14 +1777,14 @@
   },
   {
     "key": "Light \"{id}\" needs \"pos\": [x, z]",
-    "at": "web/src/config.js:138",
+    "at": "web/src/config.js:165",
     "placeholders": [
       "id"
     ]
   },
   {
     "key": "Light \"{id}\" refers to unknown room \"{room}\"",
-    "at": "web/src/config.js:136",
+    "at": "web/src/config.js:163",
     "placeholders": [
       "id",
       "room"
@@ -1784,15 +1800,15 @@
   },
   {
     "key": "Lights and plugs",
-    "at": "web/src/editor/connections.js:17"
+    "at": "web/src/editor/connections.js:18"
   },
   {
     "key": "Lights off",
-    "at": "web/src/editor/editor.js:489"
+    "at": "web/src/editor/editor.js:500"
   },
   {
     "key": "Lights on",
-    "at": "web/src/editor/editor.js:489"
+    "at": "web/src/editor/editor.js:500"
   },
   {
     "key": "Lights, climate and scenes",
@@ -1800,7 +1816,7 @@
   },
   {
     "key": "Linked to a real device",
-    "at": "web/src/editor/editor.js:557"
+    "at": "web/src/editor/editor.js:568"
   },
   {
     "key": "Live",
@@ -1813,23 +1829,27 @@
   },
   {
     "key": "Loading your devices…",
-    "at": "web/src/editor/connections.js:377"
+    "at": "web/src/editor/connections.js:451"
   },
   {
     "key": "Long-lived access token",
-    "at": "web/src/editor/connections.js:167"
+    "at": "web/src/editor/connections.js:169"
   },
   {
     "key": "Look again",
-    "at": "web/src/editor/connections.js:191"
+    "at": "web/src/editor/connections.js:193"
   },
   {
     "key": "Looking for Home Assistant…",
-    "at": "web/src/editor/connections.js:186"
+    "at": "web/src/editor/connections.js:188"
+  },
+  {
+    "key": "Looking for Homebridge…",
+    "at": "web/src/editor/connections.js:329"
   },
   {
     "key": "Looking for Hue Bridges…",
-    "at": "web/src/editor/connections.js:266"
+    "at": "web/src/editor/connections.js:268"
   },
   {
     "key": "Make a new link; the current one stops working",
@@ -1837,42 +1857,42 @@
   },
   {
     "key": "Matched what it can do: {capabilities}",
-    "at": "web/src/editor/connections.js:368",
+    "at": "web/src/editor/connections.js:442",
     "placeholders": [
       "capabilities"
     ]
   },
   {
     "key": "Matched: an on/off switch",
-    "at": "web/src/editor/connections.js:369"
+    "at": "web/src/editor/connections.js:443"
   },
   {
     "key": "Min / max °C",
-    "at": "web/src/editor/editor.js:1325"
+    "at": "web/src/editor/editor.js:1362"
   },
   {
     "key": "Mode",
-    "at": "web/src/ui/panel.js:466"
+    "at": "web/src/ui/panel.js:477"
   },
   {
     "key": "Mounted on wall",
-    "at": "web/src/editor/editor.js:1321"
+    "at": "web/src/editor/editor.js:1358"
   },
   {
     "key": "Move around",
-    "at": "web/src/editor/editor.js:1217"
+    "at": "web/src/editor/editor.js:1239"
   },
   {
     "key": "Move around · zoom",
-    "at": "web/src/editor/editor.js:1216"
+    "at": "web/src/editor/editor.js:1238"
   },
   {
     "key": "Move down",
-    "at": "web/src/editor/editor.js:1255"
+    "at": "web/src/editor/editor.js:1277"
   },
   {
     "key": "Move up",
-    "at": "web/src/editor/editor.js:1254"
+    "at": "web/src/editor/editor.js:1276"
   },
   {
     "key": "My home",
@@ -1880,7 +1900,7 @@
   },
   {
     "key": "Name",
-    "at": "web/src/editor/editor.js:1245"
+    "at": "web/src/editor/editor.js:1267"
   },
   {
     "key": "Name it **House Control** and paste this address:",
@@ -1892,19 +1912,23 @@
   },
   {
     "key": "New light",
-    "at": "web/src/editor/editor.js:588"
+    "at": "web/src/editor/editor.js:606"
   },
   {
     "key": "New link",
     "at": "web/src/agent/console.js:54"
   },
   {
+    "key": "New outlet",
+    "at": "web/src/editor/editor.js:604"
+  },
+  {
     "key": "New room",
-    "at": "web/src/editor/editor.js:334"
+    "at": "web/src/editor/editor.js:344"
   },
   {
     "key": "New scene",
-    "at": "web/src/editor/editor.js:601"
+    "at": "web/src/editor/editor.js:620"
   },
   {
     "key": "Nightstand",
@@ -1912,7 +1936,7 @@
   },
   {
     "key": "No bridge found by itself. Type its address below (the Hue app shows it under Settings → My Hue system).",
-    "at": "web/src/editor/connections.js:270"
+    "at": "web/src/editor/connections.js:272"
   },
   {
     "key": "No developer mode? “Copy for a chat” works in any ChatGPT conversation that can browse.",
@@ -1920,27 +1944,27 @@
   },
   {
     "key": "No devices in this room yet",
-    "at": "web/src/ui/panel.js:307"
+    "at": "web/src/ui/panel.js:310"
   },
   {
     "key": "no functions reported",
-    "at": "web/src/editor/editor.js:1435"
+    "at": "web/src/editor/editor.js:1472"
   },
   {
     "key": "No snapping",
-    "at": "web/src/editor/editor.js:1220"
+    "at": "web/src/editor/editor.js:1242"
   },
   {
     "key": "Nobody pressed the button in time. Try again.",
-    "at": "web/src/editor/connections.js:215"
+    "at": "web/src/editor/connections.js:217"
   },
   {
     "key": "None — estimated",
-    "at": "web/src/editor/connections.js:319"
+    "at": "web/src/editor/connections.js:393"
   },
   {
     "key": "None found by itself. Type its address below.",
-    "at": "web/src/editor/connections.js:190"
+    "at": "web/src/editor/connections.js:192"
   },
   {
     "key": "North wall",
@@ -1948,22 +1972,22 @@
   },
   {
     "key": "Not a valid plan: {error}",
-    "at": "web/src/editor/editor.js:1575",
+    "at": "web/src/editor/editor.js:1614",
     "placeholders": [
       "error"
     ]
   },
   {
     "key": "Not connected",
-    "at": "web/src/editor/connections.js:86"
+    "at": "web/src/editor/connections.js:87"
   },
   {
     "key": "Not linked — simulated",
-    "at": "web/src/editor/connections.js:319"
+    "at": "web/src/editor/connections.js:393"
   },
   {
     "key": "Nothing selected",
-    "at": "web/src/editor/editor.js:1274"
+    "at": "web/src/editor/editor.js:1296"
   },
   {
     "key": "Nothing yet. Start AI Access, give the link to an assistant, and watch it work here.",
@@ -1976,7 +2000,7 @@
   },
   {
     "key": "Nudge 5 cm · 50 cm",
-    "at": "web/src/editor/editor.js:1219"
+    "at": "web/src/editor/editor.js:1241"
   },
   {
     "key": "Oak",
@@ -1989,47 +2013,47 @@
   },
   {
     "key": "Off in {time}",
-    "at": "web/src/ui/panel.js:493",
+    "at": "web/src/ui/panel.js:504",
     "placeholders": [
       "time"
     ]
   },
   {
     "key": "offline",
-    "at": "web/src/editor/connections.js:381"
+    "at": "web/src/editor/connections.js:455"
   },
   {
     "key": "Offline",
-    "at": "web/src/editor/connections.js:120"
+    "at": "web/src/editor/connections.js:122"
   },
   {
     "key": "On",
-    "at": "web/src/editor/editor.js:1369",
+    "at": "web/src/editor/editor.js:1406",
     "note": "State of a lamp or an AC (switched on); also a scene rule (\"turn it on\")."
   },
   {
     "key": "On floor",
-    "at": "web/src/editor/editor.js:1282"
+    "at": "web/src/editor/editor.js:1304"
   },
   {
     "key": "On the iPhone: House Control → Settings → Apple Home → Connect, and allow access to your Home data.",
-    "at": "web/src/editor/connections.js:295"
+    "at": "web/src/editor/connections.js:368"
   },
   {
     "key": "On your network",
-    "at": "web/src/editor/connections.js:185"
+    "at": "web/src/editor/connections.js:187"
   },
   {
     "key": "On/off button",
-    "at": "web/src/editor/editor.js:1372"
+    "at": "web/src/editor/editor.js:1409"
   },
   {
     "key": "On/off sends the linked Smart Life Tap-to-Run IR commands. Power state is estimated.",
-    "at": "web/src/editor/connections.js:382"
+    "at": "web/src/editor/connections.js:456"
   },
   {
     "key": "One big room",
-    "at": "web/src/editor/editor.js:361"
+    "at": "web/src/editor/editor.js:371"
   },
   {
     "key": "One-time setup",
@@ -2037,7 +2061,7 @@
   },
   {
     "key": "Online",
-    "at": "web/src/editor/connections.js:120"
+    "at": "web/src/editor/connections.js:122"
   },
   {
     "key": "Only apps on this Mac can open it: Claude Code, Cursor, VS Code, LM Studio, your own scripts. See **{tab}** below.",
@@ -2048,7 +2072,7 @@
   },
   {
     "key": "Only if you already have a project on platform.tuya.com with your app account linked. The QR sign-in above takes priority when both are set.",
-    "at": "web/src/editor/editor.js:1527"
+    "at": "web/src/editor/editor.js:1564"
   },
   {
     "key": "Open at login",
@@ -2060,7 +2084,7 @@
   },
   {
     "key": "Open Connections",
-    "at": "web/src/editor/connections.js:347"
+    "at": "web/src/editor/connections.js:421"
   },
   {
     "key": "Open passage",
@@ -2072,11 +2096,11 @@
   },
   {
     "key": "Opening",
-    "at": "web/src/editor/editor.js:1349"
+    "at": "web/src/editor/editor.js:1386"
   },
   {
     "key": "Opening #{n} is on unknown floor \"{floor}\"",
-    "at": "web/src/config.js:130",
+    "at": "web/src/config.js:155",
     "placeholders": [
       "floor",
       "n"
@@ -2084,14 +2108,14 @@
   },
   {
     "key": "Opening #{n} must be axis-aligned",
-    "at": "web/src/config.js:129",
+    "at": "web/src/config.js:154",
     "placeholders": [
       "n"
     ]
   },
   {
     "key": "Opening #{n} needs \"from\" and \"to\" points",
-    "at": "web/src/config.js:128",
+    "at": "web/src/config.js:153",
     "placeholders": [
       "n"
     ]
@@ -2102,7 +2126,7 @@
   },
   {
     "key": "Or by address",
-    "at": "web/src/editor/connections.js:272"
+    "at": "web/src/editor/connections.js:274"
   },
   {
     "key": "Or in Terminal: {command}",
@@ -2113,7 +2137,11 @@
   },
   {
     "key": "Outdoor temperature, °C",
-    "at": "web/src/editor/editor.js:1209"
+    "at": "web/src/editor/editor.js:1231"
+  },
+  {
+    "key": "Outlet",
+    "at": "web/src/editor/editor.js:446"
   },
   {
     "key": "Over the internet",
@@ -2128,31 +2156,35 @@
   },
   {
     "key": "Page Up · Page Down",
-    "at": "web/src/editor/editor.js:1221"
+    "at": "web/src/editor/editor.js:1243"
   },
   {
     "key": "Pair",
-    "at": "web/src/editor/connections.js:262",
+    "at": "web/src/editor/connections.js:264",
     "note": "Button: pair with this Hue Bridge."
   },
   {
     "key": "Pair your iPhone with this Mac: right-click the menu bar icon → Pair Phone….",
-    "at": "web/src/editor/connections.js:294"
+    "at": "web/src/editor/connections.js:367"
   },
   {
     "key": "Paired with {name}",
-    "at": "web/src/editor/connections.js:225",
+    "at": "web/src/editor/connections.js:227",
     "placeholders": [
       "name"
     ]
   },
   {
     "key": "Paired with the Hue Bridge",
-    "at": "web/src/editor/connections.js:225"
+    "at": "web/src/editor/connections.js:227"
   },
   {
     "key": "Pairing",
-    "at": "web/src/editor/connections.js:249"
+    "at": "web/src/editor/connections.js:251"
+  },
+  {
+    "key": "Password",
+    "at": "web/src/editor/connections.js:339"
   },
   {
     "key": "Paste it into any assistant with your request — {example}.",
@@ -2167,20 +2199,20 @@
   },
   {
     "key": "Pick a lamp or an AC on the plan, choose its device under “Smart Life device”, then press “Save & apply”.",
-    "at": "web/src/editor/editor.js:1464"
+    "at": "web/src/editor/editor.js:1501"
   },
   {
     "key": "Pick anything on the plan or in the list to edit it. “Save & apply” writes the plan to disk and reloads the menu bar panel. Coordinates are metres: x grows to the right (east), z grows downwards (south).",
-    "at": "web/src/editor/editor.js:1226"
+    "at": "web/src/editor/editor.js:1248"
   },
   {
     "key": "Plan",
-    "at": "web/src/editor/editor.js:1773",
+    "at": "web/src/editor/editor.js:1812",
     "note": "Button that shows the 2D floor plan."
   },
   {
     "key": "Plan \"{plan}\" is not valid JSON: {error}",
-    "at": "web/src/config.js:70",
+    "at": "web/src/config.js:95",
     "placeholders": [
       "error",
       "plan"
@@ -2188,7 +2220,7 @@
   },
   {
     "key": "Plan \"{plan}\" not found (HTTP {status})",
-    "at": "web/src/config.js:65",
+    "at": "web/src/config.js:90",
     "placeholders": [
       "plan",
       "status"
@@ -2196,19 +2228,19 @@
   },
   {
     "key": "Plan exported",
-    "at": "web/src/editor/editor.js:1566"
+    "at": "web/src/editor/editor.js:1605"
   },
   {
     "key": "Plan imported — review it and press “Save & apply”",
-    "at": "web/src/editor/editor.js:1586"
+    "at": "web/src/editor/editor.js:1625"
   },
   {
     "key": "Plan must be a JSON object",
-    "at": "web/src/config.js:86"
+    "at": "web/src/config.js:111"
   },
   {
     "key": "Plan needs at least one room in \"rooms\"",
-    "at": "web/src/config.js:87"
+    "at": "web/src/config.js:112"
   },
   {
     "key": "Plant",
@@ -2216,19 +2248,19 @@
   },
   {
     "key": "Position & size, m",
-    "at": "web/src/editor/editor.js:1288"
+    "at": "web/src/editor/editor.js:1310"
   },
   {
     "key": "Position, m",
-    "at": "web/src/editor/editor.js:1304"
+    "at": "web/src/editor/editor.js:1333"
   },
   {
     "key": "Power",
-    "at": "web/src/ui/panel.js:416"
+    "at": "web/src/ui/panel.js:427"
   },
   {
     "key": "Press the round button on the bridge",
-    "at": "web/src/editor/connections.js:252"
+    "at": "web/src/editor/connections.js:254"
   },
   {
     "key": "Private by design",
@@ -2240,11 +2272,11 @@
   },
   {
     "key": "Real device",
-    "at": "web/src/editor/connections.js:345"
+    "at": "web/src/editor/connections.js:419"
   },
   {
     "key": "Real devices",
-    "at": "web/src/editor/editor.js:1205"
+    "at": "web/src/editor/editor.js:1227"
   },
   {
     "key": "Rebuild rooms from photos, move furniture, add devices — always undoable",
@@ -2252,42 +2284,42 @@
   },
   {
     "key": "Redo",
-    "at": "web/src/editor/editor.js:122"
+    "at": "web/src/editor/editor.js:125"
   },
   {
     "key": "Redo (⇧⌘Z)",
-    "at": "web/src/editor/editor.js:122"
+    "at": "web/src/editor/editor.js:125"
   },
   {
     "key": "Refresh devices",
-    "at": "web/src/editor/connections.js:130"
+    "at": "web/src/editor/connections.js:132"
   },
   {
     "key": "Remove",
-    "at": "web/src/editor/editor.js:559"
+    "at": "web/src/editor/editor.js:570"
   },
   {
     "key": "Remove {name}",
-    "at": "web/src/editor/editor.js:543",
+    "at": "web/src/editor/editor.js:554",
     "placeholders": [
       "name"
     ]
   },
   {
     "key": "Remove this floor",
-    "at": "web/src/editor/editor.js:543"
+    "at": "web/src/editor/editor.js:554"
   },
   {
     "key": "Requesting a login code…",
-    "at": "web/src/editor/editor.js:1476"
+    "at": "web/src/editor/editor.js:1513"
   },
   {
     "key": "Reset view",
-    "at": "web/src/ui/panel.js:82"
+    "at": "web/src/ui/panel.js:85"
   },
   {
     "key": "Resize details",
-    "at": "web/src/editor/editor.js:1662"
+    "at": "web/src/editor/editor.js:1701"
   },
   {
     "key": "Reveal plan file",
@@ -2295,18 +2327,18 @@
   },
   {
     "key": "Room",
-    "at": "web/src/editor/editor.js:434"
+    "at": "web/src/editor/editor.js:444"
   },
   {
     "key": "Room \"{id}\" has an empty rect",
-    "at": "web/src/config.js:120",
+    "at": "web/src/config.js:145",
     "placeholders": [
       "id"
     ]
   },
   {
     "key": "Room \"{id}\" is on unknown floor \"{floor}\"",
-    "at": "web/src/config.js:121",
+    "at": "web/src/config.js:146",
     "placeholders": [
       "floor",
       "id"
@@ -2314,14 +2346,14 @@
   },
   {
     "key": "Room \"{id}\" needs \"rect\": [x, z, width, depth]",
-    "at": "web/src/config.js:118",
+    "at": "web/src/config.js:143",
     "placeholders": [
       "id"
     ]
   },
   {
     "key": "Room {temp}°",
-    "at": "web/src/ui/panel.js:274",
+    "at": "web/src/ui/panel.js:277",
     "placeholders": [
       "temp"
     ],
@@ -2329,7 +2361,7 @@
   },
   {
     "key": "Room **{temp}°C**",
-    "at": "web/src/ui/panel.js:497",
+    "at": "web/src/ui/panel.js:508",
     "placeholders": [
       "temp"
     ],
@@ -2337,7 +2369,7 @@
   },
   {
     "key": "Room temperature",
-    "at": "web/src/editor/connections.js:402"
+    "at": "web/src/editor/connections.js:476"
   },
   {
     "key": "Rooms",
@@ -2345,7 +2377,7 @@
   },
   {
     "key": "Rotation, °",
-    "at": "web/src/editor/editor.js:1307"
+    "at": "web/src/editor/editor.js:1344"
   },
   {
     "key": "Rug",
@@ -2357,43 +2389,43 @@
   },
   {
     "key": "Save",
-    "at": "web/src/editor/editor.js:1897"
+    "at": "web/src/editor/editor.js:1936"
   },
   {
     "key": "Save & apply",
-    "at": "web/src/editor/editor.js:103"
+    "at": "web/src/editor/editor.js:106"
   },
   {
     "key": "Save & fetch devices",
-    "at": "web/src/editor/editor.js:1531"
+    "at": "web/src/editor/editor.js:1568"
   },
   {
     "key": "Save and close",
-    "at": "web/src/editor/editor.js:1696"
+    "at": "web/src/editor/editor.js:1735"
   },
   {
     "key": "Save them before closing? Saved plans reach your paired computer too.",
-    "at": "web/src/editor/editor.js:1694"
+    "at": "web/src/editor/editor.js:1733"
   },
   {
     "key": "Saved",
-    "at": "web/src/editor/editor.js:1550"
+    "at": "web/src/editor/editor.js:1589"
   },
   {
     "key": "Saved — the menu bar panel now shows this home",
-    "at": "web/src/editor/editor.js:1550"
+    "at": "web/src/editor/editor.js:1589"
   },
   {
     "key": "Scan the code with the Smart Life app and confirm.",
-    "at": "web/src/editor/editor.js:1503"
+    "at": "web/src/editor/editor.js:1540"
   },
   {
     "key": "Scan this code with the Smart Life app (the scan icon on the Home tab) and confirm the login. Waiting…",
-    "at": "web/src/editor/editor.js:1482"
+    "at": "web/src/editor/editor.js:1519"
   },
   {
     "key": "Scene",
-    "at": "web/src/editor/editor.js:1370"
+    "at": "web/src/editor/editor.js:1407"
   },
   {
     "key": "Scenes",
@@ -2401,7 +2433,7 @@
   },
   {
     "key": "Scroll · ⌘ scroll or pinch",
-    "at": "web/src/editor/editor.js:1216"
+    "at": "web/src/editor/editor.js:1238"
   },
   {
     "key": "Second floor",
@@ -2409,30 +2441,30 @@
   },
   {
     "key": "Selected",
-    "at": "web/src/editor/connections.js:189"
+    "at": "web/src/editor/connections.js:191"
   },
   {
     "key": "sent {time}",
-    "at": "web/src/editor/connections.js:288",
+    "at": "web/src/editor/connections.js:361",
     "placeholders": [
       "time"
     ]
   },
   {
     "key": "Server",
-    "at": "web/src/editor/connections.js:162"
+    "at": "web/src/editor/connections.js:164"
   },
   {
     "key": "Set it up on your iPhone",
-    "at": "web/src/editor/connections.js:292"
+    "at": "web/src/editor/connections.js:365"
   },
   {
     "key": "Set up on your iPhone",
-    "at": "web/src/editor/connections.js:82"
+    "at": "web/src/editor/connections.js:83"
   },
   {
     "key": "Settings and floor plans",
-    "at": "web/src/ui/panel.js:51"
+    "at": "web/src/ui/panel.js:54"
   },
   {
     "key": "Settings…",
@@ -2440,48 +2472,63 @@
   },
   {
     "key": "Shortcuts",
-    "at": "web/src/editor/editor.js:1214"
+    "at": "web/src/editor/editor.js:1236"
   },
   {
     "key": "Show QR code",
-    "at": "web/src/editor/editor.js:1505"
+    "at": "web/src/editor/editor.js:1542"
   },
   {
     "key": "Show the whole floor",
-    "at": "web/src/editor/editor.js:427"
+    "at": "web/src/editor/editor.js:437"
   },
   {
     "key": "Show the whole floor (⌘0)",
-    "at": "web/src/editor/editor.js:427"
+    "at": "web/src/editor/editor.js:437"
+  },
+  {
+    "key": "Shown as",
+    "at": "web/src/editor/editor.js:1327"
   },
   {
     "key": "Sideboard",
     "at": "web/src/editor/editor.js:44"
   },
   {
+    "key": "Sign in again",
+    "at": "web/src/editor/connections.js:88"
+  },
+  {
     "key": "Sign in with the Smart Life app",
-    "at": "web/src/editor/editor.js:1499"
+    "at": "web/src/editor/editor.js:1536"
   },
   {
     "key": "Sign out",
-    "at": "web/src/editor/editor.js:1463"
+    "at": "web/src/editor/editor.js:1500"
   },
   {
     "key": "Sign-in expired",
-    "at": "web/src/editor/editor.js:1449"
+    "at": "web/src/editor/editor.js:1486"
   },
   {
     "key": "Signed in",
-    "at": "web/src/editor/editor.js:1454"
+    "at": "web/src/editor/editor.js:1491"
+  },
+  {
+    "key": "signed in as {user}",
+    "at": "web/src/editor/connections.js:289",
+    "placeholders": [
+      "user"
+    ]
   },
   {
     "key": "Sill, m",
-    "at": "web/src/editor/editor.js:1353",
+    "at": "web/src/editor/editor.js:1390",
     "note": "Window sill height, in metres."
   },
   {
-    "key": "Simulated. Connect Smart Life, Home Assistant, Philips Hue or Apple Home to control the real one.",
-    "at": "web/src/editor/connections.js:346"
+    "key": "Simulated. Connect Smart Life, Home Assistant, Philips Hue, Homebridge or Apple Home to control the real one.",
+    "at": "web/src/editor/connections.js:420"
   },
   {
     "key": "Singapore",
@@ -2489,20 +2536,20 @@
   },
   {
     "key": "Sleep",
-    "at": "web/src/ui/panel.js:471",
+    "at": "web/src/ui/panel.js:482",
     "note": "AC sleep mode."
   },
   {
     "key": "Smart Life account",
-    "at": "web/src/editor/editor.js:1453"
+    "at": "web/src/editor/editor.js:1490"
   },
   {
     "key": "Smart Life login QR code",
-    "at": "web/src/editor/editor.js:1481"
+    "at": "web/src/editor/editor.js:1518"
   },
   {
     "key": "Smart Life no longer accepts this Mac’s sign-in, so lights and air conditioners can’t be switched. Show a new QR code and scan it with the Smart Life app; your floor plan and links stay as they are.",
-    "at": "web/src/editor/editor.js:1450"
+    "at": "web/src/editor/editor.js:1487"
   },
   {
     "key": "Sofa",
@@ -2518,11 +2565,11 @@
   },
   {
     "key": "Split in two",
-    "at": "web/src/editor/editor.js:1286"
+    "at": "web/src/editor/editor.js:1308"
   },
   {
     "key": "Split in two, with a door between",
-    "at": "web/src/editor/editor.js:688"
+    "at": "web/src/editor/editor.js:707"
   },
   {
     "key": "Spots",
@@ -2535,7 +2582,7 @@
   },
   {
     "key": "Stairs climb in the direction of the arrow and reach the floor above; the floor above shows them faintly, to line its landing up.",
-    "at": "web/src/editor/editor.js:1345"
+    "at": "web/src/editor/editor.js:1382"
   },
   {
     "key": "Start AI Access",
@@ -2575,7 +2622,7 @@
   },
   {
     "key": "Strip length, m",
-    "at": "web/src/editor/editor.js:1308"
+    "at": "web/src/editor/editor.js:1345"
   },
   {
     "key": "Switch and dim lights, set air conditioners, run scenes",
@@ -2583,11 +2630,11 @@
   },
   {
     "key": "Switch off in",
-    "at": "web/src/ui/panel.js:429"
+    "at": "web/src/ui/panel.js:440"
   },
   {
     "key": "Switched from your iPhone; simulated on this Mac.",
-    "at": "web/src/editor/connections.js:383"
+    "at": "web/src/editor/connections.js:457"
   },
   {
     "key": "Table lamp",
@@ -2595,7 +2642,7 @@
   },
   {
     "key": "Takes its {n} rooms with their lamps, ACs, furniture, doors and windows.",
-    "at": "web/src/editor/editor.js:1263",
+    "at": "web/src/editor/editor.js:1285",
     "plural": true,
     "one": "Takes its {n} room with its lamps, ACs, furniture, doors and windows.",
     "placeholders": [
@@ -2604,27 +2651,31 @@
   },
   {
     "key": "Talking to Smart Life…",
-    "at": "web/src/editor/editor.js:1428"
+    "at": "web/src/editor/editor.js:1465"
   },
   {
     "key": "Tap a room, a lamp or anything else on the plan.",
-    "at": "web/src/editor/editor.js:1275"
+    "at": "web/src/editor/editor.js:1297"
   },
   {
     "key": "Tap again to remove",
-    "at": "web/src/editor/editor.js:1183"
+    "at": "web/src/editor/editor.js:1205"
   },
   {
     "key": "Tap anything on the plan, or find it under Items, to edit it. “Save” keeps the plan on this iPhone and sends it to your paired computer. Coordinates are metres: x grows to the right (east), z grows downwards (south).",
-    "at": "web/src/editor/editor.js:1225"
+    "at": "web/src/editor/editor.js:1247"
   },
   {
     "key": "Tap to select · drag what is selected · pinch to zoom",
-    "at": "web/src/editor/editor.js:104"
+    "at": "web/src/editor/editor.js:107"
   },
   {
     "key": "Temperature sensors",
-    "at": "web/src/editor/connections.js:17"
+    "at": "web/src/editor/connections.js:18"
+  },
+  {
+    "key": "That code did not work. Enter the current one.",
+    "at": "web/src/editor/connections.js:311"
   },
   {
     "key": "The assistant reads the guide behind the link and opens the matching action links. Watch them land below.",
@@ -2632,11 +2683,11 @@
   },
   {
     "key": "The big button on top of the Hue Bridge lets one app in for 30 seconds. House Control keeps the key it gets, on this Mac.",
-    "at": "web/src/editor/connections.js:257"
+    "at": "web/src/editor/connections.js:259"
   },
   {
     "key": "The code expired. Press “Show QR code” again.",
-    "at": "web/src/editor/editor.js:1485"
+    "at": "web/src/editor/editor.js:1522"
   },
   {
     "key": "The floor plan could not be loaded. Fix the file and reload, or pick another plan from the menu bar icon.",
@@ -2648,15 +2699,19 @@
   },
   {
     "key": "The short line on the plan marks the front. Rotation 0° faces south (towards the bottom of the plan).",
-    "at": "web/src/editor/editor.js:1346"
+    "at": "web/src/editor/editor.js:1383"
+  },
+  {
+    "key": "The sign-in stays on this Mac (and goes to the iPhones you paired, over their encrypted link), so House Control can sign in again when Homebridge’s session runs out. Lamps, plugs, switches, air conditioners, thermostats and thermometers appear here.",
+    "at": "web/src/editor/connections.js:347"
   },
   {
     "key": "The token stays on this Mac (and goes to the iPhones you paired, over their encrypted link). Lights, switches, climate devices and temperature sensors appear here.",
-    "at": "web/src/editor/connections.js:200"
+    "at": "web/src/editor/connections.js:202"
   },
   {
     "key": "Thermometer",
-    "at": "web/src/editor/connections.js:403"
+    "at": "web/src/editor/connections.js:477"
   },
   {
     "key": "Third floor",
@@ -2664,7 +2719,11 @@
   },
   {
     "key": "This device was not found in its platform right now.",
-    "at": "web/src/editor/connections.js:376"
+    "at": "web/src/editor/connections.js:450"
+  },
+  {
+    "key": "This Homebridge has no sign-in: nothing else to enter.",
+    "at": "web/src/editor/connections.js:340"
   },
   {
     "key": "This Mac",
@@ -2676,7 +2735,7 @@
   },
   {
     "key": "Tick it for a room button: one tap on, the next tap off.",
-    "at": "web/src/editor/editor.js:1379"
+    "at": "web/src/editor/editor.js:1416"
   },
   {
     "key": "Tiles",
@@ -2684,26 +2743,26 @@
   },
   {
     "key": "Timer",
-    "at": "web/src/ui/panel.js:493"
+    "at": "web/src/ui/panel.js:504"
   },
   {
     "key": "Timer: off in {time}",
-    "at": "web/src/ui/panel.js:494",
+    "at": "web/src/ui/panel.js:505",
     "placeholders": [
       "time"
     ]
   },
   {
     "key": "To X",
-    "at": "web/src/editor/editor.js:1352"
+    "at": "web/src/editor/editor.js:1389"
   },
   {
     "key": "To Z",
-    "at": "web/src/editor/editor.js:1352"
+    "at": "web/src/editor/editor.js:1389"
   },
   {
     "key": "Toggle everything",
-    "at": "web/src/ui/panel.js:50"
+    "at": "web/src/ui/panel.js:53"
   },
   {
     "key": "Toilet",
@@ -2711,27 +2770,31 @@
   },
   {
     "key": "Too small to split",
-    "at": "web/src/editor/editor.js:666"
+    "at": "web/src/editor/editor.js:685"
   },
   {
     "key": "Touch and hold a light for brightness and colour",
-    "at": "web/src/ui/panel.js:309"
+    "at": "web/src/ui/panel.js:312"
   },
   {
     "key": "Try again",
-    "at": "web/src/editor/connections.js:255"
+    "at": "web/src/editor/connections.js:257"
   },
   {
     "key": "Turn 90°",
-    "at": "web/src/editor/editor.js:1343"
+    "at": "web/src/editor/editor.js:1380"
   },
   {
     "key": "Turn off",
-    "at": "web/src/editor/editor.js:1385"
+    "at": "web/src/editor/editor.js:1422"
   },
   {
     "key": "Turn on",
-    "at": "web/src/editor/editor.js:1385"
+    "at": "web/src/editor/editor.js:1422"
+  },
+  {
+    "key": "Turn on accessory control if it is off: Settings → Startup & Environment → “Enable UI Accessory Control (-I)”, then restart Homebridge.",
+    "at": "web/src/editor/connections.js:346"
   },
   {
     "key": "Tuya, Smart Life and the many brands built on them",
@@ -2742,24 +2805,28 @@
     "at": "web/src/editor/editor.js:44"
   },
   {
+    "key": "Two-factor code",
+    "at": "web/src/editor/connections.js:341"
+  },
+  {
     "key": "Type",
-    "at": "web/src/editor/editor.js:1337"
+    "at": "web/src/editor/editor.js:1374"
   },
   {
     "key": "Type it here and press “Show QR code”.",
-    "at": "web/src/editor/editor.js:1502"
+    "at": "web/src/editor/editor.js:1539"
   },
   {
     "key": "Under “Long-lived access tokens” press Create token, name it “House Control”, copy it here.",
-    "at": "web/src/editor/connections.js:197"
+    "at": "web/src/editor/connections.js:199"
   },
   {
     "key": "Undo",
-    "at": "web/src/editor/editor.js:121"
+    "at": "web/src/editor/editor.js:124"
   },
   {
     "key": "Undo (⌘Z)",
-    "at": "web/src/editor/editor.js:121"
+    "at": "web/src/editor/editor.js:124"
   },
   {
     "key": "Undo home edit",
@@ -2767,31 +2834,35 @@
   },
   {
     "key": "unsaved changes",
-    "at": "web/src/editor/editor.js:465"
+    "at": "web/src/editor/editor.js:476"
   },
   {
     "key": "Unsaved changes",
-    "at": "web/src/editor/editor.js:1666"
+    "at": "web/src/editor/editor.js:1705"
   },
   {
     "key": "Up to the floor above",
-    "at": "web/src/editor/editor.js:1335"
+    "at": "web/src/editor/editor.js:1372"
   },
   {
     "key": "Updated from {device}",
-    "at": "web/src/editor/editor.js:1940",
+    "at": "web/src/editor/editor.js:1979",
     "placeholders": [
       "device"
     ]
   },
   {
     "key": "Updated from your other device",
-    "at": "web/src/editor/editor.js:1940"
+    "at": "web/src/editor/editor.js:1979"
   },
   {
     "key": "Use",
-    "at": "web/src/editor/connections.js:189",
+    "at": "web/src/editor/connections.js:191",
     "note": "Button: use this server address."
+  },
+  {
+    "key": "Use the address and the sign-in of Homebridge’s web page (port 8581 unless you changed it).",
+    "at": "web/src/editor/connections.js:345"
   },
   {
     "key": "Use this Mac only",
@@ -2799,14 +2870,18 @@
   },
   {
     "key": "User Code",
-    "at": "web/src/editor/editor.js:1504"
+    "at": "web/src/editor/editor.js:1541"
   },
   {
     "key": "User Code {code}",
-    "at": "web/src/editor/editor.js:1454",
+    "at": "web/src/editor/editor.js:1491",
     "placeholders": [
       "code"
     ]
+  },
+  {
+    "key": "User name",
+    "at": "web/src/editor/connections.js:338"
   },
   {
     "key": "Vanity",
@@ -2814,14 +2889,14 @@
   },
   {
     "key": "version {version}",
-    "at": "web/src/editor/connections.js:162",
+    "at": "web/src/editor/connections.js:164",
     "placeholders": [
       "version"
     ]
   },
   {
     "key": "waiting {seconds} s",
-    "at": "web/src/editor/connections.js:253",
+    "at": "web/src/editor/connections.js:255",
     "placeholders": [
       "seconds"
     ]
@@ -2832,11 +2907,11 @@
   },
   {
     "key": "Wall height, m",
-    "at": "web/src/editor/editor.js:1207"
+    "at": "web/src/editor/editor.js:1229"
   },
   {
     "key": "Walls facing the camera are cut away, so the azimuth decides which side of the home is open.",
-    "at": "web/src/editor/editor.js:1213"
+    "at": "web/src/editor/editor.js:1235"
   },
   {
     "key": "Walnut",
@@ -2864,7 +2939,7 @@
   },
   {
     "key": "What it can do",
-    "at": "web/src/editor/editor.js:1309"
+    "at": "web/src/editor/editor.js:1346"
   },
   {
     "key": "What it may do",
@@ -2872,35 +2947,35 @@
   },
   {
     "key": "Where your real lamps and air conditioners live",
-    "at": "web/src/editor/editor.js:1265"
+    "at": "web/src/editor/editor.js:1287"
   },
   {
     "key": "White",
-    "at": "web/src/ui/panel.js:571"
+    "at": "web/src/ui/panel.js:582"
   },
   {
     "key": "white temperature",
-    "at": "web/src/editor/connections.js:19"
+    "at": "web/src/editor/connections.js:20"
   },
   {
     "key": "White temperature",
-    "at": "web/src/editor/editor.js:1312"
+    "at": "web/src/editor/editor.js:1349"
   },
   {
     "key": "Whole floor · deselect · remove",
-    "at": "web/src/editor/editor.js:1222"
+    "at": "web/src/editor/editor.js:1244"
   },
   {
     "key": "Whole home",
-    "at": "web/src/ui/panel.js:657"
+    "at": "web/src/ui/panel.js:668"
   },
   {
     "key": "Width",
-    "at": "web/src/editor/editor.js:1290"
+    "at": "web/src/editor/editor.js:1312"
   },
   {
     "key": "Width, m",
-    "at": "web/src/editor/editor.js:1340"
+    "at": "web/src/editor/editor.js:1377"
   },
   {
     "key": "Window",
@@ -2908,7 +2983,7 @@
   },
   {
     "key": "Windows only show on the far walls; the walls facing the camera are cut away.",
-    "at": "web/src/editor/editor.js:1358"
+    "at": "web/src/editor/editor.js:1395"
   },
   {
     "key": "Works with assistants that can open web pages: ChatGPT, Claude, Gemini, Perplexity, Grok.",
@@ -2927,7 +3002,7 @@
   },
   {
     "key": "Your other device saved a newer plan. Saving here replaces it.",
-    "at": "web/src/editor/editor.js:1928"
+    "at": "web/src/editor/editor.js:1968"
   },
   {
     "key": "Your private link",
@@ -2935,14 +3010,14 @@
   },
   {
     "key": "Zoom in",
-    "at": "web/src/editor/editor.js:425"
+    "at": "web/src/editor/editor.js:435"
   },
   {
     "key": "Zoom in (⌘+ or pinch)",
-    "at": "web/src/editor/editor.js:425"
+    "at": "web/src/editor/editor.js:435"
   },
   {
     "key": "Zoom out",
-    "at": "web/src/editor/editor.js:426"
+    "at": "web/src/editor/editor.js:436"
   }
 ]

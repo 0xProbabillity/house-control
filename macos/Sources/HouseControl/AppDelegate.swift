@@ -311,7 +311,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let section = editorSection { boot["section"] = section }
         switch ProcessInfo.processInfo.environment["HOUSE_OPEN_EDITOR"] {
         case "smartlife": boot["section"] = "service:smartlife"
-        case "homeassistant", "hue", "homekit", "connections":
+        case "homeassistant", "hue", "homebridge", "homekit", "connections":
             let section = ProcessInfo.processInfo.environment["HOUSE_OPEN_EDITOR"]!
             boot["section"] = section == "connections" ? "connections" : "service:\(section)"
         default: break
@@ -594,7 +594,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             host.reply(to: message, smartLife.smartLifeInfo)
             sync.broadcast()
 
-        // Home Assistant, Philips Hue, Apple Home
+        // Home Assistant, Philips Hue, Homebridge, Apple Home
         case "services.info":
             host.reply(to: message, hub.servicesInfo)
         case "devices.all":
@@ -605,7 +605,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "services.discover":
             let service = message["service"] as? String ?? ""
             Task { @MainActor in
-                let found = service == "hue" ? await ServiceDiscovery.hueBridges() : await ServiceDiscovery.homeAssistants()
+                let found = switch service {
+                case "hue": await ServiceDiscovery.hueBridges()
+                case "homebridge": await ServiceDiscovery.homebridges()
+                default: await ServiceDiscovery.homeAssistants()
+                }
                 host.reply(to: message, ["found": found])
             }
         case "homeassistant.connect":
@@ -627,6 +631,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     host.reply(to: message, hub.servicesInfo)
                 } catch is HueService.ButtonNotPressed {
                     host.reply(to: message, ["waiting": true])
+                } catch {
+                    host.reply(to: message, ["error": error.localizedDescription])
+                }
+            }
+        case "homebridge.connect":
+            Task { @MainActor in
+                do {
+                    try await hub.connectHomebridge(url: message["url"] as? String ?? "", username: message["username"] as? String ?? "",
+                                                    password: message["password"] as? String ?? "", code: message["code"] as? String)
+                    connectionsChanged()
+                    host.reply(to: message, hub.servicesInfo)
+                } catch is HomebridgeService.CodeRequired {
+                    host.reply(to: message, ["needsCode": true])
                 } catch {
                     host.reply(to: message, ["error": error.localizedDescription])
                 }
@@ -925,6 +942,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                   connected: connected("homeassistant")),
             .init(id: "hue", name: "Philips Hue", symbol: "lightbulb.2.fill", tint: .indigo,
                   detail: connected("hue") ? entry("hue")["name"] as? String ?? "Connected" : "Not paired", connected: connected("hue")),
+            .init(id: "homebridge", name: "Homebridge", symbol: "point.3.connected.trianglepath.dotted", tint: .purple,
+                  detail: entry("homebridge")["expired"] as? Bool == true ? "Sign in again"
+                    : connected("homebridge") ? entry("homebridge")["name"] as? String ?? "Connected" : "Not connected",
+                  connected: connected("homebridge"), expired: entry("homebridge")["expired"] as? Bool == true),
             .init(id: "homekit", name: "Apple Home", symbol: "homekit", tint: .yellow,
                   detail: connected("homekit")
                     ? "\(homeKit["count"] as? Int ?? 0) devices, from \(homeKit["from"] as? String ?? "your iPhone")"

@@ -194,7 +194,7 @@ private struct ConnectionsPane: View {
                     }
                 }
             } footer: {
-                Footnote("Connections are set up in the editor, where you also link each lamp and AC to its real device. Home Assistant and Hue are shared with a paired phone.")
+                Footnote("Connections are set up in the editor, where you also link each lamp and AC to its real device. Home Assistant, Hue and Homebridge are shared with a paired phone.")
             }
         }
     }

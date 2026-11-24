@@ -1,0 +1,9 @@
+{
+  "name": "homebridge-house-lab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pretend lamps, plugs, air conditioners and a thermometer for testing House Control's Homebridge connection",
+  "main": "index.js",
+  "keywords": ["homebridge-plugin"],
+  "engines": { "homebridge": ">=1.6.0", "node": ">=18" }
+}

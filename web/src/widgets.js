@@ -36,7 +36,7 @@ export function widgetSnapshot(config, store, plan) {
     lights: config.lights.map((l) => {
       const s = state.lights[l.id];
       return {
-        id: l.id, name: l.name, room: l.room, type: l.type, x: l.pos[0], z: l.pos[1],
+        id: l.id, name: l.name, room: l.room, type: l.outlet ? 'outlet' : l.type, x: l.pos[0], z: l.pos[1],
         capabilities: l.capabilities, on: s.on, brightness: round(s.brightness), temp: Math.round(s.temp),
         color: s.color || null, service: linkOf(l)?.service || null, links: links(l),
       };

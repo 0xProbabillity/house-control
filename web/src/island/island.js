@@ -105,7 +105,7 @@ export async function bootIsland(root) {
     const dimmable = cfg.capabilities.includes('brightness');
     const sub = h('div.chip-sub');
     const el = h(`div.chip.light${dimmable ? '.dimmable' : ''}`, { role: 'button', 'aria-label': cfg.name },
-      h('span.chip-bubble', icon(cfg.capabilities.length ? cfg.type : 'plug', 15)),
+      h('span.chip-bubble', icon(cfg.outlet ? 'plug' : cfg.type, 15)),
       h('div.chip-text', h('div.chip-name', cfg.name), sub),
       h('i.chip-level'));
     // Click toggles, dragging sideways dims: the same gesture as the panel's tiles.
@@ -294,7 +294,7 @@ export async function bootIsland(root) {
     }
     if (lights.length === 1 && !acs.length) {
       const [cfg, s] = [lights[0], state.lights[lights[0].id]];
-      return { left: ear(cfg.capabilities.length ? cfg.type : 'plug', cfg.name, s.on ? css(lightColor(s, tmp)) : '#8fa3c7'), right: lightLabel(cfg, s) };
+      return { left: ear(cfg.outlet ? 'plug' : cfg.type, cfg.name, s.on ? (cfg.outlet ? '#62f0a2' : css(lightColor(s, tmp))) : '#8fa3c7'), right: lightLabel(cfg, s) };
     }
     if (lights.length + acs.length > 1) {
       const on = Object.values(state.lights).filter((l) => l.on).length;

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Everything between the UI and the real devices, shared by the Mac and the iPhone app:
-/// which platforms are connected (Smart Life, Home Assistant, Philips Hue, Apple Home),
+/// which platforms are connected (Smart Life, Home Assistant, Philips Hue, Homebridge, Apple Home),
 /// which device of the plan is linked to which real device, sending the changes made in
 /// the panel and reading the devices' state back.
 @MainActor
@@ -11,10 +11,11 @@ public final class DeviceHub {
     public let cloud: LinkedCloud?
     public let homeAssistant: HomeAssistantService
     public let hue: HueService
+    public let homebridge: HomebridgeService
     /// Apple Home: HomeKit itself on the iPhone, the iPhone's catalog on the Mac.
     public let homeKit: DeviceService
     /// The platforms other than Smart Life, by the id a plan's `link.service` uses.
-    public var services: [DeviceService] { [homeAssistant, hue, homeKit] }
+    public var services: [DeviceService] { [homeAssistant, hue, homebridge, homeKit] }
     private func service(_ id: String) -> DeviceService? { services.first { $0.id == id } }
     /// Smart Life when it is part of this build and signed in.
     private var connectedCloud: LinkedCloud? { cloud?.isConnected == true ? cloud : nil }
@@ -40,7 +41,7 @@ public final class DeviceHub {
     public var onStale: (() -> Void)?
 
     /// `secret(name)` is where a platform's credentials are kept ("smartlife", "homeassistant",
-    /// "hue"); by default `<name>.json` in `directory`, readable by its user only. `homeKit`
+    /// "hue", "homebridge"); by default `<name>.json` in `directory`, readable by its user only. `homeKit`
     /// is HomeKit on the iPhone; without one, Apple Home is the catalog a paired iPhone sent.
     /// `cloud` makes the Smart Life client (`SmartLifePlatform.init` where it is built in).
     public init(directory: URL, secret: ((String) -> SecretStore)? = nil, homeKit: DeviceService? = nil,
@@ -51,6 +52,7 @@ public final class DeviceHub {
         self.cloud = cloud?(directory, vault)
         homeAssistant = HomeAssistantService(vault: vault("homeassistant"))
         hue = HueService(vault: vault("hue"))
+        homebridge = HomebridgeService(vault: vault("homebridge"))
         self.homeKit = homeKit ?? RemoteCatalogService(id: "homekit", title: "Apple Home",
                                                        file: directory.appendingPathComponent("homekit-devices.json"))
         for service in services {
@@ -205,7 +207,7 @@ public final class DeviceHub {
         return merged
     }
 
-    /// Home Assistant, Hue and Apple Home, each asked once for all of its linked devices.
+    /// Home Assistant, Hue, Homebridge and Apple Home, each asked once for all of its linked devices.
     private func pollServices() async -> [String: Any]? {
         var wanted: [String: Set<String>] = [:]
         for link in serviceLinks.values {
@@ -278,7 +280,7 @@ public final class DeviceHub {
 
     /// The platforms whose connection travels between paired devices. (Apple Home is the
     /// phone's own; a Smart Life session cannot be shared, Tuya rotates its tokens.)
-    public static let shareablePlatforms = ["homeassistant", "hue"]
+    public static let shareablePlatforms = ["homeassistant", "hue", "homebridge"]
 
     /// When each shareable platform was last connected or disconnected on this device, or
     /// adopted from another one: the newer side wins when two devices disagree.
@@ -293,7 +295,12 @@ public final class DeviceHub {
     private let stampsURL: URL
 
     private func shareable(_ id: String) -> [String: Any]? {
-        id == "homeassistant" ? homeAssistant.shareable : id == "hue" ? hue.shareable : nil
+        switch id {
+        case "homeassistant": homeAssistant.shareable
+        case "hue": hue.shareable
+        case "homebridge": homebridge.shareable
+        default: nil
+        }
     }
 
     /// Connects Home Assistant (checking the address and token first) and remembers when.
@@ -308,7 +315,14 @@ public final class DeviceHub {
         stamp("hue")
     }
 
-    /// Disconnects a platform; for Home Assistant and Hue the paired devices follow.
+    /// Signs in to a Homebridge UI; throws `HomebridgeService.CodeRequired` when the account
+    /// has two-factor sign-in and no code was given.
+    public func connectHomebridge(url: String, username: String, password: String, code: String?) async throws {
+        try await homebridge.connect(url: url, username: username, password: password, code: code)
+        stamp("homebridge")
+    }
+
+    /// Disconnects a platform; for Home Assistant, Hue and Homebridge the paired devices follow.
     public func disconnect(service id: String) {
         services.first { $0.id == id }?.disconnect()
         if Self.shareablePlatforms.contains(id) { stamp(id) }
@@ -320,8 +334,8 @@ public final class DeviceHub {
         stamps = all
     }
 
-    /// This device's Home Assistant and Hue connections for its paired devices: the address
-    /// and token / bridge key plus when they were set, or `removed` after a disconnect.
+    /// This device's Home Assistant, Hue and Homebridge connections for its paired devices: the
+    /// address and token / bridge key / sign-in plus when they were set, or `removed` after a disconnect.
     public var shareableConnections: [String: Any] {
         let known = stamps
         var out: [String: Any] = [:]
@@ -356,6 +370,8 @@ public final class DeviceHub {
                 services.first { $0.id == id }?.disconnect()
             } else if id == "homeassistant" {
                 homeAssistant.adopt(incoming)
+            } else if id == "homebridge" {
+                homebridge.adopt(incoming)
             } else {
                 hue.adopt(incoming)
             }

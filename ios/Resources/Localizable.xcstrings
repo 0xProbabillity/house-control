@@ -3651,6 +3651,64 @@
         }
       }
     },
+    "Before you connect" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bevor du verbindest"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Πριν συνδέσετε"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antes de conectar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avant de vous connecter"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prima di connettere"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接続する前に"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перед подключением"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlanmadan önce"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "連接之前"
+          }
+        }
+      }
+    },
     "Beta" : {
       "comment" : "VoiceOver: the BETA badge",
       "localizations" : {
@@ -4237,60 +4295,60 @@
         }
       }
     },
-    "Changes saved on either one reach the other while both are on the same Wi-Fi: the floor plan, device links, Home Assistant and Hue." : {
+    "Changes saved on either one reach the other while both are on the same Wi-Fi: the floor plan, device links, Home Assistant, Hue and Homebridge." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Was du auf einem Gerät sicherst, erreicht das andere, solange beide im selben WLAN sind: Grundriss, Geräteverknüpfungen, Home Assistant und Hue."
+            "value" : "Was du auf einem Gerät sicherst, erreicht das andere, solange beide im selben WLAN sind: Grundriss, Geräteverknüpfungen, Home Assistant, Hue und Homebridge."
           }
         },
         "el" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Οι αλλαγές που αποθηκεύονται στη μία συσκευή φτάνουν στην άλλη όσο είναι και οι δύο στο ίδιο Wi-Fi: η κάτοψη, οι συνδέσεις συσκευών, το Home Assistant και το Hue."
+            "value" : "Οι αλλαγές που αποθηκεύονται στη μία συσκευή φτάνουν στην άλλη όσο είναι και οι δύο στο ίδιο Wi-Fi: η κάτοψη, οι συνδέσεις συσκευών, το Home Assistant, το Hue και το Homebridge."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Los cambios guardados en uno llegan al otro mientras ambos estén en la misma red Wi-Fi: el plano, los vínculos de dispositivos, Home Assistant y Hue."
+            "value" : "Los cambios guardados en uno llegan al otro mientras ambos estén en la misma red Wi-Fi: el plano, los vínculos de dispositivos, Home Assistant, Hue y Homebridge."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ce qui est enregistré sur l’un parvient à l’autre tant que les deux sont sur le même Wi-Fi : le plan, les liaisons des appareils, Home Assistant et Hue."
+            "value" : "Ce qui est enregistré sur l’un parvient à l’autre tant que les deux sont sur le même Wi-Fi : le plan, les liaisons des appareils, Home Assistant, Hue et Homebridge."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ciò che salvi su uno arriva all’altro finché sono sulla stessa rete Wi-Fi: piantina, collegamenti dei dispositivi, Home Assistant e Hue."
+            "value" : "Ciò che salvi su uno arriva all’altro finché sono sulla stessa rete Wi-Fi: piantina, collegamenti dei dispositivi, Home Assistant, Hue e Homebridge."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "両方が同じWi-Fiに接続している間は、どちらかで保存した変更がもう一方にも反映されます：間取り、デバイスのリンク、Home Assistant、Hue。"
+            "value" : "両方が同じWi-Fiに接続している間は、どちらかで保存した変更がもう一方にも反映されます：間取り、デバイスのリンク、Home Assistant、Hue、Homebridge。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Пока оба устройства в одной сети Wi-Fi, изменения, сохранённые на одном, попадают на другое: план, привязки устройств, Home Assistant и Hue."
+            "value" : "Пока оба устройства в одной сети Wi-Fi, изменения, сохранённые на одном, попадают на другое: план, привязки устройств, Home Assistant, Hue и Homebridge."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Birinde kaydedilen değişiklikler, ikisi aynı Wi-Fi ağındayken diğerine ulaşır: kat planı, cihaz bağlantıları, Home Assistant ve Hue."
+            "value" : "Birinde kaydedilen değişiklikler, ikisi aynı Wi-Fi ağındayken diğerine ulaşır: kat planı, cihaz bağlantıları, Home Assistant, Hue ve Homebridge."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "兩台裝置連接同一個 Wi-Fi 時，在任一台儲存的變更都會傳到另一台：平面圖、裝置連結、Home Assistant 和 Hue。"
+            "value" : "兩台裝置連接同一個 Wi-Fi 時，在任一台儲存的變更都會傳到另一台：平面圖、裝置連結、Home Assistant、Hue 和 Homebridge。"
           }
         }
       }
@@ -4707,60 +4765,60 @@
         }
       }
     },
-    "Connect Home Assistant, Philips Hue or Apple Home in Settings first; their devices then appear here to choose from." : {
+    "Connect Home Assistant, Philips Hue, Homebridge or Apple Home in Settings first; their devices then appear here to choose from." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verbinde zuerst Home Assistant, Philips Hue oder Apple Home in den Einstellungen; ihre Geräte erscheinen dann hier zur Auswahl."
+            "value" : "Verbinde zuerst Home Assistant, Philips Hue, Homebridge oder Apple Home in den Einstellungen; ihre Geräte erscheinen dann hier zur Auswahl."
           }
         },
         "el" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Συνδέστε πρώτα Home Assistant, Philips Hue ή Apple Home στις Ρυθμίσεις· οι συσκευές τους θα εμφανιστούν εδώ για επιλογή."
+            "value" : "Συνδέστε πρώτα Home Assistant, Philips Hue, Homebridge ή Apple Home στις Ρυθμίσεις· οι συσκευές τους θα εμφανιστούν εδώ για επιλογή."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Primero conecta Home Assistant, Philips Hue o Apple Home en Ajustes; sus dispositivos aparecerán aquí para elegir."
+            "value" : "Primero conecta Home Assistant, Philips Hue, Homebridge o Apple Home en Ajustes; sus dispositivos aparecerán aquí para elegir."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Connectez d’abord Home Assistant, Philips Hue ou Apple Home dans Réglages ; leurs appareils apparaîtront ici pour que vous puissiez choisir."
+            "value" : "Connectez d’abord Home Assistant, Philips Hue, Homebridge ou Apple Home dans Réglages ; leurs appareils apparaîtront ici pour que vous puissiez choisir."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Prima connetti Home Assistant, Philips Hue o Apple Home in Impostazioni; i loro dispositivi appariranno qui da scegliere."
+            "value" : "Prima connetti Home Assistant, Philips Hue, Homebridge o Apple Home in Impostazioni; i loro dispositivi appariranno qui da scegliere."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "先に「設定」でHome Assistant、Philips Hue、Apple Homeのいずれかに接続してください。そのデバイスがここに表示され、選択できるようになります。"
+            "value" : "先に「設定」でHome Assistant、Philips Hue、Homebridge、Apple Homeのいずれかに接続してください。そのデバイスがここに表示され、選択できるようになります。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Сначала подключите Home Assistant, Philips Hue или Apple Home в Настройках — тогда их устройства появятся здесь для выбора."
+            "value" : "Сначала подключите Home Assistant, Philips Hue, Homebridge или Apple Home в Настройках — тогда их устройства появятся здесь для выбора."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Önce Ayarlar’da Home Assistant, Philips Hue veya Apple Home’u bağlayın; cihazları seçmeniz için burada görünür."
+            "value" : "Önce Ayarlar’da Home Assistant, Philips Hue, Homebridge veya Apple Home’u bağlayın; cihazları seçmeniz için burada görünür."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "請先在「設定」中連接 Home Assistant、Philips Hue 或 Apple Home；它們的裝置隨後會出現在這裡供你選擇。"
+            "value" : "請先在「設定」中連接 Home Assistant、Philips Hue、Homebridge 或 Apple Home；它們的裝置隨後會出現在這裡供你選擇。"
           }
         }
       }
@@ -4823,118 +4881,118 @@
         }
       }
     },
-    "Connect Smart Life, Home Assistant, Philips Hue or Apple Home in Settings first; their devices then appear here to choose from." : {
+    "Connect Smart Life, Home Assistant, Philips Hue, Homebridge or Apple Home in Settings first; their devices then appear here to choose from." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verbinde zuerst Smart Life, Home Assistant, Philips Hue oder Apple Home in den Einstellungen; ihre Geräte erscheinen dann hier zur Auswahl."
+            "value" : "Verbinde zuerst Smart Life, Home Assistant, Philips Hue, Homebridge oder Apple Home in den Einstellungen; ihre Geräte erscheinen dann hier zur Auswahl."
           }
         },
         "el" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Συνδέστε πρώτα Smart Life, Home Assistant, Philips Hue ή Apple Home στις Ρυθμίσεις· οι συσκευές τους θα εμφανιστούν εδώ για επιλογή."
+            "value" : "Συνδέστε πρώτα Smart Life, Home Assistant, Philips Hue, Homebridge ή Apple Home στις Ρυθμίσεις· οι συσκευές τους θα εμφανιστούν εδώ για επιλογή."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Primero conecta Smart Life, Home Assistant, Philips Hue o Apple Home en Ajustes; sus dispositivos aparecerán aquí para elegir."
+            "value" : "Primero conecta Smart Life, Home Assistant, Philips Hue, Homebridge o Apple Home en Ajustes; sus dispositivos aparecerán aquí para elegir."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Connectez d’abord Smart Life, Home Assistant, Philips Hue ou Apple Home dans Réglages ; leurs appareils apparaîtront ici pour que vous puissiez choisir."
+            "value" : "Connectez d’abord Smart Life, Home Assistant, Philips Hue, Homebridge ou Apple Home dans Réglages ; leurs appareils apparaîtront ici pour que vous puissiez choisir."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Prima connetti Smart Life, Home Assistant, Philips Hue o Apple Home in Impostazioni; i loro dispositivi appariranno qui da scegliere."
+            "value" : "Prima connetti Smart Life, Home Assistant, Philips Hue, Homebridge o Apple Home in Impostazioni; i loro dispositivi appariranno qui da scegliere."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "先に「設定」でSmart Life、Home Assistant、Philips Hue、Apple Homeのいずれかに接続してください。そのデバイスがここに表示され、選択できるようになります。"
+            "value" : "先に「設定」でSmart Life、Home Assistant、Philips Hue、Homebridge、Apple Homeのいずれかに接続してください。そのデバイスがここに表示され、選択できるようになります。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Сначала подключите Smart Life, Home Assistant, Philips Hue или Apple Home в Настройках — тогда их устройства появятся здесь для выбора."
+            "value" : "Сначала подключите Smart Life, Home Assistant, Philips Hue, Homebridge или Apple Home в Настройках — тогда их устройства появятся здесь для выбора."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Önce Ayarlar’da Smart Life, Home Assistant, Philips Hue veya Apple Home’u bağlayın; cihazları seçmeniz için burada görünür."
+            "value" : "Önce Ayarlar’da Smart Life, Home Assistant, Philips Hue, Homebridge veya Apple Home’u bağlayın; cihazları seçmeniz için burada görünür."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "請先在「設定」中連接 Smart Life、Home Assistant、Philips Hue 或 Apple Home；它們的裝置隨後會出現在這裡供你選擇。"
+            "value" : "請先在「設定」中連接 Smart Life、Home Assistant、Philips Hue、Homebridge 或 Apple Home；它們的裝置隨後會出現在這裡供你選擇。"
           }
         }
       }
     },
-    "Connect Smart Life, Home Assistant, Philips Hue or Apple Home in Settings, and their devices show up here to pick." : {
+    "Connect Smart Life, Home Assistant, Philips Hue, Homebridge or Apple Home in Settings, and their devices show up here to pick." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verbinde Smart Life, Home Assistant, Philips Hue oder Apple Home in den Einstellungen, dann erscheinen ihre Geräte hier zur Auswahl."
+            "value" : "Verbinde Smart Life, Home Assistant, Philips Hue, Homebridge oder Apple Home in den Einstellungen, dann erscheinen ihre Geräte hier zur Auswahl."
           }
         },
         "el" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Συνδέστε Smart Life, Home Assistant, Philips Hue ή Apple Home στις Ρυθμίσεις και οι συσκευές τους θα εμφανιστούν εδώ για να επιλέξετε."
+            "value" : "Συνδέστε Smart Life, Home Assistant, Philips Hue, Homebridge ή Apple Home στις Ρυθμίσεις και οι συσκευές τους θα εμφανιστούν εδώ για να επιλέξετε."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Conecta Smart Life, Home Assistant, Philips Hue o Apple Home en Ajustes y sus dispositivos aparecerán aquí para elegirlos."
+            "value" : "Conecta Smart Life, Home Assistant, Philips Hue, Homebridge o Apple Home en Ajustes y sus dispositivos aparecerán aquí para elegirlos."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Connectez Smart Life, Home Assistant, Philips Hue ou Apple Home dans Réglages, et leurs appareils apparaîtront ici."
+            "value" : "Connectez Smart Life, Home Assistant, Philips Hue, Homebridge ou Apple Home dans Réglages, et leurs appareils apparaîtront ici."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Connetti Smart Life, Home Assistant, Philips Hue o Apple Home in Impostazioni e i loro dispositivi appariranno qui."
+            "value" : "Connetti Smart Life, Home Assistant, Philips Hue, Homebridge o Apple Home in Impostazioni e i loro dispositivi appariranno qui."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "「設定」でSmart Life、Home Assistant、Philips Hue、Apple Homeのいずれかに接続すると、そのデバイスがここに表示され、選択できます。"
+            "value" : "「設定」でSmart Life、Home Assistant、Philips Hue、Homebridge、Apple Homeのいずれかに接続すると、そのデバイスがここに表示され、選択できます。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Подключите Smart Life, Home Assistant, Philips Hue или Apple Home в Настройках, и их устройства появятся здесь для выбора."
+            "value" : "Подключите Smart Life, Home Assistant, Philips Hue, Homebridge или Apple Home в Настройках, и их устройства появятся здесь для выбора."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ayarlar’da Smart Life, Home Assistant, Philips Hue veya Apple Home’u bağlayın; cihazları seçmeniz için burada görünür."
+            "value" : "Ayarlar’da Smart Life, Home Assistant, Philips Hue, Homebridge veya Apple Home’u bağlayın; cihazları seçmeniz için burada görünür."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在「設定」中連接 Smart Life、Home Assistant、Philips Hue 或 Apple Home，它們的裝置就會出現在這裡供你挑選。"
+            "value" : "在「設定」中連接 Smart Life、Home Assistant、Philips Hue、Homebridge 或 Apple Home，它們的裝置就會出現在這裡供你挑選。"
           }
         }
       }
@@ -6706,6 +6764,64 @@
         }
       }
     },
+    "Disconnect Homebridge?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Homebridge trennen?"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Αποσύνδεση του Homebridge;"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Desconectar Homebridge?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déconnecter Homebridge ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnettere Homebridge?"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Homebridgeとの接続を解除しますか？"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отключить Homebridge?"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Homebridge bağlantısı kesilsin mi?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要中斷與 Homebridge 的連線嗎？"
+          }
+        }
+      }
+    },
     "Disconnect the Hue Bridge?" : {
       "localizations" : {
         "de" : {
@@ -7764,119 +7880,180 @@
     "Home Assistant" : {
       "shouldTranslate" : false
     },
-    "Home Assistant and Hue set up here or on your paired computer work on both, shared over your encrypted link." : {
+    "Home Assistant, Hue and Homebridge set up here or on your paired computer work on both, shared over your encrypted link." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant und Hue, hier oder auf deinem gekoppelten Computer eingerichtet, funktionieren auf beiden – geteilt über eure verschlüsselte Verbindung."
+            "value" : "Home Assistant, Hue und Homebridge, hier oder auf deinem gekoppelten Computer eingerichtet, funktionieren auf beiden – geteilt über eure verschlüsselte Verbindung."
           }
         },
         "el" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Το Home Assistant και το Hue που ρυθμίζονται εδώ ή στον συζευγμένο υπολογιστή σας λειτουργούν και στα δύο, μέσω της κρυπτογραφημένης σύνδεσής σας."
+            "value" : "Το Home Assistant, το Hue και το Homebridge που ρυθμίζονται εδώ ή στον συζευγμένο υπολογιστή σας λειτουργούν και στα δύο, μέσω της κρυπτογραφημένης σύνδεσής σας."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant y Hue, configurados aquí o en tu ordenador enlazado, funcionan en los dos y se comparten a través de vuestro enlace cifrado."
+            "value" : "Home Assistant, Hue y Homebridge, configurados aquí o en tu ordenador enlazado, funcionan en los dos y se comparten a través de vuestro enlace cifrado."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant et Hue, configurés ici ou sur votre ordinateur jumelé, fonctionnent sur les deux, partagés via votre liaison chiffrée."
+            "value" : "Home Assistant, Hue et Homebridge, configurés ici ou sur votre ordinateur jumelé, fonctionnent sur les deux, partagés via votre liaison chiffrée."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant e Hue, configurati qui o sul computer abbinato, funzionano su entrambi, condivisi tramite il collegamento crittografato."
+            "value" : "Home Assistant, Hue e Homebridge, configurati qui o sul computer abbinato, funzionano su entrambi, condivisi tramite il collegamento crittografato."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ここかペアリングしたコンピュータで設定したHome AssistantとHueは、暗号化されたリンクで共有され、両方で使えます。"
+            "value" : "ここかペアリングしたコンピュータで設定したHome Assistant、Hue、Homebridgeは、暗号化されたリンクで共有され、両方で使えます。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant и Hue, настроенные здесь или на связанном компьютере, работают на обоих — через ваш зашифрованный канал."
+            "value" : "Home Assistant, Hue и Homebridge, настроенные здесь или на связанном компьютере, работают на обоих — через ваш зашифрованный канал."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Burada veya eşlenmiş bilgisayarınızda kurulan Home Assistant ve Hue, şifreli bağlantınız üzerinden paylaşılarak ikisinde de çalışır."
+            "value" : "Burada veya eşlenmiş bilgisayarınızda kurulan Home Assistant, Hue ve Homebridge, şifreli bağlantınız üzerinden paylaşılarak ikisinde de çalışır."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在這裡或你配對的電腦上設定的 Home Assistant 和 Hue，兩邊都能使用，透過你的加密連線共用。"
+            "value" : "在這裡或你配對的電腦上設定的 Home Assistant、Hue 和 Homebridge，兩邊都能使用，透過你的加密連線共用。"
           }
         }
       }
     },
-    "Home Assistant, Philips Hue and Apple Home. Until you connect one, everything is simulated." : {
+    "Home Assistant, Philips Hue, Homebridge and Apple Home. Until you connect one, everything is simulated." : {
       "comment" : "Welcome screen",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant, Philips Hue und Apple Home. Bis du eines verbindest, ist alles simuliert."
+            "value" : "Home Assistant, Philips Hue, Homebridge und Apple Home. Bis du eines verbindest, ist alles simuliert."
           }
         },
         "el" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant, Philips Hue και Apple Home. Μέχρι να συνδέσετε ένα από αυτά, όλα είναι σε προσομοίωση."
+            "value" : "Home Assistant, Philips Hue, Homebridge και Apple Home. Μέχρι να συνδέσετε ένα από αυτά, όλα είναι σε προσομοίωση."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant, Philips Hue y Apple Home. Hasta que conectes uno, todo es simulado."
+            "value" : "Home Assistant, Philips Hue, Homebridge y Apple Home. Hasta que conectes uno, todo es simulado."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant, Philips Hue et Apple Home. Tant que vous n’en connectez aucun, tout est simulé."
+            "value" : "Home Assistant, Philips Hue, Homebridge et Apple Home. Tant que vous n’en connectez aucun, tout est simulé."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant, Philips Hue e Apple Home. Finché non ne connetti uno, è tutto simulato."
+            "value" : "Home Assistant, Philips Hue, Homebridge e Apple Home. Finché non ne connetti uno, è tutto simulato."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant、Philips Hue、Apple Home。接続するまでは、すべてシミュレーションです。"
+            "value" : "Home Assistant、Philips Hue、Homebridge、Apple Home。接続するまでは、すべてシミュレーションです。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant, Philips Hue и Apple Home. Пока вы ничего не подключили, всё работает в режиме имитации."
+            "value" : "Home Assistant, Philips Hue, Homebridge и Apple Home. Пока вы ничего не подключили, всё работает в режиме имитации."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant, Philips Hue ve Apple Home. Birini bağlayana kadar her şey simüle edilir."
+            "value" : "Home Assistant, Philips Hue, Homebridge ve Apple Home. Birini bağlayana kadar her şey simüle edilir."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Home Assistant、Philips Hue 和 Apple Home。在你連接之前，一切都是模擬的。"
+            "value" : "Home Assistant、Philips Hue、Homebridge 和 Apple Home。在你連接之前，一切都是模擬的。"
+          }
+        }
+      }
+    },
+    "Homebridge" : {
+      "shouldTranslate" : false
+    },
+    "Homebridge ended the session and asks for a two-factor code. Sign in again to keep controlling its devices." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Homebridge hat die Sitzung beendet und verlangt einen Zwei-Faktor-Code. Melde dich erneut an, um seine Geräte weiter zu steuern."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Το Homebridge τερμάτισε τη συνεδρία και ζητά κωδικό δύο παραγόντων. Συνδεθείτε ξανά για να συνεχίσετε να ελέγχετε τις συσκευές του."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Homebridge ha cerrado la sesión y pide un código de verificación en dos pasos. Vuelve a iniciar sesión para seguir controlando sus dispositivos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Homebridge a mis fin à la session et demande un code à deux facteurs. Reconnectez-vous pour continuer à piloter ses appareils."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Homebridge ha chiuso la sessione e chiede un codice a due fattori. Accedi di nuovo per continuare a controllarne i dispositivi."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Homebridgeがセッションを終了し、2ファクタ認証コードを求めています。デバイスの操作を続けるには、もう一度サインインしてください。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Homebridge завершил сеанс и просит код двухфакторной проверки. Войдите снова, чтобы и дальше управлять его устройствами."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Homebridge oturumu sonlandırdı ve iki adımlı doğrulama kodu istiyor. Cihazlarını kontrol etmeye devam etmek için yeniden oturum açın."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Homebridge 已結束工作階段，並要求輸入雙重認證碼。請重新登入，才能繼續控制它的裝置。"
           }
         }
       }
@@ -8116,234 +8293,234 @@
         }
       }
     },
-    "House Control talks to your own devices: Tuya's servers for Smart Life, your Home Assistant, your Hue Bridge, Apple Home, and your paired computer. Nothing else leaves this iPad." : {
+    "House Control talks to your own devices: Tuya's servers for Smart Life, your Home Assistant, your Hue Bridge, your Homebridge, Apple Home, and your paired computer. Nothing else leaves this iPad." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control spricht nur mit deinen eigenen Geräten: den Tuya-Servern für Smart Life, deinem Home Assistant, deiner Hue Bridge, Apple Home und deinem gekoppelten Computer. Sonst verlässt nichts dieses iPad."
+            "value" : "House Control spricht nur mit deinen eigenen Geräten: den Tuya-Servern für Smart Life, deinem Home Assistant, deiner Hue Bridge, deinem Homebridge, Apple Home und deinem gekoppelten Computer. Sonst verlässt nichts dieses iPad."
           }
         },
         "el" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Το House Control επικοινωνεί με τις δικές σας συσκευές: τους διακομιστές της Tuya για το Smart Life, το Home Assistant σας, το Hue Bridge σας, το Apple Home και τον συζευγμένο υπολογιστή σας. Τίποτε άλλο δεν φεύγει από αυτό το iPad."
+            "value" : "Το House Control επικοινωνεί με τις δικές σας συσκευές: τους διακομιστές της Tuya για το Smart Life, το Home Assistant σας, το Hue Bridge σας, το Homebridge σας, το Apple Home και τον συζευγμένο υπολογιστή σας. Τίποτε άλλο δεν φεύγει από αυτό το iPad."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control habla con tus propios dispositivos: los servidores de Tuya para Smart Life, tu Home Assistant, tu Hue Bridge, Apple Home y tu ordenador enlazado. Nada más sale de este iPad."
+            "value" : "House Control habla con tus propios dispositivos: los servidores de Tuya para Smart Life, tu Home Assistant, tu Hue Bridge, tu Homebridge, Apple Home y tu ordenador enlazado. Nada más sale de este iPad."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control ne communique qu’avec vos propres appareils : les serveurs de Tuya pour Smart Life, votre Home Assistant, votre pont Hue, Apple Home et votre ordinateur jumelé. Rien d’autre ne quitte cet iPad."
+            "value" : "House Control ne communique qu’avec vos propres appareils : les serveurs de Tuya pour Smart Life, votre Home Assistant, votre pont Hue, votre Homebridge, Apple Home et votre ordinateur jumelé. Rien d’autre ne quitte cet iPad."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control comunica solo con i tuoi dispositivi: i server di Tuya per Smart Life, il tuo Home Assistant, il tuo Hue Bridge, Apple Home e il computer abbinato. Nient’altro lascia questo iPad."
+            "value" : "House Control comunica solo con i tuoi dispositivi: i server di Tuya per Smart Life, il tuo Home Assistant, il tuo Hue Bridge, il tuo Homebridge, Apple Home e il computer abbinato. Nient’altro lascia questo iPad."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Controlが通信するのはあなたのデバイスだけです：Smart Life用のTuyaのサーバー、Home Assistant、Hue Bridge、Apple Home、ペアリングしたコンピュータ。それ以外の情報がこのiPadから送信されることはありません。"
+            "value" : "House Controlが通信するのはあなたのデバイスだけです：Smart Life用のTuyaのサーバー、Home Assistant、Hue Bridge、Homebridge、Apple Home、ペアリングしたコンピュータ。それ以外の情報がこのiPadから送信されることはありません。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control общается только с вашими устройствами: серверами Tuya для Smart Life, вашим Home Assistant, вашим Hue Bridge, Apple Home и связанным компьютером. Больше ничего не покидает этот iPad."
+            "value" : "House Control общается только с вашими устройствами: серверами Tuya для Smart Life, вашим Home Assistant, вашим Hue Bridge, вашим Homebridge, Apple Home и связанным компьютером. Больше ничего не покидает этот iPad."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control kendi cihazlarınızla konuşur: Smart Life için Tuya sunucuları, Home Assistant’ınız, Hue Bridge’iniz, Apple Home ve eşlenmiş bilgisayarınız. Bu iPad’den başka hiçbir şey çıkmaz."
+            "value" : "House Control kendi cihazlarınızla konuşur: Smart Life için Tuya sunucuları, Home Assistant’ınız, Hue Bridge’iniz, Homebridge’iniz, Apple Home ve eşlenmiş bilgisayarınız. Bu iPad’den başka hiçbir şey çıkmaz."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control 只會與你自己的裝置通訊：Smart Life 的 Tuya 伺服器、你的 Home Assistant、你的 Hue Bridge、Apple Home，以及你配對的電腦。其他任何資料都不會離開這台 iPad。"
+            "value" : "House Control 只會與你自己的裝置通訊：Smart Life 的 Tuya 伺服器、你的 Home Assistant、你的 Hue Bridge、你的 Homebridge、Apple Home，以及你配對的電腦。其他任何資料都不會離開這台 iPad。"
           }
         }
       }
     },
-    "House Control talks to your own devices: Tuya's servers for Smart Life, your Home Assistant, your Hue Bridge, Apple Home, and your paired computer. Nothing else leaves this iPhone." : {
+    "House Control talks to your own devices: Tuya's servers for Smart Life, your Home Assistant, your Hue Bridge, your Homebridge, Apple Home, and your paired computer. Nothing else leaves this iPhone." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control spricht nur mit deinen eigenen Geräten: den Tuya-Servern für Smart Life, deinem Home Assistant, deiner Hue Bridge, Apple Home und deinem gekoppelten Computer. Sonst verlässt nichts dieses iPhone."
+            "value" : "House Control spricht nur mit deinen eigenen Geräten: den Tuya-Servern für Smart Life, deinem Home Assistant, deiner Hue Bridge, deinem Homebridge, Apple Home und deinem gekoppelten Computer. Sonst verlässt nichts dieses iPhone."
           }
         },
         "el" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Το House Control επικοινωνεί με τις δικές σας συσκευές: τους διακομιστές της Tuya για το Smart Life, το Home Assistant σας, το Hue Bridge σας, το Apple Home και τον συζευγμένο υπολογιστή σας. Τίποτε άλλο δεν φεύγει από αυτό το iPhone."
+            "value" : "Το House Control επικοινωνεί με τις δικές σας συσκευές: τους διακομιστές της Tuya για το Smart Life, το Home Assistant σας, το Hue Bridge σας, το Homebridge σας, το Apple Home και τον συζευγμένο υπολογιστή σας. Τίποτε άλλο δεν φεύγει από αυτό το iPhone."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control habla con tus propios dispositivos: los servidores de Tuya para Smart Life, tu Home Assistant, tu Hue Bridge, Apple Home y tu ordenador enlazado. Nada más sale de este iPhone."
+            "value" : "House Control habla con tus propios dispositivos: los servidores de Tuya para Smart Life, tu Home Assistant, tu Hue Bridge, tu Homebridge, Apple Home y tu ordenador enlazado. Nada más sale de este iPhone."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control ne communique qu’avec vos propres appareils : les serveurs de Tuya pour Smart Life, votre Home Assistant, votre pont Hue, Apple Home et votre ordinateur jumelé. Rien d’autre ne quitte cet iPhone."
+            "value" : "House Control ne communique qu’avec vos propres appareils : les serveurs de Tuya pour Smart Life, votre Home Assistant, votre pont Hue, votre Homebridge, Apple Home et votre ordinateur jumelé. Rien d’autre ne quitte cet iPhone."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control comunica solo con i tuoi dispositivi: i server di Tuya per Smart Life, il tuo Home Assistant, il tuo Hue Bridge, Apple Home e il computer abbinato. Nient’altro lascia questo iPhone."
+            "value" : "House Control comunica solo con i tuoi dispositivi: i server di Tuya per Smart Life, il tuo Home Assistant, il tuo Hue Bridge, il tuo Homebridge, Apple Home e il computer abbinato. Nient’altro lascia questo iPhone."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Controlが通信するのはあなたのデバイスだけです：Smart Life用のTuyaのサーバー、Home Assistant、Hue Bridge、Apple Home、ペアリングしたコンピュータ。それ以外の情報がこのiPhoneから送信されることはありません。"
+            "value" : "House Controlが通信するのはあなたのデバイスだけです：Smart Life用のTuyaのサーバー、Home Assistant、Hue Bridge、Homebridge、Apple Home、ペアリングしたコンピュータ。それ以外の情報がこのiPhoneから送信されることはありません。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control общается только с вашими устройствами: серверами Tuya для Smart Life, вашим Home Assistant, вашим Hue Bridge, Apple Home и связанным компьютером. Больше ничего не покидает этот iPhone."
+            "value" : "House Control общается только с вашими устройствами: серверами Tuya для Smart Life, вашим Home Assistant, вашим Hue Bridge, вашим Homebridge, Apple Home и связанным компьютером. Больше ничего не покидает этот iPhone."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control kendi cihazlarınızla konuşur: Smart Life için Tuya sunucuları, Home Assistant’ınız, Hue Bridge’iniz, Apple Home ve eşlenmiş bilgisayarınız. Bu iPhone’dan başka hiçbir şey çıkmaz."
+            "value" : "House Control kendi cihazlarınızla konuşur: Smart Life için Tuya sunucuları, Home Assistant’ınız, Hue Bridge’iniz, Homebridge’iniz, Apple Home ve eşlenmiş bilgisayarınız. Bu iPhone’dan başka hiçbir şey çıkmaz."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control 只會與你自己的裝置通訊：Smart Life 的 Tuya 伺服器、你的 Home Assistant、你的 Hue Bridge、Apple Home，以及你配對的電腦。其他任何資料都不會離開這支 iPhone。"
+            "value" : "House Control 只會與你自己的裝置通訊：Smart Life 的 Tuya 伺服器、你的 Home Assistant、你的 Hue Bridge、你的 Homebridge、Apple Home，以及你配對的電腦。其他任何資料都不會離開這支 iPhone。"
           }
         }
       }
     },
-    "House Control talks to your own devices: your Home Assistant, your Hue Bridge, Apple Home, and your paired computer. Nothing else leaves this iPad." : {
+    "House Control talks to your own devices: your Home Assistant, your Hue Bridge, your Homebridge, Apple Home, and your paired computer. Nothing else leaves this iPad." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control spricht nur mit deinen eigenen Geräten: deinem Home Assistant, deiner Hue Bridge, Apple Home und deinem gekoppelten Computer. Sonst verlässt nichts dieses iPad."
+            "value" : "House Control spricht nur mit deinen eigenen Geräten: deinem Home Assistant, deiner Hue Bridge, deinem Homebridge, Apple Home und deinem gekoppelten Computer. Sonst verlässt nichts dieses iPad."
           }
         },
         "el" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Το House Control επικοινωνεί με τις δικές σας συσκευές: το Home Assistant σας, το Hue Bridge σας, το Apple Home και τον συζευγμένο υπολογιστή σας. Τίποτε άλλο δεν φεύγει από αυτό το iPad."
+            "value" : "Το House Control επικοινωνεί με τις δικές σας συσκευές: το Home Assistant σας, το Hue Bridge σας, το Homebridge σας, το Apple Home και τον συζευγμένο υπολογιστή σας. Τίποτε άλλο δεν φεύγει από αυτό το iPad."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control habla con tus propios dispositivos: tu Home Assistant, tu Hue Bridge, Apple Home y tu ordenador enlazado. Nada más sale de este iPad."
+            "value" : "House Control habla con tus propios dispositivos: tu Home Assistant, tu Hue Bridge, tu Homebridge, Apple Home y tu ordenador enlazado. Nada más sale de este iPad."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control ne communique qu’avec vos propres appareils : votre Home Assistant, votre pont Hue, Apple Home et votre ordinateur jumelé. Rien d’autre ne quitte cet iPad."
+            "value" : "House Control ne communique qu’avec vos propres appareils : votre Home Assistant, votre pont Hue, votre Homebridge, Apple Home et votre ordinateur jumelé. Rien d’autre ne quitte cet iPad."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control comunica solo con i tuoi dispositivi: il tuo Home Assistant, il tuo Hue Bridge, Apple Home e il computer abbinato. Nient’altro lascia questo iPad."
+            "value" : "House Control comunica solo con i tuoi dispositivi: il tuo Home Assistant, il tuo Hue Bridge, il tuo Homebridge, Apple Home e il computer abbinato. Nient’altro lascia questo iPad."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Controlが通信するのはあなたのデバイスだけです：Home Assistant、Hue Bridge、Apple Home、ペアリングしたコンピュータ。それ以外の情報がこのiPadから送信されることはありません。"
+            "value" : "House Controlが通信するのはあなたのデバイスだけです：Home Assistant、Hue Bridge、Homebridge、Apple Home、ペアリングしたコンピュータ。それ以外の情報がこのiPadから送信されることはありません。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control общается только с вашими устройствами: вашим Home Assistant, вашим Hue Bridge, Apple Home и связанным компьютером. Больше ничего не покидает этот iPad."
+            "value" : "House Control общается только с вашими устройствами: вашим Home Assistant, вашим Hue Bridge, вашим Homebridge, Apple Home и связанным компьютером. Больше ничего не покидает этот iPad."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control kendi cihazlarınızla konuşur: Home Assistant’ınız, Hue Bridge’iniz, Apple Home ve eşlenmiş bilgisayarınız. Bu iPad’den başka hiçbir şey çıkmaz."
+            "value" : "House Control kendi cihazlarınızla konuşur: Home Assistant’ınız, Hue Bridge’iniz, Homebridge’iniz, Apple Home ve eşlenmiş bilgisayarınız. Bu iPad’den başka hiçbir şey çıkmaz."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control 只會與你自己的裝置通訊：你的 Home Assistant、你的 Hue Bridge、Apple Home，以及你配對的電腦。其他任何資料都不會離開這台 iPad。"
+            "value" : "House Control 只會與你自己的裝置通訊：你的 Home Assistant、你的 Hue Bridge、你的 Homebridge、Apple Home，以及你配對的電腦。其他任何資料都不會離開這台 iPad。"
           }
         }
       }
     },
-    "House Control talks to your own devices: your Home Assistant, your Hue Bridge, Apple Home, and your paired computer. Nothing else leaves this iPhone." : {
+    "House Control talks to your own devices: your Home Assistant, your Hue Bridge, your Homebridge, Apple Home, and your paired computer. Nothing else leaves this iPhone." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control spricht nur mit deinen eigenen Geräten: deinem Home Assistant, deiner Hue Bridge, Apple Home und deinem gekoppelten Computer. Sonst verlässt nichts dieses iPhone."
+            "value" : "House Control spricht nur mit deinen eigenen Geräten: deinem Home Assistant, deiner Hue Bridge, deinem Homebridge, Apple Home und deinem gekoppelten Computer. Sonst verlässt nichts dieses iPhone."
           }
         },
         "el" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Το House Control επικοινωνεί με τις δικές σας συσκευές: το Home Assistant σας, το Hue Bridge σας, το Apple Home και τον συζευγμένο υπολογιστή σας. Τίποτε άλλο δεν φεύγει από αυτό το iPhone."
+            "value" : "Το House Control επικοινωνεί με τις δικές σας συσκευές: το Home Assistant σας, το Hue Bridge σας, το Homebridge σας, το Apple Home και τον συζευγμένο υπολογιστή σας. Τίποτε άλλο δεν φεύγει από αυτό το iPhone."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control habla con tus propios dispositivos: tu Home Assistant, tu Hue Bridge, Apple Home y tu ordenador enlazado. Nada más sale de este iPhone."
+            "value" : "House Control habla con tus propios dispositivos: tu Home Assistant, tu Hue Bridge, tu Homebridge, Apple Home y tu ordenador enlazado. Nada más sale de este iPhone."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control ne communique qu’avec vos propres appareils : votre Home Assistant, votre pont Hue, Apple Home et votre ordinateur jumelé. Rien d’autre ne quitte cet iPhone."
+            "value" : "House Control ne communique qu’avec vos propres appareils : votre Home Assistant, votre pont Hue, votre Homebridge, Apple Home et votre ordinateur jumelé. Rien d’autre ne quitte cet iPhone."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control comunica solo con i tuoi dispositivi: il tuo Home Assistant, il tuo Hue Bridge, Apple Home e il computer abbinato. Nient’altro lascia questo iPhone."
+            "value" : "House Control comunica solo con i tuoi dispositivi: il tuo Home Assistant, il tuo Hue Bridge, il tuo Homebridge, Apple Home e il computer abbinato. Nient’altro lascia questo iPhone."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Controlが通信するのはあなたのデバイスだけです：Home Assistant、Hue Bridge、Apple Home、ペアリングしたコンピュータ。それ以外の情報がこのiPhoneから送信されることはありません。"
+            "value" : "House Controlが通信するのはあなたのデバイスだけです：Home Assistant、Hue Bridge、Homebridge、Apple Home、ペアリングしたコンピュータ。それ以外の情報がこのiPhoneから送信されることはありません。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control общается только с вашими устройствами: вашим Home Assistant, вашим Hue Bridge, Apple Home и связанным компьютером. Больше ничего не покидает этот iPhone."
+            "value" : "House Control общается только с вашими устройствами: вашим Home Assistant, вашим Hue Bridge, вашим Homebridge, Apple Home и связанным компьютером. Больше ничего не покидает этот iPhone."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control kendi cihazlarınızla konuşur: Home Assistant’ınız, Hue Bridge’iniz, Apple Home ve eşlenmiş bilgisayarınız. Bu iPhone’dan başka hiçbir şey çıkmaz."
+            "value" : "House Control kendi cihazlarınızla konuşur: Home Assistant’ınız, Hue Bridge’iniz, Homebridge’iniz, Apple Home ve eşlenmiş bilgisayarınız. Bu iPhone’dan başka hiçbir şey çıkmaz."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "House Control 只會與你自己的裝置通訊：你的 Home Assistant、你的 Hue Bridge、Apple Home，以及你配對的電腦。其他任何資料都不會離開這支 iPhone。"
+            "value" : "House Control 只會與你自己的裝置通訊：你的 Home Assistant、你的 Hue Bridge、你的 Homebridge、Apple Home，以及你配對的電腦。其他任何資料都不會離開這支 iPhone。"
           }
         }
       }
@@ -10627,6 +10804,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在尋找 Home Assistant…"
+          }
+        }
+      }
+    },
+    "Looking for Homebridge…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Homebridge wird gesucht …"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Αναζήτηση για Homebridge…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscando Homebridge…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recherche de Homebridge…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ricerca di Homebridge…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Homebridgeを探しています…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поиск Homebridge…"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Homebridge aranıyor…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在尋找 Homebridge…"
           }
         }
       }
@@ -14316,6 +14551,65 @@
         }
       }
     },
+    "Password" : {
+      "comment" : "Homebridge: label of the password field",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passwort"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Συνθηματικό"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contraseña"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mot de passe"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Password"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "パスワード"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пароль"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parola"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密碼"
+          }
+        }
+      }
+    },
     "Paste it here" : {
       "comment" : "Home Assistant: placeholder of the token field",
       "localizations" : {
@@ -14491,6 +14785,65 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "邊走邊釘選裝置"
+          }
+        }
+      }
+    },
+    "Plugins for hundreds of brands" : {
+      "comment" : "Settings: under Homebridge while not connected",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plugins für Hunderte Marken"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Πρόσθετα για εκατοντάδες μάρκες"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plugins para cientos de marcas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Des plugins pour des centaines de marques"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plugin per centinaia di marchi"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数百のブランドに対応するプラグイン"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Плагины для сотен брендов"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yüzlerce marka için eklentiler"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支援數百個品牌的外掛"
           }
         }
       }
@@ -17952,6 +18305,65 @@
         }
       }
     },
+    "Sign in again" : {
+      "comment" : "Settings: under Homebridge when its session ran out",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erneut anmelden"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Συνδεθείτε ξανά"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vuelve a iniciar sesión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se reconnecter"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accedi di nuovo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "もう一度サインイン"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Войдите снова"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yeniden oturum açın"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新登入"
+          }
+        }
+      }
+    },
     "Sign in with your Smart Life or Tuya Smart account and the lamps and air conditioners linked to it in your floor plan become the real ones." : {
       "localizations" : {
         "de" : {
@@ -18714,61 +19126,61 @@
         }
       }
     },
-    "Smart Life, Home Assistant, Philips Hue and Apple Home. Until you connect one, everything is simulated." : {
+    "Smart Life, Home Assistant, Philips Hue, Homebridge and Apple Home. Until you connect one, everything is simulated." : {
       "comment" : "Welcome screen",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Smart Life, Home Assistant, Philips Hue und Apple Home. Bis du eines verbindest, ist alles simuliert."
+            "value" : "Smart Life, Home Assistant, Philips Hue, Homebridge und Apple Home. Bis du eines verbindest, ist alles simuliert."
           }
         },
         "el" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Smart Life, Home Assistant, Philips Hue και Apple Home. Μέχρι να συνδέσετε ένα από αυτά, όλα είναι σε προσομοίωση."
+            "value" : "Smart Life, Home Assistant, Philips Hue, Homebridge και Apple Home. Μέχρι να συνδέσετε ένα από αυτά, όλα είναι σε προσομοίωση."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Smart Life, Home Assistant, Philips Hue y Apple Home. Hasta que conectes uno, todo es simulado."
+            "value" : "Smart Life, Home Assistant, Philips Hue, Homebridge y Apple Home. Hasta que conectes uno, todo es simulado."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Smart Life, Home Assistant, Philips Hue et Apple Home. Tant que vous n’en connectez aucun, tout est simulé."
+            "value" : "Smart Life, Home Assistant, Philips Hue, Homebridge et Apple Home. Tant que vous n’en connectez aucun, tout est simulé."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Smart Life, Home Assistant, Philips Hue e Apple Home. Finché non ne connetti uno, è tutto simulato."
+            "value" : "Smart Life, Home Assistant, Philips Hue, Homebridge e Apple Home. Finché non ne connetti uno, è tutto simulato."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Smart Life、Home Assistant、Philips Hue、Apple Home。接続するまでは、すべてシミュレーションです。"
+            "value" : "Smart Life、Home Assistant、Philips Hue、Homebridge、Apple Home。接続するまでは、すべてシミュレーションです。"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Smart Life, Home Assistant, Philips Hue и Apple Home. Пока вы ничего не подключили, всё работает в режиме имитации."
+            "value" : "Smart Life, Home Assistant, Philips Hue, Homebridge и Apple Home. Пока вы ничего не подключили, всё работает в режиме имитации."
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Smart Life, Home Assistant, Philips Hue ve Apple Home. Birini bağlayana kadar her şey simüle edilir."
+            "value" : "Smart Life, Home Assistant, Philips Hue, Homebridge ve Apple Home. Birini bağlayana kadar her şey simüle edilir."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Smart Life、Home Assistant、Philips Hue 和 Apple Home。在你連接之前，一切都是模擬的。"
+            "value" : "Smart Life、Home Assistant、Philips Hue、Homebridge 和 Apple Home。在你連接之前，一切都是模擬的。"
           }
         }
       }
@@ -19650,6 +20062,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "點一下燈，拖移以調光"
+          }
+        }
+      }
+    },
+    "That code did not work. Enter the current one." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Code hat nicht funktioniert. Gib den aktuellen ein."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Αυτός ο κωδικός δεν λειτούργησε. Εισαγάγετε τον τρέχοντα."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ese código no ha funcionado. Introduce el actual."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce code n’a pas fonctionné. Saisissez le code actuel."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quel codice non ha funzionato. Inserisci quello attuale."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "そのコードは使えませんでした。現在のコードを入力してください。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Этот код не подошёл. Введите текущий."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu kod işe yaramadı. Geçerli kodu girin."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這組代碼無效，請輸入目前的代碼。"
           }
         }
       }
@@ -20933,6 +21403,122 @@
         }
       }
     },
+    "The sign-in stays on this iPad, in the Keychain, and goes to the computer you paired, over your encrypted link, so House Control can sign in again when Homebridge’s session runs out." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Anmeldedaten bleiben auf diesem iPad im Schlüsselbund und gehen über eure verschlüsselte Verbindung an den gekoppelten Computer, damit House Control sich neu anmelden kann, wenn die Sitzung von Homebridge abläuft."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Τα στοιχεία σύνδεσης μένουν σε αυτό το iPad, στο Μπρελόκ, και πηγαίνουν στον υπολογιστή με τον οποίο κάνατε σύζευξη, μέσω της κρυπτογραφημένης σύνδεσής σας, ώστε το House Control να συνδέεται ξανά όταν λήγει η συνεδρία του Homebridge."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los datos de inicio de sesión se quedan en este iPad, en el llavero, y van al ordenador que hayas enlazado a través de vuestro enlace cifrado, para que House Control vuelva a iniciar sesión cuando caduque la sesión de Homebridge."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les identifiants restent sur cet iPad, dans le trousseau, et vont à l’ordinateur jumelé via votre liaison chiffrée, pour que House Control se reconnecte quand la session de Homebridge expire."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le credenziali restano su questo iPad, nel Portachiavi, e arrivano al computer abbinato tramite il collegamento crittografato, così House Control può accedere di nuovo quando la sessione di Homebridge scade."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サインイン情報はこのiPadのキーチェーンに保存され、暗号化されたリンクでペアリングしたコンピュータにも送られます。Homebridgeのセッションが切れても、House Controlがもう一度サインインできます。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Данные для входа хранятся на этом iPad в связке ключей и передаются на связанный компьютер по вашему зашифрованному каналу, чтобы House Control мог войти снова, когда сеанс Homebridge закончится."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oturum bilgileri bu iPad’de, Anahtar Zinciri’nde kalır ve şifreli bağlantınız üzerinden eşlediğiniz bilgisayara gider; böylece Homebridge oturumu sona erdiğinde House Control yeniden oturum açabilir."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登入資料會保留在這台 iPad 的鑰匙圈中，並透過你的加密連線傳到你配對的電腦，讓 House Control 能在 Homebridge 的工作階段到期時重新登入。"
+          }
+        }
+      }
+    },
+    "The sign-in stays on this iPhone, in the Keychain, and goes to the computer you paired, over your encrypted link, so House Control can sign in again when Homebridge’s session runs out." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Anmeldedaten bleiben auf diesem iPhone im Schlüsselbund und gehen über eure verschlüsselte Verbindung an den gekoppelten Computer, damit House Control sich neu anmelden kann, wenn die Sitzung von Homebridge abläuft."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Τα στοιχεία σύνδεσης μένουν σε αυτό το iPhone, στο Μπρελόκ, και πηγαίνουν στον υπολογιστή με τον οποίο κάνατε σύζευξη, μέσω της κρυπτογραφημένης σύνδεσής σας, ώστε το House Control να συνδέεται ξανά όταν λήγει η συνεδρία του Homebridge."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los datos de inicio de sesión se quedan en este iPhone, en el llavero, y van al ordenador que hayas enlazado a través de vuestro enlace cifrado, para que House Control vuelva a iniciar sesión cuando caduque la sesión de Homebridge."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les identifiants restent sur cet iPhone, dans le trousseau, et vont à l’ordinateur jumelé via votre liaison chiffrée, pour que House Control se reconnecte quand la session de Homebridge expire."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le credenziali restano su questo iPhone, nel Portachiavi, e arrivano al computer abbinato tramite il collegamento crittografato, così House Control può accedere di nuovo quando la sessione di Homebridge scade."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "サインイン情報はこのiPhoneのキーチェーンに保存され、暗号化されたリンクでペアリングしたコンピュータにも送られます。Homebridgeのセッションが切れても、House Controlがもう一度サインインできます。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Данные для входа хранятся на этом iPhone в связке ключей и передаются на связанный компьютер по вашему зашифрованному каналу, чтобы House Control мог войти снова, когда сеанс Homebridge закончится."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oturum bilgileri bu iPhone’da, Anahtar Zinciri’nde kalır ve şifreli bağlantınız üzerinden eşlediğiniz bilgisayara gider; böylece Homebridge oturumu sona erdiğinde House Control yeniden oturum açabilir."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登入資料會保留在這支 iPhone 的鑰匙圈中，並透過你的加密連線傳到你配對的電腦，讓 House Control 能在 Homebridge 的工作階段到期時重新登入。"
+          }
+        }
+      }
+    },
     "The timer is up. Tap to switch it off, or touch and hold for Switch Off." : {
       "comment" : "Notification when an air conditioner's auto-off timer runs out while the app is closed",
       "localizations" : {
@@ -21162,6 +21748,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "它們會分散在房間中；稍後可在編輯器中拖到定位。"
+          }
+        }
+      }
+    },
+    "This Homebridge has no sign-in: nothing else to enter." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Homebridge hat keine Anmeldung: Sonst ist nichts einzugeben."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Αυτό το Homebridge δεν ζητά σύνδεση: δεν χρειάζεται να εισαγάγετε κάτι άλλο."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este Homebridge no pide iniciar sesión: no hay nada más que introducir."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce Homebridge n’a pas de connexion par identifiants : rien d’autre à saisir."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo Homebridge non chiede l’accesso: non c’è altro da inserire."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このHomebridgeにはサインインがありません。ほかに入力するものはありません。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "У этого Homebridge нет входа по паролю: больше ничего вводить не нужно."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu Homebridge oturum açma istemiyor: başka bir şey girmeniz gerekmez."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這台 Homebridge 不需要登入，無須再輸入其他資料。"
           }
         }
       }
@@ -21999,6 +22643,65 @@
         }
       }
     },
+    "Two-factor code" : {
+      "comment" : "Homebridge: label of the field for the code from an authenticator app",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Code der Zwei-Faktor-Anmeldung"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Κωδικός δύο παραγόντων"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código de verificación en dos pasos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Code à deux facteurs"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codice a due fattori"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2ファクタ認証コード"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Код двухфакторной проверки"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "İki adımlı doğrulama kodu"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "雙重認證碼"
+          }
+        }
+      }
+    },
     "Unpair" : {
       "comment" : "Button that ends the link to the paired computer",
       "localizations" : {
@@ -22293,6 +22996,64 @@
         }
       }
     },
+    "Use the address and the sign-in of Homebridge’s web page (port 8581 unless you changed it). If accessory control is off, turn it on there: **Settings → Startup & Environment → Enable UI Accessory Control (-I)**, then restart Homebridge." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nimm die Adresse und die Anmeldedaten der Webseite von Homebridge (Port 8581, außer du hast ihn geändert). Ist die Gerätesteuerung aus, schalte sie dort ein: **Settings → Startup & Environment → Enable UI Accessory Control (-I)**, dann Homebridge neu starten."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Χρησιμοποιήστε τη διεύθυνση και τα στοιχεία σύνδεσης της ιστοσελίδας του Homebridge (θύρα 8581, εκτός αν την αλλάξατε). Αν ο έλεγχος αξεσουάρ είναι ανενεργός, ενεργοποιήστε τον εκεί: **Settings → Startup & Environment → Enable UI Accessory Control (-I)** και έπειτα επανεκκινήστε το Homebridge."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa la dirección y los datos de inicio de sesión de la página web de Homebridge (puerto 8581, salvo que lo hayas cambiado). Si el control de accesorios está desactivado, actívalo allí: **Settings → Startup & Environment → Enable UI Accessory Control (-I)** y reinicia Homebridge."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisez l’adresse et les identifiants de la page web de Homebridge (port 8581, sauf si vous l’avez changé). Si le pilotage des accessoires est désactivé, activez-le là : **Settings → Startup & Environment → Enable UI Accessory Control (-I)**, puis redémarrez Homebridge."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa l’indirizzo e le credenziali della pagina web di Homebridge (porta 8581, se non l’hai cambiata). Se il controllo degli accessori è spento, attivalo lì: **Settings → Startup & Environment → Enable UI Accessory Control (-I)**, poi riavvia Homebridge."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Homebridgeのウェブページのアドレスとサインイン情報を使ってください（変更していなければポートは8581です）。アクセサリの操作がオフなら、そこでオンにします：**Settings → Startup & Environment → Enable UI Accessory Control (-I)** のあと、Homebridgeを再起動します。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Укажите адрес и данные для входа веб-страницы Homebridge (порт 8581, если вы его не меняли). Если управление устройствами выключено, включите его там: **Settings → Startup & Environment → Enable UI Accessory Control (-I)**, затем перезапустите Homebridge."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Homebridge web sayfasının adresini ve oturum bilgilerini kullanın (değiştirmediyseniz bağlantı noktası 8581). Aksesuar denetimi kapalıysa oradan açın: **Settings → Startup & Environment → Enable UI Accessory Control (-I)**, ardından Homebridge’i yeniden başlatın."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請使用 Homebridge 網頁的位址與登入資料（若未更改，連接埠為 8581）。若配件控制已關閉，請在那裡開啟：**Settings → Startup & Environment → Enable UI Accessory Control (-I)**，然後重新啟動 Homebridge。"
+          }
+        }
+      }
+    },
     "User Code" : {
       "comment" : "Smart Life: the account's User Code, as the Smart Life app calls it",
       "localizations" : {
@@ -22348,6 +23109,65 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "使用者代碼"
+          }
+        }
+      }
+    },
+    "User name" : {
+      "comment" : "Homebridge: label of the field for the user name of Homebridge's web page",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Benutzername"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Όνομα χρήστη"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nombre de usuario"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom d’utilisateur"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nome utente"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ユーザ名"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Имя пользователя"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kullanıcı adı"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用者名稱"
           }
         }
       }
@@ -23814,6 +24634,65 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已釘選為 %@"
+          }
+        }
+      }
+    },
+    "signed in as %@" : {
+      "comment" : "Homebridge: after the server's address; the placeholder is the user name",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "angemeldet als %@"
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "συνδεδεμένος ως %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "sesión iniciada como %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "connecté en tant que %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "accesso come %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@としてサインイン中"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "вход как %@"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ olarak oturum açık"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已用 %@ 登入"
           }
         }
       }

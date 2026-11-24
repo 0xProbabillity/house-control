@@ -72,8 +72,8 @@ targets:
         UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         UIUserInterfaceStyle: Dark
         ITSAppUsesNonExemptEncryption: false
-        NSLocalNetworkUsageDescription: House Control finds your Home Assistant and Hue Bridge on this Wi-Fi network, and your Mac or PC, to keep your floor plan the same on both.
-        NSBonjourServices: [_housecontrol._tcp, _hue._tcp, _home-assistant._tcp]
+        NSLocalNetworkUsageDescription: House Control finds your Home Assistant, Hue Bridge and Homebridge on this Wi-Fi network, and your Mac or PC, to keep your floor plan the same on both.
+        NSBonjourServices: [_housecontrol._tcp, _hue._tcp, _home-assistant._tcp, _hap._tcp]
         NSHomeKitUsageDescription: House Control shows the lamps, air conditioners and thermometers of your homes in its 3D view and switches them for you.
         # Home Assistant answers plain HTTP on the local network, the Hue Bridge HTTPS with its own certificate.
         NSAppTransportSecurity:

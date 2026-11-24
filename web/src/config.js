@@ -10,7 +10,7 @@ export class ConfigError extends Error {}
 export const LIGHT_KINDS = LIGHT_TYPES;
 
 // A lamp or an AC is real when it is linked to a device of a connected platform:
-// `link: { service, id }` (Home Assistant, Philips Hue, Apple Home) or, for Smart Life,
+// `link: { service, id }` (Home Assistant, Philips Hue, Homebridge, Apple Home) or, for Smart Life,
 // `tuya: { deviceId }`. An AC's `sensor: { service, id }` is a thermometer for its room.
 export const LINK_FIELDS = ['tuya', 'link', 'sensor'];
 
@@ -27,9 +27,34 @@ export const SERVICES = {
   smartlife: { name: 'Smart Life', short: 'Smart Life' },
   homeassistant: { name: 'Home Assistant', short: 'Home Assistant' },
   hue: { name: 'Philips Hue', short: 'Hue' },
+  homebridge: { name: 'Homebridge', short: 'Homebridge' },
   homekit: { name: 'Apple Home', short: 'Apple Home' },
 };
 export const FLOOR_KINDS = ['oak', 'walnut', 'tile', 'stone'];
+
+/** Where an outlet at `pos` sits: on the nearest wall of `room`, facing into it. `rot` turns
+ *  the model's front (+z) into the room; `inset` is half the wall's thickness, so the plate
+ *  touches the wall's face (exterior walls are thicker than the ones between two rooms). */
+export function wallMount(room, rooms, [x, z]) {
+  const walls = [
+    { d: z - room.z, pos: [x, room.z], rot: 0, n: [0, 1] },
+    { d: room.z + room.d - z, pos: [x, room.z + room.d], rot: 180, n: [0, -1] },
+    { d: x - room.x, pos: [room.x, z], rot: 90, n: [1, 0] },
+    { d: room.x + room.w - x, pos: [room.x + room.w, z], rot: -90, n: [-1, 0] },
+  ];
+  const wall = walls.reduce((a, b) => (b.d < a.d ? b : a));
+  const along = wall.n[0] ? 1 : 0; // the coordinate that runs along the wall
+  const lo = along ? room.z : room.x;
+  const hi = along ? room.z + room.d : room.x + room.w;
+  const p = [...wall.pos];
+  p[along] = Math.min(hi - 0.15, Math.max(lo + 0.15, p[along]));
+  // Interior when another room on the same floor lies right behind this wall at that point.
+  const behind = [p[0] - wall.n[0] * 0.1, p[1] - wall.n[1] * 0.1];
+  const interior = rooms.some((r) => r !== room && r.level === room.level
+    && behind[0] > r.x && behind[0] < r.x + r.w && behind[1] > r.z && behind[1] < r.z + r.d);
+  const inset = (interior ? 0.05 : 0.1) + 0.002;
+  return { pos: [p[0] + wall.n[0] * inset, p[1] + wall.n[1] * inset], rot: wall.rot };
+}
 
 // A home on several floors lists them in "levels", lowest first: [{ id, name, wallHeight? }].
 // Rooms, furniture and openings say which one they are on with "level"; lamps and ACs are on
@@ -131,17 +156,22 @@ export function normalize(raw) {
     return { type: o.type || 'door', from: o.from, to: o.to, sill: o.sill ?? 0.85, head: o.head ?? 2.1, level };
   });
 
+  // An outlet ("outlet": true) is a lamp that looks like a wall socket: on/off only, drawn on
+  // the wall of its room nearest to where it was put. Older apps ignore the flag and show a lamp.
   const lights = (raw.lights || []).map((l) => {
     unique(l.id, t('A light is missing an "id"'));
     need(roomIds.has(l.room), t('Light "{id}" refers to unknown room "{room}"', { id: l.id, room: l.room }));
     need(LIGHT_TYPES.includes(l.type), t('Light "{id}" has unknown type "{type}" (use {types})', { id: l.id, type: l.type, types: LIGHT_TYPES.join(', ') }));
     need(isPoint(l.pos), t('Light "{id}" needs "pos": [x, z]', { id: l.id }));
+    const outlet = l.outlet === true;
     return {
       ...l,
       name: l.name || l.id,
       rot: l.rot || 0,
-      capabilities: l.capabilities || [], // plain smart plugs: on/off only
+      outlet,
+      capabilities: outlet ? [] : l.capabilities || [], // plain smart plugs: on/off only
       level: roomLevel.get(l.room),
+      ...(outlet ? { mount: wallMount(rooms.find((r) => r.id === l.room), rooms, l.pos) } : {}),
     };
   });
 

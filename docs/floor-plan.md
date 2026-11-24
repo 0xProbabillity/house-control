@@ -157,8 +157,9 @@ Decoration only. Every piece has `type`, `pos` (`[x, z]` of its centre), an opti
 | `rot` | Rotation, for strips and spots |
 | `length` | Length of a `strip` |
 | `capabilities` | Any of `brightness`, `temp`, `color`. Leave it out for a plain smart plug that only switches |
+| `outlet` | `true` shows it as an outlet (a socket on the nearest wall of its room, on/off only) instead of a lamp. Apps before 1.7 ignore it and show the `type` |
 | `color` | Initial colour of a colour light |
-| `link`, `tuya` | Link to a real device — see below |
+| `link`, `tuya` | Link to a real device (`"service"`: `homeassistant`, `hue`, `homebridge`, `homekit`) — see below |
 
 ## `acs`
 

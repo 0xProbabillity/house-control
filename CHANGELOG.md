@@ -3,6 +3,25 @@
 What changed in each release of House Control. The Mac app is on
 [Releases](https://github.com/0xProbabillity/house-control/releases); the iPhone app is on the App Store and TestFlight.
 
+## 1.7.0 — 2026-11-24 (TestFlight, team only)
+
+### Homebridge, and plugs that look like outlets
+
+- **Homebridge.** A fifth way to connect real devices: **Connections → Homebridge** signs in to the Homebridge UI on
+  your network (found by itself, or by its address) with the user name and password of its web page, and every
+  lamp, plug, switch, air conditioner, thermostat and thermometer its plugins bring can be linked — Govee, Xiaomi,
+  Nest, Sonoff, TP-Link and hundreds more, without going through Apple Home, and on the Mac too. Changes made
+  elsewhere show up at once; sessions that run out are renewed by themselves (two-factor accounts are asked to
+  sign in again). The connection travels between a Mac and its iPhones like Home Assistant's and Hue's. On the
+  iPhone it is in **Settings → Homebridge**. If Homebridge does not allow controlling accessories, House Control
+  says where to switch it on. See [docs/connections.md](docs/connections.md#homebridge).
+- **Outlets.** A lamp can be **Shown as** an outlet: a socket icon in the panel, the widgets and the island, a plug
+  on the nearest wall in the 3D model whose ring glows green while it is on, and on/off only. **+ Outlet** in the
+  editor adds one. Lamps on smart plugs keep looking like lamps (they no longer turn into a plug icon because
+  they only switch on and off). Devices named as a socket ("Kettle plug", "Розетка") become outlets when added to a
+  room. AI assistants know outlets too (`outlet` in `edit_floor_plan`).
+- **Lab:** `tools/lab/homebridge.sh` runs a real Homebridge with pretend devices for testing without hardware.
+
 ## 1.6.1 — 2026-11-20 (TestFlight, team only)
 
 ### Fixes from a test pass on every screen size

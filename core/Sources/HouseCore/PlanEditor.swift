@@ -20,6 +20,8 @@ public struct PlanEditor {
         public let link: DeviceRef?
         /// An AC's thermometer.
         public let sensor: DeviceRef?
+        /// A lamp shown as an outlet (a smart plug on the wall).
+        public var outlet = false
     }
 
     public struct DeviceRef: Hashable {
@@ -73,7 +75,8 @@ public struct PlanEditor {
                 let room = device["room"] as? String ?? ""
                 out.append(Item(id: id, kind: kind, name: (device["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? id,
                                 room: room, roomName: names[room] ?? room,
-                                link: Self.link(of: device), sensor: Self.sensor(of: device)))
+                                link: Self.link(of: device), sensor: Self.sensor(of: device),
+                                outlet: device["outlet"] as? Bool == true))
             }
         }
         return out
@@ -199,6 +202,14 @@ public struct PlanEditor {
 
     private static func fix(_ v: Double) -> Double { (v * 1000).rounded() / 1000 }
 
+    /// True when a device's name says it is a socket rather than a lamp ("Kettle plug",
+    /// "Розетка у кровати"). A plug named after the lamp it powers stays a lamp.
+    static func isOutlet(_ name: String) -> Bool {
+        let n = name.lowercased()
+        return ["plug", "outlet", "socket", "розетк", "steckdose", "prise", "enchufe", "presa", "コンセント", "プラグ", "插座", "priz", "πρίζα"]
+            .contains(where: n.contains)
+    }
+
     /// The fixture a lamp probably is, from its name.
     static func fixture(for name: String) -> String {
         let n = name.lowercased()
@@ -240,6 +251,10 @@ public struct PlanEditor {
                                         "pos": [Self.fix(cx), Self.fix(cz)],
                                         "capabilities": device["capabilities"] as? [String] ?? []]
             if light["type"] as? String == "strip" { light["length"] = 1.0 }
+            if (device["capabilities"] as? [String] ?? []).isEmpty, Self.isOutlet(name) {
+                light["outlet"] = true
+                light["type"] = "table" // what an older app shows instead
+            }
             lights.append(light)
             added.append(id)
         }

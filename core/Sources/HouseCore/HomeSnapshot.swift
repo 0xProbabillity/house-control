@@ -25,7 +25,8 @@ public struct HomeSnapshot: Codable, Equatable, Sendable {
         public var id: String
         public var name: String
         public var room: String
-        /// "ceiling", "pendant", "spots", "floor", "table" or "strip".
+        /// "ceiling", "pendant", "spots", "floor", "table", "strip", or "outlet" for a plug
+        /// shown as a wall socket.
         public var type: String
         public var x: Double, z: Double
         /// Which of "brightness", "temp", "color" it supports.
@@ -36,7 +37,7 @@ public struct HomeSnapshot: Codable, Equatable, Sendable {
         public var temp: Double
         /// "#rrggbb" while it shows a colour instead of white.
         public var color: String?
-        /// The platform it is linked to ("smartlife", "homeassistant", "hue", "homekit"); nil when simulated.
+        /// The platform it is linked to ("smartlife", "homeassistant", "hue", "homebridge", "homekit"); nil when simulated.
         public var service: String?
         /// The plan's `tuya` / `link` / `sensor` fields, for sending commands from a widget.
         public var links: [String: JSONValue]?
@@ -335,6 +336,7 @@ public extension HomeSnapshot.Light {
         case "floor": return "lamp.floor.fill"
         case "table": return "lamp.table.fill"
         case "strip": return "light.strip.2.fill"
+        case "outlet": return "powerplug.fill"
         default: return "lightbulb.fill"
         }
     }

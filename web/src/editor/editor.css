@@ -121,6 +121,9 @@ html.mode-editor, html.mode-editor body { user-select: none; }
 .p-light.linked circle:not(.halo), .p-light.linked rect { stroke: #6ee7a0; stroke-width: 0.06; }
 .p-light.sel circle:not(.halo), .p-light.sel rect { stroke: #fff; stroke-width: 0.08; }
 .p-light.sel .halo { fill: rgba(255, 255, 255, 0.2); }
+.p-light.outlet rect { fill: #e6e8ee; }
+.p-light.outlet .halo { fill: rgba(230, 232, 238, 0.14); }
+.p-light .pin, .p-light.linked .pin, .p-light.sel .pin { fill: #0a0e1a; stroke: none; }
 
 .p-handle { fill: #6aa6ff; stroke: #fff; vector-effect: non-scaling-stroke; stroke-width: 1.5px; }
 .p-handle.nw, .p-handle.se, .grab.nw, .grab.se { cursor: nwse-resize; }

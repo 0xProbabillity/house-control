@@ -53,6 +53,20 @@ final class PlanEditorTests: XCTestCase {
         XCTAssertNil(editor.items[1].link)
     }
 
+    func testPlugsNamedAsSocketsBecomeOutlets() {
+        var editor = PlanEditor(plan: sample())
+        editor.add([
+            ["service": "homebridge", "id": "k", "kind": "light", "name": "Kettle plug", "capabilities": []],
+            ["service": "smartlife", "id": "s", "kind": "light", "name": "Розетка у кровати", "capabilities": []],
+            ["service": "smartlife", "id": "l", "kind": "light", "name": "Лампа у кровати", "capabilities": []],
+        ], to: "living")
+        let lights = editor.plan["lights"] as! [[String: Any]]
+        XCTAssertEqual(lights[1]["outlet"] as? Bool, true)
+        XCTAssertEqual(lights[2]["outlet"] as? Bool, true)
+        XCTAssertNil(lights[3]["outlet"], "a plug named after its lamp stays a lamp")
+        XCTAssertEqual(editor.items.filter(\.outlet).count, 2)
+    }
+
     func testAddingDevicesMakesAValidLinkedPlan() throws {
         var editor = PlanEditor(plan: sample())
         let added = editor.add([

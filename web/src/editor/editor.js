@@ -443,6 +443,7 @@ export async function bootEditor(root) {
     return [
       ['room', 'room', t('Room'), () => add('room'), t('Add a room')],
       ['light', 'bulb', t('Lamp'), () => add('light'), t('Add a lamp')],
+      ['outlet', 'plug', t('Outlet'), () => add('light', { outlet: true }), t('Add an outlet')],
       ['ac', 'ac', t('Air conditioner'), () => add('ac'), t('Add an air conditioner')],
       ['door', 'opening', t('Door'), () => add('opening', { type: 'door' }), t('Add a door')],
       ['window', 'window', t('Window'), () => add('opening', { type: 'window' }), t('Add a window')],
@@ -526,7 +527,7 @@ export async function bootEditor(root) {
 
   function rowLabel(kind, item) {
     if (kind === 'room') return [item.name || item.id, t('{width} × {depth} m', { width: formatNumber(fix(item.rect[2])), depth: formatNumber(fix(item.rect[3])) })];
-    if (kind === 'light') return [item.name || item.id, `${roomName(item.room)} · ${label(LIGHT_LABEL, item.type)}`];
+    if (kind === 'light') return [item.name || item.id, `${roomName(item.room)} · ${item.outlet ? t('Outlet') : label(LIGHT_LABEL, item.type)}`];
     if (kind === 'ac') return [item.name || item.id, `${roomName(item.room)} · ${label(WALL_LABEL, item.wall)}`];
     if (kind === 'furniture') return [label(FURNITURE_LABEL, item.type), roomName(roomAt(item.pos)?.id) || '—'];
     if (kind === 'opening' && !item.to) return [label(OPENING_LABEL, item.type || 'door'), ''];
@@ -580,7 +581,7 @@ export async function bootEditor(root) {
     for (let i = 2; ; i++) if (!ids.has(`${base}${i}`)) return `${base}${i}`;
   }
 
-  function add(kind, { type } = {}) {
+  function add(kind, { type, outlet = false } = {}) {
     // On an empty floor the first room is as big as the floor below, ready to be divided.
     if (kind === 'room' && !levelRooms().length && below()) { fillLevel(); return; }
     snapshot();
@@ -595,7 +596,15 @@ export async function bootEditor(root) {
       list.push(stamp({ id: uniqueId('room'), name: t('New room'), rect: [fix(maxX), fix(rooms.length ? minZ : 0), 3, 3], floor: 'oak' }));
     } else if (kind === 'light') {
       if (!room) return toast(t('Add a room first'), true);
-      list.push({ id: uniqueId(`${room.id}.light`), name: t('New light'), room: room.id, type: 'ceiling', pos: freeSpot(room, center), capabilities: [] });
+      if (outlet) {
+        // On the room's north wall, away from the outlets already there.
+        const [x, z, w] = room.rect;
+        const taken = doc.lights.filter((l) => l.outlet && l.room === room.id).length;
+        const along = fix(x + Math.min(w - 0.3, 0.6 + taken * 0.5));
+        list.push({ id: uniqueId(`${room.id}.outlet`), name: t('New outlet'), room: room.id, type: 'table', outlet: true, pos: [along, fix(z + 0.15)], capabilities: [] });
+      } else {
+        list.push({ id: uniqueId(`${room.id}.light`), name: t('New light'), room: room.id, type: 'ceiling', pos: freeSpot(room, center), capabilities: [] });
+      }
     } else if (kind === 'ac') {
       if (!room) return toast(t('Add a room first'), true);
       list.push({ id: uniqueId(`${room.id}.ac`), name: t('{room} AC', { room: room.name }), room: room.id, wall: 'north', pos: [center[0], room.rect[1]], y: 2.2 });
@@ -848,11 +857,14 @@ export async function bootEditor(root) {
     doc.lights.forEach((l, i) => {
       if (!here('light', l)) return;
       const g = sv('g', {
-        class: `p-light ${l.type}${isSel('light', i) ? ' sel' : ''}${isLinked(l) ? ' linked' : ''}`, 'data-kind': 'light', 'data-index': i,
+        class: `p-light ${l.outlet ? 'outlet' : l.type}${isSel('light', i) ? ' sel' : ''}${isLinked(l) ? ' linked' : ''}`, 'data-kind': 'light', 'data-index': i,
         transform: `translate(${l.pos[0]} ${l.pos[1]}) rotate(${-(l.rot || 0)})`,
       });
       if (big) g.append(sv('circle', { r: 0.58, class: 'hit' }));
-      if (l.type === 'strip') {
+      if (l.outlet) {
+        g.append(sv('circle', { r: 0.34, class: 'halo' }), sv('rect', { x: -0.17, y: -0.17, width: 0.34, height: 0.34, rx: 0.07 }),
+          sv('circle', { cx: -0.065, cy: 0, r: 0.035, class: 'pin' }), sv('circle', { cx: 0.065, cy: 0, r: 0.035, class: 'pin' }));
+      } else if (l.type === 'strip') {
         const len = l.length || 1;
         g.append(sv('rect', { x: -len / 2, y: -0.07, width: len, height: 0.14, rx: 0.07 }));
       } else {
@@ -1307,10 +1319,25 @@ export async function bootEditor(root) {
         get: () => item.capabilities.includes(name),
         set: (on) => { item.capabilities = item.capabilities.filter((c) => c !== name); if (on) item.capabilities.push(name); },
       });
-      nodes.push(section(t('Light'),
+      // A lamp or an outlet: the same device to the panel, shown as one or the other.
+      const look = {
+        get: () => (item.outlet ? 'outlet' : 'lamp'),
+        set: (v) => { if (v === 'outlet') { item.outlet = true; } else { delete item.outlet; } },
+      };
+      const showAs = bind(t('Shown as'), choice([['lamp', t('Lamp')], ['outlet', t('Outlet')]]), { ...look, event: 'change' });
+      if (item.outlet) {
+        nodes.push(section(t('Outlet'),
+          bind(t('Name'), text(), prop(item, 'name', '')),
+          row(bind(t('Room'), choice(doc.rooms.map((r) => [r.id, r.name || r.id])), { ...prop(item, 'room'), event: 'change' }), showAs),
+          h('p.note', t('An outlet switches on and off. It sits on the wall of its room nearest to where you put it; choose Lamp to show a lamp plugged into it as a lamp.'))),
+        section(t('Position, m'),
+          row(bind('X', number(), { ...at(item, 'pos', 0), parse: parseNum }), bind('Z', number(), { ...at(item, 'pos', 1), parse: parseNum }))),
+        links.deviceSection(item, 'light', linkHooks));
+      } else nodes.push(section(t('Light'),
         bind(t('Name'), text(), prop(item, 'name', '')),
         row(bind(t('Room'), choice(doc.rooms.map((r) => [r.id, r.name || r.id])), { ...prop(item, 'room'), event: 'change' }),
-          bind(t('Fixture'), choice(labelled(LIGHT_KINDS, LIGHT_LABEL)), { ...prop(item, 'type'), event: 'change' }))),
+          bind(t('Fixture'), choice(labelled(LIGHT_KINDS, LIGHT_LABEL)), { ...prop(item, 'type'), event: 'change' })),
+        showAs),
       section(t('Position, m'),
         row(bind('X', number(), { ...at(item, 'pos', 0), parse: parseNum }), bind('Z', number(), { ...at(item, 'pos', 1), parse: parseNum })),
         row(bind(t('Height (auto if empty)'), number(), { ...optional(item, 'y'), parse: optNum }),

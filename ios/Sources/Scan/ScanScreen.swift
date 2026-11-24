@@ -459,7 +459,7 @@ private struct ScanDevicePicker: View {
                         detail: String(localized: "Simulated until you link it"),
                         symbol: kind == "ac" ? "air.conditioner.horizontal" : "lightbulb")
                 }
-                ForEach(["smartlife", "homeassistant", "hue", "homekit"], id: \.self) { service in
+                ForEach(["smartlife", "homeassistant", "hue", "homebridge", "homekit"], id: \.self) { service in
                     let list = candidates.filter { $0.service == service }
                     if !list.isEmpty {
                         Section(ConnectionLook.title(service)) {
@@ -473,7 +473,7 @@ private struct ScanDevicePicker: View {
                     Section { HStack { ProgressView().tint(Theme.muted); Text("Looking for your devices…").foregroundStyle(Theme.muted) } }
                 } else if !model.hasAnyConnection {
                     Section {
-                        Text("Connect Smart Life, Home Assistant, Philips Hue or Apple Home in Settings, and their devices show up here to pick.")
+                        Text("Connect Smart Life, Home Assistant, Philips Hue, Homebridge or Apple Home in Settings, and their devices show up here to pick.")
                             .font(.system(size: 14)).foregroundStyle(Theme.muted)
                     }
                 } else if candidates.isEmpty {

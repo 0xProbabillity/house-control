@@ -26,6 +26,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
 
   function lightAbilities(cfg) {
     const c = cfg.capabilities;
+    if (cfg.outlet) return 'an outlet (smart plug), on/off only';
     if (!c.length) return 'on/off only';
     return [c.includes('brightness') && 'dims', c.includes('temp') && 'white temperature', c.includes('color') && 'colour']
       .filter(Boolean).join(', ');
@@ -49,7 +50,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
   }
 
   const lightJSON = (cfg) => ({
-    id: cfg.id, name: cfg.name, room: cfg.room, type: cfg.type, abilities: cfg.capabilities,
+    id: cfg.id, name: cfg.name, room: cfg.room, type: cfg.outlet ? 'outlet' : cfg.type, abilities: cfg.capabilities,
     real: isLinked(cfg), ...state.lights[cfg.id],
     brightness: Math.round(state.lights[cfg.id].brightness * 100),
   });
@@ -366,7 +367,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
         + 'Operations: set_home{name,outdoorTemp,wallHeight}, add_floor{id,name,wallHeight,below}, update_floor{id,name,wallHeight}, '
         + 'add_room{id,name,rect,floor,level}, update_room{id,name,rect,floor}, remove_room{id}, '
         + 'furnish_room{room,items[]}, add_furniture{item|items[]}, update_furniture{index,set{}}, remove_furniture{index}, '
-        + 'add_opening{type,from,to,sill,head,level}, remove_opening{index}, add_light{id,name,room,type,pos,capabilities,y,rot,length,color}, '
+        + 'add_opening{type,from,to,sill,head,level}, remove_opening{index}, add_light{id,name,room,type,outlet,pos,capabilities,y,rot,length,color} (outlet: true for a smart plug shown as a wall socket), '
         + 'update_light{id,set{}}, remove_light{id}, add_ac{id,name,room,wall,pos,y,min,max}, update_ac{id,set{}}, remove_ac{id}, '
         + 'add_scene{id,name,icon,lights{},acs{}}, update_scene{id,set{}}, remove_scene{id}. '
         + 'Indexes are those from get_floor_plan, before this edit.',
@@ -395,6 +396,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
                 pos: { type: 'array', items: { type: 'number' } },
                 wall: { type: 'string', enum: WALLS },
                 capabilities: { type: 'array', items: { type: 'string', enum: ['brightness', 'temp', 'color'] } },
+                outlet: { type: 'boolean', description: 'add_light / update_light: show it as an outlet (a smart plug on the wall) instead of a lamp' },
                 icon: { type: 'string', enum: SCENE_ICONS },
                 lights: { type: 'object' }, acs: { type: 'object' },
               },

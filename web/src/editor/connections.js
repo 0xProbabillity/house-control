@@ -1,5 +1,5 @@
 // The editor's "Connections": the smart home platforms House Control can link the plan's
-// lamps and ACs to (Smart Life, Home Assistant, Philips Hue, Apple Home), the screens that
+// lamps and ACs to (Smart Life, Home Assistant, Philips Hue, Homebridge, Apple Home), the screens that
 // connect each one, and the pickers that link a lamp or an AC to one of their devices.
 import { h } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
@@ -7,11 +7,12 @@ import { isNative, call } from '../bridge.js';
 import { SERVICES, linkOf } from '../config.js';
 import { t, tn, lang, locale } from '../i18n.js';
 
-const ORDER = ['smartlife', 'homeassistant', 'hue', 'homekit'];
+const ORDER = ['smartlife', 'homeassistant', 'hue', 'homebridge', 'homekit'];
 const LOOK = {
   smartlife: { icon: 'plug', tint: '#ff7a3d', blurb: t('Tuya, Smart Life and the many brands built on them') },
   homeassistant: { icon: 'homeassistant', tint: '#18bcf2', blurb: t('Everything it runs: Zigbee, Matter, Nest, Xiaomi, Sonoff…') },
   hue: { icon: 'bulb', tint: '#c38bff', blurb: t('A Hue Bridge on this network. No account needed') },
+  homebridge: { icon: 'homebridge', tint: '#8f6bff', blurb: t('Every accessory its plugins bring: Govee, Xiaomi, Nest, Sonoff…') },
   homekit: { icon: 'home', tint: '#ffb340', blurb: t('HomeKit and Matter accessories, through your iPhone') },
 };
 const KIND_TITLES = { light: t('Lights and plugs'), ac: t('Air conditioners'), sensor: t('Temperature sensors') };
@@ -84,8 +85,9 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
         : tn(info.count, '{n} device from your iPhone', '{n} devices from your iPhone');
     }
     if (!info.connected) return t('Not connected');
+    if (id === 'homebridge' && info.expired) return t('Sign in again');
     const count = devicesOf(id).length;
-    const name = id === 'homeassistant' ? info.name : id === 'hue' ? info.name : id === 'smartlife' ? info.account : '';
+    const name = ['homeassistant', 'hue', 'homebridge'].includes(id) ? info.name : id === 'smartlife' ? info.account : '';
     return [name, state.devices ? tn(count, '{n} device', '{n} devices') : null].filter(Boolean).join(' · ') || t('Connected');
   }
 
@@ -275,6 +277,77 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
     ];
   }
 
+  /* ---------- Homebridge ---------- */
+
+  const hb = { url: '', username: '', password: '', code: '', needsCode: false, signIn: true, error: null, busy: false };
+
+  function homebridge() {
+    const info = state.info.homebridge || {};
+    if (info.connected && !info.expired) {
+      if (!state.devices && !state.loading) setTimeout(() => load(), 0);
+      return [connectedHeader('homebridge', t('Server'), info.name,
+        [info.url, info.version && t('version {version}', { version: info.version }), info.user && t('signed in as {user}', { user: info.user })].filter(Boolean).join(' · ')),
+      deviceList('homebridge')];
+    }
+    if (info.expired && !hb.url) { hb.url = info.url || ''; hb.username = info.user || ''; }
+    if (!state.found.homebridge && !state.scanning.homebridge) setTimeout(() => scan('homebridge'), 0);
+    const field = (attrs, key) => {
+      const input = h('input', { ...attrs, value: hb[key] });
+      input.addEventListener('input', () => { hb[key] = input.value; button.disabled = !ready(); });
+      return input;
+    };
+    const url = field({ type: 'url', spellcheck: 'false', placeholder: 'http://homebridge.local:8581' }, 'url');
+    const user = field({ type: 'text', spellcheck: 'false', autocomplete: 'username', placeholder: 'admin' }, 'username');
+    const password = field({ type: 'password', autocomplete: 'current-password' }, 'password');
+    const code = field({ type: 'text', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: 6, placeholder: '123456' }, 'code');
+    const ready = () => isNative && !hb.busy && hb.url.trim()
+      && (!hb.signIn || (hb.username.trim() && hb.password)) && (!hb.needsCode || hb.code.trim().length >= 6);
+    const connect = async () => {
+      hb.busy = true; hb.error = null; rerender();
+      try {
+        const r = await call('homebridge.connect', { url: hb.url, username: hb.username, password: hb.password, code: hb.needsCode ? hb.code : '' });
+        if (r.needsCode) {
+          hb.needsCode = true;
+          hb.error = hb.code ? t('That code did not work. Enter the current one.') : null;
+          hb.code = '';
+        } else {
+          state.info = r;
+          Object.assign(hb, { password: '', code: '', needsCode: false });
+          toast(t('Connected to {name}', { name: state.info.homebridge?.name || 'Homebridge' }));
+          await load();
+        }
+      } catch (e) { hb.error = e.message; }
+      hb.busy = false;
+      rerender();
+    };
+    const button = h('button.btn.primary.wide', { onclick: connect, disabled: !ready() }, hb.busy ? t('Connecting…') : t('Connect'));
+    const found = state.found.homebridge || [];
+    const pick = (s) => { hb.url = s.url; hb.signIn = s.signIn !== false; rerender(); };
+    return [
+      info.expired ? h('p.note.bad', t('Homebridge ended the session and asks for a two-factor code. Sign in again to keep controlling its devices.')) : null,
+      section(t('On your network'),
+        state.scanning.homebridge ? h('p.note.busy', icon('spinner', 13), t('Looking for Homebridge…'))
+          : found.length ? found.map((s) => h('div.device',
+            h('span.dot.on'), h('div', h('b', s.name), h('span', [s.url, s.version && t('version {version}', { version: s.version })].filter(Boolean).join(' · '))),
+            h('button.btn', { onclick: () => pick(s) }, hb.url === s.url ? t('Selected') : t('Use'))))
+            : h('p.note', t('None found by itself. Type its address below.')),
+        state.scanning.homebridge ? null : h('button.btn.link', { onclick: () => scan('homebridge') }, icon('radar', 13), t('Look again'))),
+      section(t('Connect'),
+        h('label.field', h('span', t('Address')), url),
+        hb.signIn ? [
+          h('label.field', h('span', t('User name')), user),
+          h('label.field', h('span', t('Password')), password),
+        ] : h('p.note', t('This Homebridge has no sign-in: nothing else to enter.')),
+        hb.needsCode ? h('label.field', h('span', t('Two-factor code')), code) : null,
+        button,
+        hb.error ? h('p.note.bad', hb.error) : null,
+        h('ol.steps',
+          h('li', t('Use the address and the sign-in of Homebridge’s web page (port 8581 unless you changed it).')),
+          h('li', t('Turn on accessory control if it is off: Settings → Startup & Environment → “Enable UI Accessory Control (-I)”, then restart Homebridge.'))),
+        h('p.note', t('The sign-in stays on this Mac (and goes to the iPhones you paired, over their encrypted link), so House Control can sign in again when Homebridge’s session runs out. Lamps, plugs, switches, air conditioners, thermostats and thermometers appear here.'))),
+    ];
+  }
+
   /* ---------- Apple Home ---------- */
 
   function homeKit() {
@@ -304,6 +377,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
     if (id === 'smartlife') return smartLifePanel();
     if (id === 'homeassistant') return homeAssistant();
     if (id === 'hue') return hue();
+    if (id === 'homebridge') return homebridge();
     return homeKit();
   }
 
@@ -343,7 +417,7 @@ export function createConnections({ rerender, toast, usedBy, onOpen }) {
     const current = link ? `${link.service}|${link.id}` : '';
     if (!anyConnected()) {
       return section(t('Real device'),
-        h('p.note', t('Simulated. Connect Smart Life, Home Assistant, Philips Hue or Apple Home to control the real one.')),
+        h('p.note', t('Simulated. Connect Smart Life, Home Assistant, Philips Hue, Homebridge or Apple Home to control the real one.')),
         h('button.btn.wide', { onclick: () => onOpen(null) }, icon('link', 14), t('Open Connections')));
     }
     if (!state.devices && !state.loading) setTimeout(() => load({ quiet: true }), 0);

@@ -136,8 +136,8 @@ struct DevicesView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Nothing connected yet").font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
                     Text(AppModel.includesSmartLife
-                         ? String(localized: "Connect Smart Life, Home Assistant, Philips Hue or Apple Home in Settings first; their devices then appear here to choose from.")
-                         : String(localized: "Connect Home Assistant, Philips Hue or Apple Home in Settings first; their devices then appear here to choose from."))
+                         ? String(localized: "Connect Smart Life, Home Assistant, Philips Hue, Homebridge or Apple Home in Settings first; their devices then appear here to choose from.")
+                         : String(localized: "Connect Home Assistant, Philips Hue, Homebridge or Apple Home in Settings first; their devices then appear here to choose from."))
                         .font(.system(size: 14)).foregroundStyle(Theme.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -166,7 +166,7 @@ struct DevicesView: View {
     private func row(_ item: PlanEditor.Item) -> some View {
         let device = catalog.device(item.link)
         return HStack(spacing: 14) {
-            IconBadge(symbol: item.kind == .ac ? "air.conditioner.horizontal.fill" : "lightbulb.fill",
+            IconBadge(symbol: item.kind == .ac ? "air.conditioner.horizontal.fill" : item.outlet ? "powerplug.fill" : "lightbulb.fill",
                       tint: item.link == nil ? Theme.muted : (item.kind == .ac ? Theme.accent : Theme.warm))
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.name).font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text).lineLimit(1)
@@ -235,7 +235,7 @@ struct DevicePicker: View {
                     option(nil, name: kind == "sensor" ? String(localized: "None — estimated", comment: "Thermometer picker: no thermometer, the temperature is estimated")
                                            : String(localized: "Not linked — simulated", comment: "Device picker: no real device"), detail: nil, symbol: "circle.dashed")
                 }
-                ForEach(["smartlife", "homeassistant", "hue", "homekit"], id: \.self) { service in
+                ForEach(["smartlife", "homeassistant", "hue", "homebridge", "homekit"], id: \.self) { service in
                     let list = candidates.filter { $0.service == service }
                     if !list.isEmpty {
                         Section(ConnectionLook.title(service)) {

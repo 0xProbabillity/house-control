@@ -4,6 +4,9 @@ import * as THREE from 'three';
 import { h, clamp, createSlider, createColorPad, openMenu, richText } from './dom.js';
 import { icon } from './icons.js';
 import { lightColor } from '../three/lights.js';
+
+// The glow of an outlet that is on: what is plugged in has no colour of its own.
+const OUTLET_ON = '#62f0a2';
 import { MODE_COLORS } from '../three/ac.js';
 import { AC_SWINGS, AC_TIMER_STEPS } from '../store.js';
 import { t, tc, tn, formatDuration, formatNumber } from '../i18n.js';
@@ -172,7 +175,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
       ? h('button.tile-more', { 'aria-label': t('{name} settings', { name: cfg.name }), onclick: (e) => { e.stopPropagation(); openSheet({ kind: 'light', id: cfg.id }); } }, icon('sliders', 15))
       : null;
     const el = h(`div.tile${dimmable ? '.dimmable' : ''}`, { role: 'button', tabindex: 0, 'aria-label': cfg.name },
-      h('div.bubble', icon(cfg.capabilities.length ? cfg.type : 'plug', 19)),
+      h('div.bubble', icon(cfg.outlet ? 'plug' : cfg.type, 19)),
       h('div.tile-text', h('div.tile-name', cfg.name), sub),
       more,
       h('div.tile-level'));
@@ -230,7 +233,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
       update() {
         const s = state.lights[cfg.id];
         el.classList.toggle('on', s.on);
-        el.style.setProperty('--c', css(lightColor(s, tmp)));
+        el.style.setProperty('--c', cfg.outlet ? OUTLET_ON : css(lightColor(s, tmp)));
         el.style.setProperty('--level', s.on ? String(s.brightness) : '0');
         // On a phone the group heading above the tile already names the room.
         sub.textContent = ui.room === 'all' && !isPhone ? `${lightStatus(cfg, s)} · ${roomName.get(cfg.room)}` : lightStatus(cfg, s);
@@ -594,7 +597,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     if (hit.kind === 'light') {
       const cfg = store.lightCfg.get(hit.id);
       const s = state.lights[hit.id];
-      name = cfg.name; status = lightStatus(cfg, s); on = s.on; color = css(lightColor(s, tmp));
+      name = cfg.name; status = lightStatus(cfg, s); on = s.on; color = cfg.outlet ? OUTLET_ON : css(lightColor(s, tmp));
     } else {
       const cfg = store.acCfg.get(hit.id);
       const s = state.acs[hit.id];
@@ -621,7 +624,7 @@ export function createPanel(root, config, store, { onFocus, onMenu }) {
     let weight = 0;
     for (const cfg of config.lights) {
       const s = state.lights[cfg.id];
-      if (!s.on) continue;
+      if (!s.on || cfg.outlet) continue; // an outlet does not light the room
       const w = cfg.capabilities.includes('brightness') ? s.brightness : 1;
       lightColor(s, tmp);
       sum.r += tmp.r * w; sum.g += tmp.g * w; sum.b += tmp.b * w;

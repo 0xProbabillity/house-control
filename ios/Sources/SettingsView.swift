@@ -52,6 +52,7 @@ struct SettingsView: View {
                 case .quickActions: QuickActionsView()
                 case .homeAssistant: HomeAssistantView()
                 case .hue: HueView()
+                case .homebridge: HomebridgeView()
                 case .devices: DevicesView()
                 case .language: LanguagePage()
                 }
@@ -280,7 +281,7 @@ struct SettingsView: View {
                     Text(Device.isPad ? String(localized: "The floor plan stays on this iPad but no longer follows the computer.")
                          : String(localized: "The floor plan stays on this iPhone but no longer follows the computer."))
                 }
-                footnote(String(localized: "Changes saved on either one reach the other while both are on the same Wi-Fi: the floor plan, device links, Home Assistant and Hue."))
+                footnote(String(localized: "Changes saved on either one reach the other while both are on the same Wi-Fi: the floor plan, device links, Home Assistant, Hue and Homebridge."))
             } else {
                 Card(padding: 16) {
                     HStack(alignment: .top, spacing: 14) {
@@ -400,7 +401,7 @@ struct SettingsView: View {
     }
     #endif
 
-    // MARK: - Home Assistant, Hue, Apple Home
+    // MARK: - Home Assistant, Hue, Homebridge, Apple Home
 
     private var connectionsSection: some View {
         VStack(spacing: 10) {
@@ -415,6 +416,14 @@ struct SettingsView: View {
                 NavigationLink(value: SettingsRoute.hue) {
                     serviceRow(symbol: "lightbulb.led.fill", tint: ConnectionLook.hue, title: "Philips Hue",
                                detail: model.hueName ?? String(localized: "Pair your Hue Bridge", comment: "Settings: under Philips Hue while not connected"), on: model.hueName != nil)
+                }
+                .buttonStyle(RowButtonStyle())
+                RowDivider()
+                NavigationLink(value: SettingsRoute.homebridge) {
+                    serviceRow(symbol: ConnectionLook.symbol("homebridge"), tint: ConnectionLook.homebridge, title: "Homebridge",
+                               detail: model.homebridgeExpired ? String(localized: "Sign in again", comment: "Settings: under Homebridge when its session ran out")
+                                   : model.homebridgeName ?? String(localized: "Plugins for hundreds of brands", comment: "Settings: under Homebridge while not connected"),
+                               on: model.homebridgeName != nil && !model.homebridgeExpired)
                 }
                 .buttonStyle(RowButtonStyle())
                 RowDivider()
@@ -490,7 +499,7 @@ struct SettingsView: View {
                 ? String(localized: "This iPad switches your Apple Home devices; your paired computer lists them for its editor, but only the iPad app may use HomeKit.")
                 : String(localized: "This iPhone switches your Apple Home devices; your paired computer lists them for its editor, but only the iPhone app may use HomeKit.")
         }
-        return String(localized: "Home Assistant and Hue set up here or on your paired computer work on both, shared over your encrypted link.")
+        return String(localized: "Home Assistant, Hue and Homebridge set up here or on your paired computer work on both, shared over your encrypted link.")
     }
 
     // MARK: - About
@@ -538,10 +547,10 @@ struct SettingsView: View {
 
     private var privacyFootnote: String {
         switch (AppModel.includesSmartLife, Device.isPad) {
-        case (true, false): String(localized: "House Control talks to your own devices: Tuya's servers for Smart Life, your Home Assistant, your Hue Bridge, Apple Home, and your paired computer. Nothing else leaves this iPhone.")
-        case (true, true): String(localized: "House Control talks to your own devices: Tuya's servers for Smart Life, your Home Assistant, your Hue Bridge, Apple Home, and your paired computer. Nothing else leaves this iPad.")
-        case (false, false): String(localized: "House Control talks to your own devices: your Home Assistant, your Hue Bridge, Apple Home, and your paired computer. Nothing else leaves this iPhone.")
-        case (false, true): String(localized: "House Control talks to your own devices: your Home Assistant, your Hue Bridge, Apple Home, and your paired computer. Nothing else leaves this iPad.")
+        case (true, false): String(localized: "House Control talks to your own devices: Tuya's servers for Smart Life, your Home Assistant, your Hue Bridge, your Homebridge, Apple Home, and your paired computer. Nothing else leaves this iPhone.")
+        case (true, true): String(localized: "House Control talks to your own devices: Tuya's servers for Smart Life, your Home Assistant, your Hue Bridge, your Homebridge, Apple Home, and your paired computer. Nothing else leaves this iPad.")
+        case (false, false): String(localized: "House Control talks to your own devices: your Home Assistant, your Hue Bridge, your Homebridge, Apple Home, and your paired computer. Nothing else leaves this iPhone.")
+        case (false, true): String(localized: "House Control talks to your own devices: your Home Assistant, your Hue Bridge, your Homebridge, Apple Home, and your paired computer. Nothing else leaves this iPad.")
         }
     }
 

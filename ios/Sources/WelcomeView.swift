@@ -57,8 +57,8 @@ struct WelcomeView: View {
                             : String(localized: "Rooms, lamps and ACs, on this iPhone. Pair a Mac or PC any time: both stay in sync.", comment: "Welcome screen"))
                 feature("lightbulb.2.fill", Theme.green, String(localized: "Your real devices", comment: "Welcome screen: a feature's title"),
                         AppModel.includesSmartLife
-                            ? String(localized: "Smart Life, Home Assistant, Philips Hue and Apple Home. Until you connect one, everything is simulated.", comment: "Welcome screen")
-                            : String(localized: "Home Assistant, Philips Hue and Apple Home. Until you connect one, everything is simulated.", comment: "Welcome screen"))
+                            ? String(localized: "Smart Life, Home Assistant, Philips Hue, Homebridge and Apple Home. Until you connect one, everything is simulated.", comment: "Welcome screen")
+                            : String(localized: "Home Assistant, Philips Hue, Homebridge and Apple Home. Until you connect one, everything is simulated.", comment: "Welcome screen"))
             }
             .padding(.horizontal, 6)
             .padding(.vertical, compact ? 20 : 28)

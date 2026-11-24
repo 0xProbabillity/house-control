@@ -165,62 +165,62 @@
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "House Control findet deinen Home Assistant und deine Hue Bridge in diesem WLAN sowie deinen Mac oder PC, damit dein Grundriss auf beiden gleich bleibt."
+            "state" : "needs_review",
+            "value" : "House Control findet deinen Home Assistant, deine Hue Bridge und dein Homebridge in diesem WLAN sowie deinen Mac oder PC, damit dein Grundriss auf beiden gleich bleibt."
           }
         },
         "el" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "Το House Control εντοπίζει το Home Assistant και το Hue Bridge σας σε αυτό το δίκτυο Wi-Fi, καθώς και το Mac ή το PC σας, ώστε η κάτοψη να μένει ίδια και στα δύο."
+            "state" : "needs_review",
+            "value" : "Το House Control εντοπίζει το Home Assistant, το Hue Bridge και το Homebridge σας σε αυτό το δίκτυο Wi-Fi, καθώς και το Mac ή το PC σας, ώστε η κάτοψη να μένει ίδια και στα δύο."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "House Control finds your Home Assistant and Hue Bridge on this Wi-Fi network, and your Mac or PC, to keep your floor plan the same on both."
+            "value" : "House Control finds your Home Assistant, Hue Bridge and Homebridge on this Wi-Fi network, and your Mac or PC, to keep your floor plan the same on both."
           }
         },
         "es" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "House Control busca tu Home Assistant y tu Hue Bridge en esta red Wi-Fi, y tu Mac o PC, para mantener el plano igual en los dos."
+            "state" : "needs_review",
+            "value" : "House Control busca tu Home Assistant, tu Hue Bridge y tu Homebridge en esta red Wi-Fi, y tu Mac o PC, para mantener el plano igual en los dos."
           }
         },
         "fr" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "House Control trouve votre Home Assistant et votre pont Hue sur ce réseau Wi-Fi, ainsi que votre Mac ou PC, pour garder votre plan identique sur les deux."
+            "state" : "needs_review",
+            "value" : "House Control trouve votre Home Assistant, votre pont Hue et votre Homebridge sur ce réseau Wi-Fi, ainsi que votre Mac ou PC, pour garder votre plan identique sur les deux."
           }
         },
         "it" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "House Control trova il tuo Home Assistant e il tuo Hue Bridge su questa rete Wi-Fi, e il tuo Mac o PC, per mantenere la piantina uguale su entrambi."
+            "state" : "needs_review",
+            "value" : "House Control trova il tuo Home Assistant, il tuo Hue Bridge e il tuo Homebridge su questa rete Wi-Fi, e il tuo Mac o PC, per mantenere la piantina uguale su entrambi."
           }
         },
         "ja" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "House Controlは、このWi-FiネットワークでHome AssistantとHue Bridge、およびMacまたはPCを見つけ、間取りを両方で同じに保ちます。"
+            "state" : "needs_review",
+            "value" : "House Controlは、このWi-FiネットワークでHome Assistant、Hue Bridge、Homebridge、およびMacまたはPCを見つけ、間取りを両方で同じに保ちます。"
           }
         },
         "ru" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "House Control находит ваш Home Assistant и Hue Bridge в этой сети Wi-Fi, а также ваш Mac или ПК, чтобы план был одинаковым на обоих."
+            "state" : "needs_review",
+            "value" : "House Control находит ваш Home Assistant, Hue Bridge и Homebridge в этой сети Wi-Fi, а также ваш Mac или ПК, чтобы план был одинаковым на обоих."
           }
         },
         "tr" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "House Control, kat planınızın ikisinde de aynı kalması için bu Wi-Fi ağında Home Assistant’ınızı, Hue Bridge’inizi ve Mac veya PC’nizi bulur."
+            "state" : "needs_review",
+            "value" : "House Control, kat planınızın ikisinde de aynı kalması için bu Wi-Fi ağında Home Assistant’ınızı, Hue Bridge’inizi, Homebridge’inizi ve Mac veya PC’nizi bulur."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "House Control 會在此 Wi-Fi 網路上尋找你的 Home Assistant、Hue Bridge 以及 Mac 或 PC，讓你的平面圖在兩邊保持一致。"
+            "state" : "needs_review",
+            "value" : "House Control 會在此 Wi-Fi 網路上尋找你的 Home Assistant、Hue Bridge、Homebridge 以及 Mac 或 PC，讓你的平面圖在兩邊保持一致。"
           }
         }
       }
