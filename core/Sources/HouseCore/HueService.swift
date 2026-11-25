@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import Network
 
 /// A Philips Hue Bridge on the local network, through its own API (CLIP v2). No cloud and no
 /// account: the bridge hands out a key when its round button is pressed. Hue lamps become the
@@ -38,8 +39,31 @@ public final class HueService: DeviceService {
         let long = URLSessionConfiguration.ephemeral
         long.timeoutIntervalForRequest = 600 // the bridge sends a keep-alive well within this
         streamSession = URLSession(configuration: long, delegate: trust, delegateQueue: nil)
-        config = vault.read().flatMap { try? JSONDecoder().decode(Config.self, from: $0) }
+        var saved = vault.read().flatMap { try? JSONDecoder().decode(Config.self, from: $0) }
+        if var previous = saved, Self.isLegacyLinkLocalHost(previous.host),
+           let hostname = Self.bonjourHostname(bridgeId: previous.bridgeId) {
+            // Older builds saved the interface-scoped IPv6 selected during discovery. Keep
+            // the paired key and certificate pin, but move requests to the bridge's stable mDNS name.
+            previous.host = hostname
+            saved = previous
+            if let encoded = try? JSONEncoder().encode(previous) { vault.write(encoded) }
+        }
+        config = saved
         if let config { trust.pin(host: config.host, fingerprint: config.certificate); listen() }
+    }
+
+    static func isLegacyLinkLocalHost(_ host: String) -> Bool {
+        // Only automatic discovery's bracketed address without a custom port is migrated.
+        guard host.hasPrefix("["), host.hasSuffix("]") else { return false }
+        return IPv6Address(BridgeTrust.bare(host))?.isLinkLocal == true
+    }
+
+    static func bonjourHostname(bridgeId: String?) -> String? {
+        guard let bridgeId, bridgeId.allSatisfy({ $0.isHexDigit || $0 == ":" || $0 == "-" }) else { return nil }
+        let id = Array(bridgeId.lowercased().filter(\.isHexDigit))
+        // Hue's 16-digit EUI-64 bridge ID contains FFFE between the MAC address halves.
+        guard id.count == 16, String(id[6..<10]) == "fffe" else { return nil }
+        return String(id[0..<6]) + String(id[10..<16]) + ".local"
     }
 
     public var isConnected: Bool { config != nil }
@@ -323,11 +347,17 @@ final class BridgeTrust: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
 
     /// "192.168.1.2:8443" → "192.168.1.2", "[fe80::1]:443" → "fe80::1": what TLS challenges name.
     static func bare(_ host: String) -> String {
+        var value = host
         if host.hasPrefix("["), let end = host.firstIndex(of: "]") {
-            return String(host[host.index(after: host.startIndex)..<end])
+            value = String(host[host.index(after: host.startIndex)..<end])
+        } else {
+            let parts = host.split(separator: ":", omittingEmptySubsequences: false)
+            if parts.count == 2 { value = String(parts[0]) }
         }
-        let parts = host.split(separator: ":")
-        return parts.count == 2 ? String(parts[0]) : host
+        // URL hosts encode a scoped IPv6 percent as %25; URLSession challenges may report %en11.
+        if let scope = value.firstIndex(of: "%") { value = String(value[..<scope]) }
+        if value.hasSuffix(".") { value.removeLast() }
+        return value.lowercased()
     }
 
     // A streaming task (the event stream) asks its task-level delegate, the others the session's.
@@ -347,15 +377,17 @@ final class BridgeTrust: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
         }
         let fingerprint = SHA256.hash(data: SecCertificateCopyData(leaf) as Data).map { String(format: "%02x", $0) }.joined()
         lock.lock()
-        let expected = pins[host]
-        seen[host] = fingerprint
+        let key = Self.bare(host)
+        let expected = pins[key]
+        seen[key] = fingerprint
         lock.unlock()
         switch expected {
-        case .none: completionHandler(.performDefaultHandling, nil)          // not a bridge we know
+        case .none: completionHandler(.performDefaultHandling, nil) // not a bridge we know
         case .some(nil): completionHandler(.useCredential, URLCredential(trust: trust)) // pairing now
         case .some(let pinned?):
-            completionHandler(pinned == fingerprint ? .useCredential : .cancelAuthenticationChallenge,
-                              pinned == fingerprint ? URLCredential(trust: trust) : nil)
+            let matches = pinned == fingerprint
+            completionHandler(matches ? .useCredential : .cancelAuthenticationChallenge,
+                              matches ? URLCredential(trust: trust) : nil)
         }
     }
 }
