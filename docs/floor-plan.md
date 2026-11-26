@@ -125,21 +125,27 @@ A gap in a wall, given by its two end points on that wall. It must be horizontal
 
 ## `furniture`
 
-Decoration only. Every piece has `type`, `pos` (`[x, z]` of its centre), an optional `rot` and, on a home with
-[several floors](#levels-floors), its `level`.
+Decoration only. Every piece has `type`, `pos` (`[x, z]` of its centre), optional `y` (elevation in metres above the
+floor, e.g. for a wall-mounted TV or an item stacked on top of another), optional `rot`, optional `variant` (for types
+with style variants), and on a home with [several floors](#levels-floors), its `level`.
 
 | `type` | Extra options |
 | --- | --- |
-| `sofa` | `width`, `color` |
+| `sofa` | `width`, `color`, `variant` (`pillowed` default, or `plain`) |
+| `pillow` | `width`, `color`, `y` (for stacking on a `sofa` or `bed`) |
 | `armchair` | `color` |
-| `coffeeTable` | `width` |
+| `coffeeTable` | `width`, `depth`, `height`, `color`, `variant` (`modern` default, or `woodShelf`) |
 | `rug` | `size` (`[width, depth]`), `color` |
-| `tv`, `sideboard`, `dresser`, `desk`, `vanity` | `width` |
+| `tv` | `width`, `variant` (`console` default, or `wall`), `y` |
+| `vanity` | `width`, `variant` (`cabinet` default, or `pedestal`) |
+| `sideboard` | `width` |
+| `dresser`, `desk` | `width`, `depth`, `height` |
 | `diningSet` | `width`, `chairs` |
 | `island` | `width`, `stools` |
-| `kitchen` | `width`, `upper` (wall cabinets, `true` by default) |
-| `bed` | `width`, `color` |
-| `wardrobe`, `bookshelf` | `width`, `height` |
+| `kitchen` | `width`, `depth`, `height`, `upper` (wall cabinets, `true` by default) |
+| `bed` | `width`, `depth`, `color` |
+| `wardrobe` | `width`, `height`, `color` |
+| `bookshelf` | `width`, `height` |
 | `plant` | `height` |
 | `stairs` | `width`, `depth` (its length), `height` (up to the floor above by default). They climb away from the front |
 | `fridge`, `nightstand`, `bathtub`, `toilet` | — |

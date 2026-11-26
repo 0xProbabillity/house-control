@@ -62,6 +62,17 @@ function doorLines(width, height, y, z, count, material) {
   return out;
 }
 
+export const FURNITURE_VARIANTS = {
+  tv: ['console', 'wall'],
+  vanity: ['cabinet', 'pedestal'],
+  coffeeTable: ['modern', 'woodShelf'],
+  sofa: ['pillowed', 'plain'],
+};
+
+export function isWallMounted(item) {
+  return item?.type === 'tv' && (item.variant === 'wall' || item.wallMounted === true);
+}
+
 const builders = {
   rug({ size = [2, 1.4], color = '#3b4a66' }) {
     const g = group(
@@ -72,36 +83,69 @@ const builders = {
     return g;
   },
 
-  sofa({ width = 2.2, color = '#8b93a7' }) {
+  sofa({ width = 2.2, color = '#8b93a7', variant, throwPillow }) {
     const g = seating(width, 0.95, color, width > 2 ? 3 : 2);
-    // throw pillow
-    const pillow = at(box(0.36, 0.36, 0.12, mat('#d9b98a', { rough: 1 }), { r: 0.05 }), -width / 2 + 0.42, 0.46, -0.1);
-    pillow.rotation.set(-0.25, 0.3, 0.1);
-    g.add(pillow);
+    const plain = variant ? variant === 'plain' : throwPillow === false;
+    if (!plain) {
+      // throw pillow
+      const pillow = at(box(0.36, 0.36, 0.12, mat('#d9b98a', { rough: 1 }), { r: 0.05 }), -width / 2 + 0.42, 0.46, -0.1);
+      pillow.rotation.set(-0.25, 0.3, 0.1);
+      g.add(pillow);
+    }
     return g;
+  },
+
+  pillow({ width = 0.38, color = '#d9b98a' }) {
+    const cushion = at(box(width, width * 0.92, 0.12, mat(color, { rough: 1 }), { r: 0.05 }), 0, 0.01, 0);
+    cushion.rotation.set(-0.2, 0.12, 0.04);
+    return group(cushion);
   },
 
   armchair({ color = '#c28a5a' }) {
     return seating(0.92, 0.88, color, 1);
   },
 
-  coffeeTable({ width = 1.1 }) {
-    const wood = mat(WOOD, { rough: 0.6 });
+  coffeeTable({ width = 1.1, depth = 0.58, height = 0.4, color = WOOD, variant, woodShelf = false }) {
+    const wood = mat(color, { rough: 0.6 });
+    const shelfStyle = variant ? variant === 'woodShelf' : Boolean(woodShelf);
+    if (shelfStyle) {
+      const topH = 0.036;
+      const legH = Math.max(0.12, height - topH);
+      const legMat = mat(darker(color, 0.88), { rough: 0.65 });
+      const inset = 0.06;
+      const sqLegs = [];
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        sqLegs.push(at(box(0.042, legH, 0.042, legMat, { r: 0.008 }), sx * (width / 2 - inset), 0, sz * (depth / 2 - inset)));
+      }
+      return group(
+        at(box(width, topH, depth, wood, { r: 0.012 }), 0, legH, 0),
+        at(box(width - 0.12, 0.05, depth - 0.12, legMat, { r: 0.006 }), 0, legH - 0.05, 0),
+        at(box(width - 0.14, 0.024, depth - 0.14, wood, { r: 0.008 }), 0, Math.min(0.14, legH * 0.4), 0),
+        ...sqLegs,
+      );
+    }
+    const topY = Math.max(0.16, height - 0.04);
     return group(
-      at(box(width, 0.04, 0.58, wood, { r: 0.015 }), 0, 0.36, 0),
-      at(box(width - 0.16, 0.02, 0.44, mat(BLACK, { rough: 0.5 }), { r: 0.008 }), 0, 0.14, 0),
-      ...legs(width, 0.58, 0.36, mat(BLACK, { rough: 0.5 }), 0.07, 0.015),
-      at(box(0.24, 0.035, 0.17, mat('#c9553f', { rough: 0.9 }), { r: 0.006 }), 0.22, 0.4, 0.05),
-      at(cyl(0.05, 0.04, 0.09, mat(WHITE, { rough: 0.4 })), -0.3, 0.4, -0.08),
+      at(box(width, 0.04, depth, wood, { r: 0.015 }), 0, topY, 0),
+      at(box(width - 0.16, 0.02, Math.max(0.16, depth - 0.14), mat(BLACK, { rough: 0.5 }), { r: 0.008 }), 0, Math.min(0.14, topY * 0.4), 0),
+      ...legs(width, depth, topY, mat(BLACK, { rough: 0.5 }), 0.07, 0.015),
+      at(box(0.24, 0.035, 0.17, mat('#c9553f', { rough: 0.9 }), { r: 0.006 }), 0.22, topY + 0.04, 0.05),
+      at(cyl(0.05, 0.04, 0.09, mat(WHITE, { rough: 0.4 })), -0.3, topY + 0.04, -0.08),
     );
   },
 
-  tv({ width = 1.7 }) {
-    const sw = width * 0.84;
+  tv({ width = 1.7, variant, wallMounted = false }) {
+    const wall = variant ? variant === 'wall' : Boolean(wallMounted);
+    const sw = wall ? width : width * 0.84;
     const sh = sw * 0.5625;
-    const screen = new THREE.MeshStandardMaterial({
-      color: '#05070c', roughness: 0.25, emissive: '#27407a', emissiveIntensity: 0.35,
-    });
+    const screen = new THREE.MeshBasicMaterial({ color: '#0d1320', toneMapped: false });
+    if (wall) {
+      return group(
+        at(box(sw * 0.42, sh * 0.38, 0.02, mat('#15171c', { rough: 0.5, metal: 0.4 }), { r: 0.004 }), 0, sh * 0.31, -0.022),
+        at(box(sw + 0.02, sh + 0.02, 0.024, mat(BLACK, { rough: 0.35 }), { r: 0.006 }), 0, 0, 0),
+        at(box(sw - 0.015, sh - 0.015, 0.006, screen, { r: 0 }), 0, 0.0175, 0.011),
+      );
+    }
     return group(
       at(box(width, 0.36, 0.4, mat(DARK_WOOD, { rough: 0.6 }), { r: 0.015 }), 0, 0.1, 0),
       ...legs(width, 0.4, 0.1, mat(BLACK), 0.08, 0.015),
@@ -159,23 +203,25 @@ const builders = {
     return g;
   },
 
-  kitchen({ width = 3, upper = true }) {
+  kitchen({ width = 3, upper = true, depth = 0.6, height = 0.9 }) {
     const front = mat('#e4e1da', { rough: 0.6 });
     const seam = mat('#b9b6ae');
     const n = Math.max(2, Math.round(width / 0.6));
+    const baseH = Math.max(0.3, height - 0.04);
     const g = group(
-      at(box(width, 0.86, 0.6, front, { r: 0.008 }), 0, 0, 0),
-      ...doorLines(width, 0.78, 0.06, 0.3, n, seam),
-      at(box(width + 0.02, 0.04, 0.63, mat('#33363d', { rough: 0.35 }), { r: 0.008 }), 0, 0.86, 0.005),
-      at(box(0.58, 0.012, 0.5, mat('#0c0d10', { rough: 0.15 }), { r: 0 }), -width / 4, 0.9, 0),
-      at(box(0.5, 0.012, 0.38, mat(METAL, { rough: 0.3, metal: 0.9 }), { r: 0 }), width / 4, 0.9, 0.02),
-      at(cyl(0.015, 0.015, 0.24, mat(METAL, { rough: 0.25, metal: 0.9 }), 10), width / 4, 0.9, -0.22),
+      at(box(width, baseH, depth, front, { r: 0.008 }), 0, 0, 0),
+      ...doorLines(width, Math.max(0.1, baseH - 0.08), 0.06, depth / 2, n, seam),
+      at(box(width + 0.02, 0.04, depth + 0.03, mat('#33363d', { rough: 0.35 }), { r: 0.008 }), 0, baseH, 0.005),
+      at(box(0.58, 0.012, Math.min(0.5, depth - 0.1), mat('#0c0d10', { rough: 0.15 }), { r: 0 }), -width / 4, height, 0),
+      at(box(0.5, 0.012, Math.min(0.38, depth - 0.2), mat(METAL, { rough: 0.3, metal: 0.9 }), { r: 0 }), width / 4, height, 0.02),
+      at(cyl(0.015, 0.015, 0.24, mat(METAL, { rough: 0.25, metal: 0.9 }), 10), width / 4, height, -depth / 2 + 0.08),
     );
     if (upper) {
+      const upperZ = -depth / 2 + 0.175;
       g.add(
-        at(box(width, 0.72, 0.35, front, { r: 0.008 }), 0, 1.48, -0.125),
-        ...doorLines(width, 0.66, 1.51, 0.05, n, seam),
-        at(box(0.7, 0.1, 0.42, mat('#2f3239', { rough: 0.4, metal: 0.4 }), { r: 0.008 }), -width / 4, 1.42, -0.09),
+        at(box(width, 0.72, 0.35, front, { r: 0.008 }), 0, height + 0.58, upperZ),
+        ...doorLines(width, 0.66, height + 0.61, upperZ + 0.175, n, seam),
+        at(box(0.7, 0.1, 0.42, mat('#2f3239', { rough: 0.4, metal: 0.4 }), { r: 0.008 }), -width / 4, height + 0.52, -depth / 2 + 0.21),
       );
     }
     return g;
@@ -191,12 +237,13 @@ const builders = {
     );
   },
 
-  bed({ width = 1.6, color = '#7f8fb5' }) {
-    const depth = 2.1;
+  bed({ width = 1.6, color = '#7f8fb5', depth: frameDepth }) {
+    const depth = frameDepth === undefined ? 2.1 : frameDepth - 0.04;
+    const headboardZ = frameDepth === undefined ? -depth / 2 : -frameDepth / 2 + 0.05;
     const linen = mat('#f1efea', { rough: 1 });
     const g = group(
       at(box(width + 0.1, 0.26, depth + 0.04, mat(DARK_WOOD, { rough: 0.7 }), { r: 0.03 }), 0, 0.04, 0),
-      at(box(width + 0.16, 1.02, 0.1, mat(darker(color, 0.6), { rough: 1 }), { r: 0.04 }), 0, 0, -depth / 2),
+      at(box(width + 0.16, 1.02, 0.1, mat(darker(color, 0.6), { rough: 1 }), { r: 0.04 }), 0, 0, headboardZ),
       at(box(width, 0.2, depth - 0.06, linen, { r: 0.07 }), 0, 0.28, 0.02),
       at(box(width + 0.05, 0.13, depth * 0.63, mat(color, { rough: 1 }), { r: 0.06 }), 0, 0.4, depth * 0.17),
       at(box(width + 0.06, 0.05, 0.3, mat(darker(color, 0.8), { rough: 1 }), { r: 0.02 }), 0, 0.5, depth * 0.36),
@@ -217,13 +264,14 @@ const builders = {
     );
   },
 
-  dresser({ width = 1.3 }) {
+  dresser({ width = 1.3, depth = 0.45, height = 0.84 }) {
+    const bodyH = Math.max(0.2, height - 0.1);
     const g = group(
-      ...legs(width, 0.45, 0.1, mat(BLACK), 0.06, 0.015),
-      at(box(width, 0.74, 0.45, mat(WHITE, { rough: 0.6 }), { r: 0.015 }), 0, 0.1, 0),
-      at(cyl(0.09, 0.07, 0.18, mat('#c9a15e', { rough: 0.4 })), width / 2 - 0.3, 0.84, 0),
+      ...legs(width, depth, 0.1, mat(BLACK), 0.06, 0.015),
+      at(box(width, bodyH, depth, mat(WHITE, { rough: 0.6 }), { r: 0.015 }), 0, 0.1, 0),
+      at(cyl(0.09, 0.07, 0.18, mat('#c9a15e', { rough: 0.4 })), width / 2 - 0.3, height, 0),
     );
-    for (let i = 1; i < 3; i++) g.add(at(box(width - 0.06, 0.006, 0.005, mat('#b9b6ae'), { r: 0 }), 0, 0.1 + 0.247 * i, 0.226));
+    for (let i = 1; i < 3; i++) g.add(at(box(width - 0.06, 0.006, 0.005, mat('#b9b6ae'), { r: 0 }), 0, 0.1 + (bodyH / 3) * i, depth / 2 + 0.001));
     return g;
   },
 
@@ -249,8 +297,38 @@ const builders = {
     return g;
   },
 
-  vanity({ width = 1.0 }) {
+  vanity({ width = 1.0, variant, pedestal = false }) {
     const mirror = new THREE.MeshStandardMaterial({ color: '#b9c7dc', roughness: 0.12, metalness: 0.9 });
+    const isPedestal = variant ? variant === 'pedestal' : Boolean(pedestal);
+    if (isPedestal) {
+      const ceramic = mat(WHITE, { rough: 0.18 });
+      const chrome = mat(METAL, { rough: 0.18, metal: 0.92 });
+      const bw = Math.min(width, 0.66);
+      const bd = 0.46;
+      const cabW = Math.min(width * 0.82, 0.72);
+      const spoutCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0.85, -0.15),
+        new THREE.Vector3(0, 0.97, -0.14),
+        new THREE.Vector3(0, 0.99, -0.07),
+        new THREE.Vector3(0, 0.94, -0.04),
+      ]);
+      const spout = new THREE.Mesh(new THREE.TubeGeometry(spoutCurve, 12, 0.009, 8, false), chrome);
+      const bowl = at(cyl(bw * 0.34, bw * 0.24, 0.025, mat('#dfe4ec', { rough: 0.15 })), 0, 0.84, 0.03);
+      bowl.scale.z = 0.8;
+      return group(
+        at(cyl(0.11, 0.15, 0.07, ceramic, 24), 0, 0, -0.02),
+        at(cyl(0.085, 0.105, 0.68, ceramic, 24), 0, 0.06, -0.02),
+        at(box(bw, 0.13, bd, ceramic, { r: 0.055 }), 0, 0.73, 0.01),
+        bowl,
+        at(cyl(0.022, 0.022, 0.006, chrome, 16), 0, 0.863, 0.03),
+        at(cyl(0.02, 0.024, 0.02, chrome, 14), 0, 0.855, -0.15),
+        spout,
+        at(box(0.055, 0.012, 0.016, chrome, { r: 0.004 }), 0.035, 0.89, -0.15),
+        at(box(cabW, 0.72, 0.13, mat(WHITE, { rough: 0.45 }), { r: 0.01 }), 0, 1.12, -0.175),
+        at(box(cabW - 0.03, 0.69, 0.015, mirror, { r: 0.006 }), 0, 1.135, -0.105),
+        at(box(0.012, 0.08, 0.018, chrome, { r: 0.004 }), cabW / 2 - 0.035, 1.24, -0.095),
+      );
+    }
     return group(
       at(box(width, 0.62, 0.48, mat(WOOD, { rough: 0.6 }), { r: 0.012 }), 0, 0.2, 0),
       ...doorLines(width, 0.56, 0.23, 0.24, 2, mat(DARK_WOOD)),
@@ -278,23 +356,42 @@ const builders = {
     return group(at(box(0.38, 0.78, 0.17, c, { r: 0.03 }), 0, 0, -0.24), bowl, lid);
   },
 
-  desk({ width = 1.4 }) {
+  desk({ width = 1.4, depth = 0.65, height = 0.76 }) {
+    const legH = Math.max(0.3, height - 0.04);
     const c = chair('#2b2e37');
-    c.position.z = 0.5;
+    c.position.z = depth / 2 + 0.175;
     c.rotation.y = Math.PI;
+    const monitorZ = -depth / 2 + 0.145;
     return group(
-      at(box(width, 0.04, 0.65, mat(WOOD, { rough: 0.55 }), { r: 0.012 }), 0, 0.72, 0),
-      ...legs(width, 0.65, 0.72, mat(BLACK), 0.06, 0.02),
-      at(box(0.56, 0.34, 0.025, mat(BLACK, { rough: 0.3 }), { r: 0.008 }), 0, 0.86, -0.18),
-      at(box(0.2, 0.1, 0.12, mat(BLACK), { r: 0.008 }), 0, 0.76, -0.18),
+      at(box(width, 0.04, depth, mat(WOOD, { rough: 0.55 }), { r: 0.012 }), 0, legH, 0),
+      ...legs(width, depth, legH, mat(BLACK), 0.06, 0.02),
+      at(box(0.56, 0.34, 0.025, mat(BLACK, { rough: 0.3 }), { r: 0.008 }), 0, height + 0.1, monitorZ),
+      at(box(0.2, 0.1, 0.12, mat(BLACK), { r: 0.008 }), 0, height, monitorZ),
       c,
     );
   },
 
-  wardrobe({ width = 1.6, height = 2.1 }) {
+  wardrobe({ width = 1.6, height = 2.1, color = WHITE }) {
+    const bodyMat = mat(color, { rough: 0.6 });
+    const trimMat = mat(darker(color, 0.78), { rough: 0.65 });
+    const handleMat = mat(METAL, { rough: 0.3, metal: 0.8 });
+    const toeH = 0.06;
+    const corniceH = 0.04;
+    const bodyH = Math.max(0.4, height - toeH - corniceH);
+    const doors = Math.max(2, Math.round(width / 0.55));
+    const handles = [];
+    const dw = width / doors;
+    for (let i = 0; i < doors; i++) {
+      const cx = -width / 2 + dw * (i + 0.5);
+      const offset = (i % 2 === 0 ? 1 : -1) * Math.min(dw * 0.32, 0.18);
+      handles.push(at(box(0.014, 0.16, 0.02, handleMat, { r: 0.004 }), cx + offset, toeH + bodyH * 0.45, 0.31));
+    }
     return group(
-      at(box(width, height, 0.6, mat(WHITE, { rough: 0.6 }), { r: 0.015 }), 0, 0, 0),
-      ...doorLines(width, height - 0.08, 0.04, 0.3, Math.max(2, Math.round(width / 0.55)), mat('#b9b6ae')),
+      at(box(width - 0.04, toeH, 0.56, trimMat, { r: 0.004 }), 0, 0, -0.015),
+      at(box(width, bodyH, 0.6, bodyMat, { r: 0.012 }), 0, toeH, 0),
+      at(box(width + 0.03, corniceH, 0.63, trimMat, { r: 0.008 }), 0, toeH + bodyH, 0.005),
+      ...doorLines(width, bodyH - 0.04, toeH + 0.02, 0.302, doors, trimMat),
+      ...handles,
     );
   },
 
@@ -356,26 +453,55 @@ export function footprint(item) {
   switch (item.type) {
     case 'rug': return item.size || [2, 1.4];
     case 'sofa': return [w || 2.2, 0.95];
+    case 'pillow': return [w || 0.38, 0.16];
     case 'armchair': return [0.92, 0.88];
-    case 'coffeeTable': return [w || 1.1, 0.58];
-    case 'tv': return [w || 1.7, 0.4];
+    case 'coffeeTable': return [w || 1.1, item.depth || 0.58];
+    case 'tv': return [w || 1.7, isWallMounted(item) ? 0.055 : 0.4];
     case 'sideboard': return [w || 1.6, 0.42];
     case 'diningSet': return [w || 1.8, 1.9];
     case 'island': return [w || 2, 1.1];
-    case 'kitchen': return [w || 3, 0.62];
+    case 'kitchen': return [w || 3, item.depth || 0.62];
     case 'fridge': return [0.7, 0.68];
-    case 'bed': return [(w || 1.6) + 0.1, 2.14];
+    case 'bed': return [(w || 1.6) + 0.1, item.depth || 2.14];
     case 'nightstand': return [0.46, 0.4];
-    case 'dresser': return [w || 1.3, 0.45];
+    case 'dresser': return [w || 1.3, item.depth || 0.45];
     case 'plant': return [0.45, 0.45];
     case 'vanity': return [w || 1, 0.5];
     case 'bathtub': return [1.7, 0.78];
     case 'toilet': return [0.4, 0.66];
-    case 'desk': return [w || 1.4, 0.65];
+    case 'desk': return [w || 1.4, item.depth || 0.65];
     case 'wardrobe': return [w || 1.6, 0.6];
     case 'bookshelf': return [w || 1, 0.32];
     case 'stairs': return [w || 1, item.depth || 2.8];
     default: return [0.6, 0.6];
+  }
+}
+
+// Top-surface height in metres above `item.y || 0` for any support piece, or null for non-supports.
+export function surfaceHeight(item) {
+  switch (item?.type) {
+    case 'sofa':
+    case 'armchair': return 0.47;
+    case 'bed': return 0.48;
+    case 'coffeeTable': return item.height ?? 0.4;
+    case 'sideboard':
+    case 'diningSet': return 0.76;
+    case 'island': return 0.93;
+    case 'kitchen': return item.height ?? 0.9;
+    case 'fridge': return 1.92;
+    case 'nightstand': return 0.5;
+    case 'dresser': return item.height ?? 0.84;
+    case 'desk': return item.height ?? 0.76;
+    case 'bookshelf': return item.height ?? 1.8;
+    case 'wardrobe': return item.height ?? 2.1;
+    case 'tv': return isWallMounted(item) ? null : 0.46;
+    case 'rug':
+    case 'plant':
+    case 'bathtub':
+    case 'toilet':
+    case 'stairs':
+    case 'pillow':
+    default: return null;
   }
 }
 

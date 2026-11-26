@@ -264,6 +264,7 @@ struct HouseModel: View {
     private static func furnitureLook(_ type: String) -> (height: Double, color: String) {
         switch type {
         case "sofa", "armchair": return (0.8, "#8b93a7")
+        case "pillow": return (0.35, "#d9b98a")
         case "coffeeTable", "diningSet", "desk": return (0.74, "#6b4f3a")
         case "tv": return (0.55, "#1b1e26")
         case "sideboard", "dresser", "nightstand": return (0.72, "#5a4434")

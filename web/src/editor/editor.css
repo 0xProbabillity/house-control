@@ -100,6 +100,7 @@ html.mode-editor, html.mode-editor body { user-select: none; }
 .p-dim { font-size: 0.2px; fill: rgba(255, 255, 255, 0.4); }
 
 .p-furn rect { fill: rgba(255, 255, 255, 0.07); stroke: rgba(255, 255, 255, 0.3); stroke-width: 0.025; cursor: move; }
+.p-furn.elevated rect { stroke-dasharray: 0.08 0.05; }
 .p-furn .front { stroke: rgba(255, 255, 255, 0.45); stroke-width: 0.05; stroke-linecap: round; fill: none; pointer-events: none; }
 .p-furn:hover rect { fill: rgba(255, 255, 255, 0.14); }
 .p-furn.sel rect { fill: rgba(90, 150, 255, 0.28); stroke: #6aa6ff; stroke-width: 0.05; }
