@@ -1,11 +1,11 @@
 // Edits to the floor plan an AI asks for: small, checked operations on the plan as it is
 // written on disk. Nothing here touches the page, so it runs (and is tested) under Node too.
 import { normalize, LIGHT_KINDS, FLOOR_KINDS, LINK_FIELDS, isLinked, levelsOf } from '../config.js';
-import { FURNITURE_TYPES, footprint } from '../three/furniture.js';
+import { FURNITURE_TYPES, FURNITURE_VARIANTS, footprint } from '../three/furniture.js';
 
 export const SCENE_ICONS = ['sun', 'sofa', 'film', 'moon', 'door', 'bed', 'tv', 'sparkles'];
 export const WALLS = ['north', 'south', 'east', 'west'];
-const FURNITURE_KEYS = ['type', 'pos', 'rot', 'width', 'height', 'depth', 'size', 'color', 'chairs', 'stools', 'upper', 'level'];
+const FURNITURE_KEYS = ['type', 'pos', 'y', 'rot', 'width', 'height', 'depth', 'size', 'color', 'variant', 'chairs', 'stools', 'upper', 'level'];
 const LIGHT_KEYS = ['id', 'name', 'room', 'type', 'outlet', 'pos', 'y', 'rot', 'length', 'capabilities', 'color'];
 const AC_KEYS = ['id', 'name', 'room', 'wall', 'pos', 'y', 'min', 'max'];
 
@@ -51,6 +51,18 @@ function cleanFurniture(item, where) {
   const out = pick(item, FURNITURE_KEYS);
   out.pos = out.pos.map(round);
   if (out.rot != null) { if (!isNum(out.rot)) fail(`${where}: "rot" must be a number of degrees`); out.rot = Math.round(out.rot); }
+  if (out.y != null) {
+    if (!(isNum(out.y) && out.y >= 0 && out.y < 12)) fail(`${where}: "y" must be metres between 0 and 12`);
+    out.y = round(out.y);
+    if (out.y === 0) delete out.y;
+  }
+  if (out.variant != null) {
+    const allowed = FURNITURE_VARIANTS[out.type];
+    if (!allowed || !allowed.includes(out.variant)) {
+      fail(`${where}: "variant" for "${out.type}" ${allowed ? `must be one of: ${allowed.join(', ')}` : 'is not supported'}`);
+    }
+    if (out.variant === allowed[0]) delete out.variant;
+  }
   for (const k of ['width', 'height', 'depth']) {
     if (out[k] != null && !(isNum(out[k]) && out[k] > 0.1 && out[k] < 12)) fail(`${where}: "${k}" must be metres between 0.1 and 12`);
   }
@@ -349,25 +361,26 @@ export function replacePlan(old, next) {
 
 /** What each furniture type is, for the AI that places it. */
 export const FURNITURE_GUIDE = {
-  sofa: 'sofa; options width, color',
+  sofa: 'sofa; options width, color, variant (pillowed | plain)',
+  pillow: 'throw pillow; options width, color, y (for stacking on a sofa or bed)',
   armchair: 'armchair; option color',
-  coffeeTable: 'low coffee table; option width',
+  coffeeTable: 'low coffee table; options width, depth, height, color, variant (modern | woodShelf)',
   rug: 'flat rug; options size [w, d], color',
-  tv: 'TV on a low media console; option width',
+  tv: 'TV on a low media console or wall-mounted; options width, variant (console | wall), y',
   sideboard: 'sideboard / low cabinet; option width',
   diningSet: 'dining table with chairs around it; options width, chairs',
   island: 'kitchen island with stools on its front side; options width, stools',
-  kitchen: 'run of kitchen base cabinets with counter, sink and hob; options width, upper (wall cabinets, default true)',
+  kitchen: 'run of kitchen base cabinets with counter, sink and hob; options width, depth, height, upper (wall cabinets, default true)',
   fridge: 'tall fridge',
-  bed: 'bed with headboard; options width (mattress), color (bedding)',
+  bed: 'bed with headboard; options width (mattress), depth, color (bedding)',
   nightstand: 'nightstand',
-  dresser: 'chest of drawers; option width',
+  dresser: 'chest of drawers; options width, depth, height',
   plant: 'potted plant; option height',
-  vanity: 'bathroom vanity with basin and mirror; option width',
+  vanity: 'bathroom vanity with basin and mirror; options width, variant (cabinet | pedestal)',
   bathtub: 'bathtub',
   toilet: 'toilet',
-  desk: 'desk; option width',
-  wardrobe: 'wardrobe; options width, height',
+  desk: 'desk; options width, depth, height',
+  wardrobe: 'wardrobe; options width, height, color',
   bookshelf: 'open bookshelf with books; options width, height',
   stairs: 'straight stairs up to the floor above, climbing towards the back (north at rot 0); options width, depth (its length)',
 };

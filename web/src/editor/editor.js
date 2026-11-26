@@ -5,7 +5,8 @@
 import './editor.css';
 import { normalize, loadRawConfig, LIGHT_KINDS, FLOOR_KINDS, isLinked, levelsOf } from '../config.js';
 import { createWorld } from '../three/world.js';
-import { FURNITURE_TYPES, footprint } from '../three/furniture.js';
+import { FURNITURE_TYPES, FURNITURE_VARIANTS, footprint, isWallMounted } from '../three/furniture.js';
+import { supportElevation, stackedRiders } from './stacking.js';
 import { h, clamp } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { isNative, isPhone, platform, call, post, haptic, incoming } from '../bridge.js';
@@ -41,10 +42,16 @@ const WALL_LABEL = { north: t('North wall'), east: t('East wall'), south: t('Sou
 const FLOOR_LABEL = { oak: t('Oak'), walnut: t('Walnut'), tile: t('Tiles'), stone: t('Stone') };
 const OPENING_LABEL = { door: t('Door'), open: t('Open passage'), window: t('Window') };
 const FURNITURE_LABEL = {
-  rug: t('Rug'), sofa: t('Sofa'), armchair: t('Armchair'), coffeeTable: t('Coffee table'), tv: t('TV'), sideboard: t('Sideboard'),
+  rug: t('Rug'), sofa: t('Sofa'), pillow: t('Pillow'), armchair: t('Armchair'), coffeeTable: t('Coffee table'), tv: t('TV'), sideboard: t('Sideboard'),
   diningSet: t('Dining table'), island: t('Kitchen island'), kitchen: t('Kitchen units'), fridge: t('Fridge'), bed: t('Bed'),
   nightstand: t('Nightstand'), dresser: t('Dresser'), plant: t('Plant'), vanity: t('Vanity'), bathtub: t('Bathtub'), toilet: t('Toilet'),
   desk: t('Desk'), wardrobe: t('Wardrobe'), bookshelf: t('Bookshelf'), stairs: t('Stairs'),
+};
+const VARIANT_LABEL = {
+  console: t('Console'), wall: t('Wall-mounted'),
+  cabinet: t('Cabinet'), pedestal: t('Pedestal'),
+  modern: t('Modern'), woodShelf: t('Wood shelf'),
+  pillowed: t('With throw pillow'), plain: t('Plain'),
 };
 const ICON_LABEL = {
   sun: tc('icon', 'Sun'), sofa: tc('icon', 'Sofa'), film: tc('icon', 'Film'), moon: tc('icon', 'Moon'), door: tc('icon', 'Door'),
@@ -205,6 +212,7 @@ export async function bootEditor(root) {
     return null;
   }
   const here = (kind, item) => { const l = levelOf(kind, item); return l == null || l === level; };
+  const furnitureLevel = (item) => levelOf('furniture', item);
   // New things on a home with floors say which one they are on.
   const stamp = (item) => (Array.isArray(doc.levels) && doc.levels.length ? { ...item, level } : item);
   // The floor right under the one being edited, drawn faintly to line things up with.
@@ -609,7 +617,12 @@ export async function bootEditor(root) {
       if (!room) return toast(t('Add a room first'), true);
       list.push({ id: uniqueId(`${room.id}.ac`), name: t('{room} AC', { room: room.name }), room: room.id, wall: 'north', pos: [center[0], room.rect[1]], y: 2.2 });
     } else if (kind === 'furniture') {
-      list.push(stamp(type === 'stairs' ? { type, pos: center, rot: 0, width: 1, depth: 2.8 } : { type: type || 'sofa', pos: center, rot: 0 }));
+      const f = stamp(type === 'stairs' ? { type, pos: center, rot: 0, width: 1, depth: 2.8 } : { type: type || 'sofa', pos: center, rot: 0 });
+      if (!isWallMounted(f) && f.type !== 'stairs' && f.type !== 'rug') {
+        const y = fix(supportElevation(f, doc.furniture, new Set(), furnitureLevel));
+        if (y > 0) f.y = y;
+      }
+      list.push(f);
     } else if (kind === 'opening') {
       if (!room) return toast(t('Add a room first'), true);
       // A door on the near (south) wall; a window on the far (north) one, where the 3D model shows it.
@@ -820,19 +833,23 @@ export async function bootEditor(root) {
 
     kids.push(ghostStairs);
 
-    doc.furniture.forEach((f, i) => {
-      if (!Array.isArray(f.pos) || !here('furniture', f)) return;
-      const [w, d] = footprint(f);
-      const stairs = f.type === 'stairs';
-      kids.push(sv('g', {
-        class: `p-furn${stairs ? ' stairs' : ''}${isSel('furniture', i) ? ' sel' : ''}`, 'data-kind': 'furniture', 'data-index': i,
-        transform: `translate(${f.pos[0]} ${f.pos[1]}) rotate(${-(f.rot || 0)})`,
-      },
-        sv('rect', { x: -w / 2, y: -d / 2, width: w, height: d, rx: stairs ? 0.02 : 0.06 }),
-        ...(stairs ? stairsMarks(w, d, 'p-stairs')
-          // a tick marks the front of the piece
-          : [sv('path', { d: `M${-w / 4} ${d / 2}H${w / 4}`, class: 'front' })])));
-    });
+    doc.furniture
+      .map((f, i) => ({ f, i }))
+      .filter(({ f }) => Array.isArray(f.pos) && here('furniture', f))
+      .sort((a, b) => (a.f.y || 0) - (b.f.y || 0))
+      .forEach(({ f, i }) => {
+        const [w, d] = footprint(f);
+        const stairs = f.type === 'stairs';
+        const elevated = (f.y || 0) > 0;
+        kids.push(sv('g', {
+          class: `p-furn${stairs ? ' stairs' : ''}${elevated ? ' elevated' : ''}${isSel('furniture', i) ? ' sel' : ''}`, 'data-kind': 'furniture', 'data-index': i,
+          transform: `translate(${f.pos[0]} ${f.pos[1]}) rotate(${-(f.rot || 0)})`,
+        },
+          sv('rect', { x: -w / 2, y: -d / 2, width: w, height: d, rx: stairs ? 0.02 : 0.06 }),
+          ...(stairs ? stairsMarks(w, d, 'p-stairs')
+            // a tick marks the front of the piece
+            : [sv('path', { d: `M${-w / 4} ${d / 2}H${w / 4}`, class: 'front' })])));
+      });
 
     doc.openings.forEach((o, i) => {
       if (!here('opening', o)) return;
@@ -1033,6 +1050,12 @@ export async function bootEditor(root) {
     } else if (kind === 'opening') {
       drag.from = [...item.from];
       drag.to = [...item.to];
+    } else if (kind === 'furniture') {
+      drag.pos = [...item.pos];
+      drag.y = item.y || 0;
+      const riders = stackedRiders(index, doc.furniture, furnitureLevel);
+      drag.riders = [...riders].map((ri) => ({ o: doc.furniture[ri], pos: [...doc.furniture[ri].pos], y: doc.furniture[ri].y || 0 }));
+      drag.excluded = new Set([index, ...riders]);
     } else {
       drag.pos = [...item.pos];
     }
@@ -1117,6 +1140,18 @@ export async function bootEditor(root) {
       } else placeOpening(item, mid, len); // doors and windows slide along the walls, and jump to the nearest one
     } else if (drag.kind === 'ac') {
       snapAC(doc.acs[drag.index], [px, pz]);
+    } else if (drag.kind === 'furniture') {
+      const item = doc.furniture[drag.index];
+      item.pos = [fix(drag.pos[0] + dx), fix(drag.pos[1] + dz)];
+      for (const r of drag.riders) r.o.pos = [fix(r.pos[0] + dx), fix(r.pos[1] + dz)];
+      if (!free && !isWallMounted(item) && item.type !== 'stairs' && item.type !== 'rug') {
+        const nextY = fix(supportElevation(item, doc.furniture, drag.excluded, furnitureLevel));
+        if (nextY > 0) item.y = nextY; else delete item.y;
+        for (const r of drag.riders) {
+          const ry = fix(r.y + (nextY - drag.y));
+          if (ry > 0) r.o.y = ry; else delete r.o.y;
+        }
+      }
     } else {
       const item = doc[KEYS[drag.kind]][drag.index];
       item.pos = [fix(drag.pos[0] + dx), fix(drag.pos[1] + dz)];
@@ -1369,13 +1404,57 @@ export async function bootEditor(root) {
       links.sensorSection(item, linkHooks));
     } else if (kind === 'furniture') {
       const stairs = item.type === 'stairs';
+      const variants = FURNITURE_VARIANTS[item.type];
+      const hasDepth = ['coffeeTable', 'bed', 'desk', 'dresser', 'kitchen'].includes(item.type);
+      const currentVariant = () => {
+        if (!variants) return '';
+        if (item.variant && variants.includes(item.variant)) return item.variant;
+        if (item.type === 'tv' && item.wallMounted) return 'wall';
+        if (item.type === 'vanity' && item.pedestal) return 'pedestal';
+        if (item.type === 'coffeeTable' && item.woodShelf) return 'woodShelf';
+        if (item.type === 'sofa' && item.throwPillow === false) return 'plain';
+        return variants[0];
+      };
+      const elevInput = h('input', { type: 'number', step: 0.05, min: 0, inputmode: 'decimal' });
       head(label(FURNITURE_LABEL, item.type), stairs ? t('Up to the floor above') : t('Decoration only'));
       nodes.push(section(t('Furniture'),
-        bind(t('Type'), choice(labelled(FURNITURE_TYPES, FURNITURE_LABEL)), { ...prop(item, 'type'), event: 'change' }),
+        bind(t('Type'), choice(labelled(FURNITURE_TYPES, FURNITURE_LABEL)), {
+          get: () => item.type,
+          set: (v) => {
+            item.type = v;
+            if (item.variant && !FURNITURE_VARIANTS[v]?.includes(item.variant)) delete item.variant;
+          },
+          event: 'change',
+        }),
+        variants ? bind(t('Style'), choice(labelled(variants, VARIANT_LABEL)), {
+          get: currentVariant,
+          set: (v) => {
+            delete item.wallMounted;
+            delete item.pedestal;
+            delete item.woodShelf;
+            delete item.throwPillow;
+            if (v === variants[0]) delete item.variant; else item.variant = v;
+            if (item.type === 'tv') {
+              if (v === 'wall' && item.y == null) item.y = 1.0;
+              else if (v === 'console' && item.y === 1.0) delete item.y;
+            }
+          },
+          event: 'change',
+        }) : null,
         row(bind('X', number(), { ...at(item, 'pos', 0), parse: parseNum }), bind('Z', number(), { ...at(item, 'pos', 1), parse: parseNum })),
         row(bind(t('Rotation, °'), number(15), { ...prop(item, 'rot', 0), parse: parseNum }),
           bind(t('Width, m'), number(0.1), { ...optional(item, 'width'), parse: optNum })),
-        stairs ? bind(t('Length, m'), number(0.1), { ...optional(item, 'depth'), parse: optNum }) : bind(t('Colour (hex, optional)'), text(), optional(item, 'color')),
+        row(
+          bind(t('Elevation, m'), elevInput, {
+            get: () => item.y ?? '',
+            set: (v) => { if (v === '' || v == null || v <= 0) delete item.y; else item.y = v; },
+            parse: optNum,
+          }),
+          stairs ? bind(t('Length, m'), number(0.1), { ...optional(item, 'depth'), parse: optNum })
+            : hasDepth ? bind(t('Depth, m'), number(0.1), { ...optional(item, 'depth'), parse: optNum })
+              : null,
+        ),
+        stairs ? null : bind(t('Colour (hex, optional)'), text(), optional(item, 'color')),
         h('div.fields',
           h('button.btn', { onclick: () => rotate(90) }, icon('rotateCw', 14, 2.2), t('Turn 90°')),
           h('button.btn', { onclick: duplicate }, icon('duplicate', 14, 2.2), t('Duplicate'))),

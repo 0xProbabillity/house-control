@@ -260,12 +260,14 @@ export function createAgent({ store, config, raw, render, onAction }) {
     properties: {
       type: { type: 'string', enum: furnitureCatalog().map((f) => f.type) },
       pos: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2, description: '[x, z] of the centre, metres' },
+      y: { type: 'number', description: 'Elevation above the floor, metres (e.g. wall-mounted TV or stacked item)' },
       rot: { type: 'number', description: 'Degrees. 0: the front faces south (+z), back to the north wall; 90: faces east; -90: faces west; 180: faces north' },
       width: { type: 'number' }, height: { type: 'number' },
       size: { type: 'array', items: { type: 'number' }, description: 'rug only: [width, depth]' },
-      color: { type: 'string', description: '#rrggbb (sofa, armchair, rug, bed)' },
+      color: { type: 'string', description: '#rrggbb (sofa, pillow, armchair, rug, bed, coffeeTable, wardrobe)' },
+      variant: { type: 'string', description: 'Style variant: tv (console|wall), vanity (cabinet|pedestal), coffeeTable (modern|woodShelf), sofa (pillowed|plain)' },
       chairs: { type: 'integer' }, stools: { type: 'integer' }, upper: { type: 'boolean' },
-      depth: { type: 'number', description: 'stairs only: their length, metres' },
+      depth: { type: 'number', description: 'Depth in metres (stairs length, coffeeTable, bed, desk, dresser, kitchen)' },
       level: { type: 'string', description: 'on a home with floors: the id of the floor it stands on' },
     },
   };
