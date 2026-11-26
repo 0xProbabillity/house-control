@@ -3,7 +3,7 @@
 // real devices. On a phone the same pieces are laid out for a finger: the plan fills the
 // screen, the inspector is a sheet from the bottom, pinch zooms and drag pans.
 import './editor.css';
-import { normalize, loadRawConfig, LIGHT_KINDS, FLOOR_KINDS, isLinked, levelsOf } from '../config.js';
+import { normalize, loadRawConfig, LIGHT_KINDS, FLOOR_KINDS, WINDOW_SASHES, isLinked, levelsOf } from '../config.js';
 import { createWorld } from '../three/world.js';
 import { FURNITURE_TYPES, footprint } from '../three/furniture.js';
 import { h, clamp } from '../ui/dom.js';
@@ -40,6 +40,7 @@ const LIGHT_LABEL = { ceiling: t('Ceiling light'), pendant: t('Pendant'), spots:
 const WALL_LABEL = { north: t('North wall'), east: t('East wall'), south: t('South wall'), west: t('West wall') };
 const FLOOR_LABEL = { oak: t('Oak'), walnut: t('Walnut'), tile: t('Tiles'), stone: t('Stone') };
 const OPENING_LABEL = { door: t('Door'), open: t('Open passage'), window: t('Window') };
+const SASH_LABEL = { fixed: t('Fixed'), casement: t('Casement'), upperSliding: t('Upper sliding') };
 const FURNITURE_LABEL = {
   rug: t('Rug'), sofa: t('Sofa'), armchair: t('Armchair'), coffeeTable: t('Coffee table'), tv: t('TV'), sideboard: t('Sideboard'),
   diningSet: t('Dining table'), island: t('Kitchen island'), kitchen: t('Kitchen units'), fridge: t('Fridge'), bed: t('Bed'),
@@ -1389,6 +1390,17 @@ export async function bootEditor(root) {
         row(bind(t('To X'), number(), { ...at(item, 'to', 0), parse: parseNum }), bind(t('To Z'), number(), { ...at(item, 'to', 1), parse: parseNum })),
         item.type === 'window' ? row(bind(t('Sill, m'), number(), { ...prop(item, 'sill', 0.85), parse: parseNum }),
           bind(t('Head, m'), number(), { ...prop(item, 'head', 2.1), parse: parseNum })) : null,
+        item.type === 'window' ? bind(t('Style'), choice(labelled(WINDOW_SASHES, SASH_LABEL)), {
+          get: () => (WINDOW_SASHES.includes(item.sash) ? item.sash : 'fixed'),
+          set: (v) => { if (v === 'fixed') delete item.sash; else item.sash = v; },
+          event: 'change',
+        }) : null,
+        item.type === 'window' ? bind(t('Frosted glass'), h('input', { type: 'checkbox' }), {
+          get: () => Boolean(item.frosted),
+          set: (v) => { if (v) item.frosted = true; else delete item.frosted; },
+          event: 'change',
+        }) : null,
+        !item.type || item.type === 'door' ? bind(t('Head, m'), number(), { ...optional(item, 'head'), parse: optNum }) : null,
         h('p.note', `${isPhone
           ? t('Drag it along a wall. To turn it, drag it onto a wall that runs the other way: it snaps to that wall and turns with it. Drag the dots at its ends to make it wider.')
           : t('Drag it along a wall. To turn it, drag it onto a wall that runs the other way: it snaps to that wall and turns with it (hold ⌥ not to snap). Drag the dots at its ends to make it wider.')} ${

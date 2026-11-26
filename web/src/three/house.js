@@ -112,7 +112,13 @@ export function buildHouse(config, level = config.levels[0]) {
     color: '#9cc0ff', roughness: 0.08, transparent: true, opacity: 0.22,
     emissive: '#3d5fae', emissiveIntensity: 0.5,
   });
+  const frostedGlass = mat('#e0e9e8', { rough: 0.75 });
   const frame = mat('#2c3142', { rough: 0.6 });
+  const sashFrame = mat('#363c50', { rough: 0.55 });
+  const sillLedge = mat('#d9d5cd', { rough: 0.75 });
+  const hardware = mat('#c2c7cf', { metal: 0.75, rough: 0.28 });
+
+  const shiftSeg = (s, offset) => ({ ...s, c: s.c + s.inside * offset });
 
   // A wall piece running from a..b along its axis, between heights y0..y1.
   const piece = (s, a, b, y0, y1, t, materials = wallMats, parent = group) => {
@@ -152,19 +158,90 @@ export function buildHouse(config, level = config.levels[0]) {
       if (type !== 'door') piece(s, a, b, 0, CURB, t, wallMats, side.curb);
       parent = side.tall;
     }
-    if (type === 'door' || type === 'open') continue;
-
     const height = exterior ? H : Hi;
+    if (type === 'door') {
+      if (Number.isFinite(s.opening.head) && s.opening.head > 0 && s.opening.head < height) {
+        piece(s, a, b, s.opening.head, height, t, wallMats, parent);
+      }
+      continue;
+    }
+    if (type === 'open') continue;
+
     if (type === 'window' && exterior) {
       const { sill, head } = s.opening;
       piece(s, a, b, 0, sill, t, wallMats, parent);
       piece(s, a, b, Math.min(head, H), H, t, wallMats, parent);
-      const pane = piece(s, a, b, sill, head, 0.03, glass, parent);
-      pane.castShadow = false;
+      piece(shiftSeg(s, 0.015), a - 0.02, b + 0.02, sill - 0.018, sill + 0.014, t + 0.05, sillLedge, parent);
       const fw = 0.05;
-      const bars = [[a, a + fw, sill, head], [b - fw, b, sill, head], [a, b, sill, sill + fw], [a, b, head - fw, head]];
-      if (b - a > 1.2) bars.push([(a + b) / 2 - fw / 2, (a + b) / 2 + fw / 2, sill, head]);
-      for (const [fa, fb, y0, y1] of bars) piece(s, fa, fb, y0, y1, 0.07, frame, parent);
+      for (const [fa, fb, y0, y1] of [
+        [a, a + fw, sill, head],
+        [b - fw, b, sill, head],
+        [a, b, sill, sill + fw],
+        [a, b, head - fw, head],
+      ]) piece(s, fa, fb, y0, y1, 0.09, frame, parent);
+
+      const glazing = s.opening.frosted ? frostedGlass : glass;
+      if (s.opening.sash === 'upperSliding') {
+        const mid = (sill + head) / 2;
+        const sw = 0.024;
+        const cx = (a + b) / 2;
+        const lowerSeg = shiftSeg(s, -0.016);
+        const lowerPane = piece(lowerSeg, a + fw, b - fw, sill + fw, mid + 0.008, 0.018, glazing, parent);
+        lowerPane.castShadow = false;
+        piece(lowerSeg, a + fw, b - fw, mid - 0.006, mid + 0.014, 0.026, sashFrame, parent);
+
+        const upperSeg = shiftSeg(s, 0.016);
+        const upperPane = piece(upperSeg, a + fw + sw, b - fw - sw, mid - 0.004, head - fw - sw, 0.018, glazing, parent);
+        upperPane.castShadow = false;
+        for (const [fa, fb, y0, y1] of [
+          [a + fw, a + fw + sw, mid - 0.012, head - fw],
+          [b - fw - sw, b - fw, mid - 0.012, head - fw],
+          [a + fw, b - fw, head - fw - sw, head - fw],
+          [a + fw, b - fw, mid - 0.012, mid - 0.012 + sw],
+        ]) piece(upperSeg, fa, fb, y0, y1, 0.032, sashFrame, parent);
+        piece(shiftSeg(s, 0.042), cx - 0.045, cx + 0.045, mid - 0.008, mid + 0.012, 0.016, hardware, parent);
+      } else if (s.opening.sash === 'casement') {
+        const gap = 0.008;
+        const inset = fw + gap;
+        const sw = 0.034;
+        const stopSeg = shiftSeg(s, -0.022);
+        for (const [fa, fb, y0, y1] of [
+          [a + fw, a + inset + 0.01, sill + fw, head - fw],
+          [b - inset - 0.01, b - fw, sill + fw, head - fw],
+          [a + fw, b - fw, sill + fw, sill + inset + 0.01],
+          [a + fw, b - fw, head - inset - 0.01, head - fw],
+        ]) piece(stopSeg, fa, fb, y0, y1, 0.026, frame, parent);
+
+        const sashSeg = shiftSeg(s, 0.012);
+        const pane = piece(sashSeg, a + inset + sw, b - inset - sw, sill + inset + sw, head - inset - sw, 0.018, glazing, parent);
+        pane.castShadow = false;
+        for (const [fa, fb, y0, y1] of [
+          [a + inset, a + inset + sw, sill + inset, head - inset],
+          [b - inset - sw, b - inset, sill + inset, head - inset],
+          [a + inset, b - inset, sill + inset, sill + inset + sw],
+          [a + inset, b - inset, head - inset - sw, head - inset],
+        ]) piece(sashSeg, fa, fb, y0, y1, 0.052, sashFrame, parent);
+
+        const handleX = b - inset - sw / 2;
+        const midY = (sill + head) / 2;
+        piece(shiftSeg(s, 0.045), handleX - 0.012, handleX + 0.012, midY - 0.032, midY + 0.032, 0.012, hardware, parent);
+        piece(shiftSeg(s, 0.058), handleX - 0.007, handleX + 0.007, midY - 0.007, midY + 0.007, 0.024, hardware, parent);
+        piece(shiftSeg(s, 0.072), handleX - 0.007, handleX + 0.007, midY - 0.095, midY + 0.008, 0.014, hardware, parent);
+
+        const hingeX = a + inset + 0.006;
+        const sashY0 = sill + inset;
+        const sashH = head - inset - sashY0;
+        for (const frac of [0.2, 0.8]) {
+          const hy = sashY0 + sashH * frac;
+          piece(shiftSeg(s, 0.044), hingeX - 0.007, hingeX + 0.007, hy - 0.024, hy + 0.024, 0.014, hardware, parent);
+        }
+      } else {
+        const pane = piece(s, a + fw, b - fw, sill + fw, head - fw, 0.024, glazing, parent);
+        pane.castShadow = false;
+        if (s.opening.panes === 2 || (s.opening.panes !== 1 && b - a > 1.2)) {
+          piece(s, (a + b) / 2 - fw / 2, (a + b) / 2 + fw / 2, sill, head, 0.07, frame, parent);
+        }
+      }
       continue;
     }
     if (type === 'window') continue; // a window in an interior wall is just a gap
