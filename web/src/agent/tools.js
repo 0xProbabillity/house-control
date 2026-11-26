@@ -4,7 +4,7 @@
 // shell only carries requests here (see AgentGateway.swift).
 import { AC_MODES, AC_FANS, AC_TIMER_MAX } from '../store.js';
 import { applyOperations, replacePlan, redactPlan, furnitureCatalog, PlanEditError, SCENE_ICONS, WALLS } from './plan-edit.js';
-import { LIGHT_KINDS, FLOOR_KINDS, isLinked } from '../config.js';
+import { LIGHT_KINDS, FLOOR_KINDS, WINDOW_SASHES, isLinked } from '../config.js';
 
 export const COLORS = {
   red: '#ff3b30', orange: '#ff9500', yellow: '#ffd60a', green: '#34c759',
@@ -367,7 +367,7 @@ export function createAgent({ store, config, raw, render, onAction }) {
         + 'Operations: set_home{name,outdoorTemp,wallHeight}, add_floor{id,name,wallHeight,below}, update_floor{id,name,wallHeight}, '
         + 'add_room{id,name,rect,floor,level}, update_room{id,name,rect,floor}, remove_room{id}, '
         + 'furnish_room{room,items[]}, add_furniture{item|items[]}, update_furniture{index,set{}}, remove_furniture{index}, '
-        + 'add_opening{type,from,to,sill,head,level}, remove_opening{index}, add_light{id,name,room,type,outlet,pos,capabilities,y,rot,length,color} (outlet: true for a smart plug shown as a wall socket), '
+        + 'add_opening{type,from,to,sill,head,sash,frosted,panes,level}, remove_opening{index}, add_light{id,name,room,type,outlet,pos,capabilities,y,rot,length,color} (outlet: true for a smart plug shown as a wall socket), '
         + 'update_light{id,set{}}, remove_light{id}, add_ac{id,name,room,wall,pos,y,min,max}, update_ac{id,set{}}, remove_ac{id}, '
         + 'add_scene{id,name,icon,lights{},acs{}}, update_scene{id,set{}}, remove_scene{id}. '
         + 'Indexes are those from get_floor_plan, before this edit.',
@@ -393,6 +393,11 @@ export function createAgent({ store, config, raw, render, onAction }) {
                 set: { type: 'object', description: 'Fields to change' },
                 type: { type: 'string', description: `opening: door, window, open; light: ${LIGHT_KINDS.join(', ')}` },
                 from: { type: 'array', items: { type: 'number' } }, to: { type: 'array', items: { type: 'number' } },
+                sill: { type: 'number', description: 'add_opening (window): bottom height, metres' },
+                head: { type: 'number', description: 'add_opening (window or door): top height, metres (adds a wall lintel above a door)' },
+                sash: { type: 'string', enum: WINDOW_SASHES, description: 'add_opening (window): window style' },
+                frosted: { type: 'boolean', description: 'add_opening (window): frosted privacy glass' },
+                panes: { type: 'integer', enum: [1, 2], description: 'add_opening (fixed window): number of panes (1 or 2)' },
                 pos: { type: 'array', items: { type: 'number' } },
                 wall: { type: 'string', enum: WALLS },
                 capabilities: { type: 'array', items: { type: 'string', enum: ['brightness', 'temp', 'color'] } },
@@ -696,7 +701,7 @@ const PLAN_RULES = `Floor plan rules:
 - Furniture: "type", "pos" [x, z] = centre of the piece, "rot" in degrees. At rot 0 a piece's back is to the north and its front faces south (+z);
   rot 90 faces east, -90 faces west, 180 faces north. A sofa against the east wall facing a TV on the west wall: sofa rot -90, TV rot 90.
   "width" is the size along its front; depth comes from the type. Keep pieces inside their room, about 5 cm off the walls.
-- Openings: doors, windows and open gaps sit on walls, given by two end points "from"/"to" on that wall line.
+- Openings: doors, windows and open gaps sit on walls, given by two end points "from"/"to" on that wall line. Windows take optional "sill"/"head", "sash" (fixed, casement, upperSliding), "frosted" (boolean), and "panes" (1 or 2 for fixed); doors take an optional "head" to add an upper lintel wall.
 - Lights: "type" ceiling, pendant, spots, floor, table or strip; "capabilities" any of brightness, temp, color (none = plain switch).
 - Air conditioners hang on a wall: "wall" north/south/east/west and "pos" on that wall line.
 - Devices marked "linked": true are real hardware: keep their ids, do not remove them.

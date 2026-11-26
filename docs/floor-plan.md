@@ -120,7 +120,10 @@ A gap in a wall, given by its two end points on that wall. It must be horizontal
 | --- | --- |
 | `type` | `door`, `window`, or `open` (a doorway without a door, or a missing piece of wall) |
 | `from`, `to` | `[x, z]` end points |
-| `sill`, `head` | Bottom and top of a window. Defaults `0.85` and `2.1` |
+| `sill`, `head` | Bottom and top of a window (defaults `0.85` and `2.1`). On a `door`, an explicit `head` below the wall height adds an upper lintel wall; omit it for a full-height doorway |
+| `sash` | Windows only: `fixed` (default), `casement` (recessed inner sash with lever handle and hinges), or `upperSliding` (lower fixed pane with an upper sliding sash and lift) |
+| `frosted` | Windows only: `true` for frosted privacy glass (default `false`) |
+| `panes` | Fixed windows only: `1` or `2` (controls the vertical center mullion; by default windows wider than 1.2 m get two panes) |
 | `level` | Its floor, on a home with [several](#levels-floors) |
 
 ## `furniture`

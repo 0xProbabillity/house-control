@@ -31,6 +31,7 @@ export const SERVICES = {
   homekit: { name: 'Apple Home', short: 'Apple Home' },
 };
 export const FLOOR_KINDS = ['oak', 'walnut', 'tile', 'stone'];
+export const WINDOW_SASHES = ['fixed', 'casement', 'upperSliding'];
 
 /** Where an outlet at `pos` sits: on the nearest wall of `room`, facing into it. `rot` turns
  *  the model's front (+z) into the room; `inset` is half the wall's thickness, so the plate
@@ -153,7 +154,17 @@ export function normalize(raw) {
     need(isPoint(o.from) && isPoint(o.to), t('Opening #{n} needs "from" and "to" points', { n: i + 1 }));
     need(o.from[0] === o.to[0] || o.from[1] === o.to[1], t('Opening #{n} must be axis-aligned', { n: i + 1 }));
     const level = levelOf(o, (floor) => t('Opening #{n} is on unknown floor "{floor}"', { n: i + 1, floor }));
-    return { type: o.type || 'door', from: o.from, to: o.to, sill: o.sill ?? 0.85, head: o.head ?? 2.1, level };
+    return {
+      type: o.type || 'door',
+      from: o.from,
+      to: o.to,
+      sill: o.sill ?? 0.85,
+      head: o.head ?? (o.type === 'window' ? 2.1 : undefined),
+      sash: WINDOW_SASHES.includes(o.sash) ? o.sash : 'fixed',
+      frosted: Boolean(o.frosted),
+      panes: o.panes,
+      level,
+    };
   });
 
   // An outlet ("outlet": true) is a lamp that looks like a wall socket: on/off only, drawn on

@@ -1,6 +1,6 @@
 // Edits to the floor plan an AI asks for: small, checked operations on the plan as it is
 // written on disk. Nothing here touches the page, so it runs (and is tested) under Node too.
-import { normalize, LIGHT_KINDS, FLOOR_KINDS, LINK_FIELDS, isLinked, levelsOf } from '../config.js';
+import { normalize, LIGHT_KINDS, FLOOR_KINDS, WINDOW_SASHES, LINK_FIELDS, isLinked, levelsOf } from '../config.js';
 import { FURNITURE_TYPES, footprint } from '../three/furniture.js';
 
 export const SCENE_ICONS = ['sun', 'sofa', 'film', 'moon', 'door', 'bed', 'tv', 'sparkles'];
@@ -231,7 +231,28 @@ export function applyOperations(raw, operations) {
         if (op.from[0] !== op.to[0] && op.from[1] !== op.to[1]) fail(`${where}: an opening must be horizontal or vertical`);
         const o = { type, from: op.from.map(round), to: op.to.map(round) };
         if (op.level != null) o.level = String(op.level);
-        if (type === 'window') { if (isNum(op.sill)) o.sill = op.sill; if (isNum(op.head)) o.head = op.head; }
+        if (op.head != null) {
+          if (!(isNum(op.head) && op.head > 0)) fail(`${where}: "head" must be a positive height in metres`);
+          if (type === 'window' || type === 'door') o.head = op.head;
+        }
+        if (type === 'window') {
+          if (op.sill != null) {
+            if (!(isNum(op.sill) && op.sill >= 0)) fail(`${where}: "sill" must be a height in metres`);
+            o.sill = op.sill;
+          }
+          if (op.sash != null) {
+            if (!WINDOW_SASHES.includes(op.sash)) fail(`${where}: "sash" must be one of ${WINDOW_SASHES.join(', ')}`);
+            if (op.sash !== 'fixed') o.sash = op.sash;
+          }
+          if (op.frosted != null) {
+            if (typeof op.frosted !== 'boolean') fail(`${where}: "frosted" must be a boolean`);
+            if (op.frosted) o.frosted = true;
+          }
+          if (op.panes != null) {
+            if (op.panes !== 1 && op.panes !== 2) fail(`${where}: "panes" must be 1 or 2`);
+            o.panes = op.panes;
+          }
+        }
         plan.openings.push(o);
         changes.push(`added a ${type}`);
         break;
@@ -322,6 +343,12 @@ export function check(plan) {
     fail(error.message);
   }
   const warnings = [];
+  (plan.openings || []).forEach((o, i) => {
+    if (o.sash != null && !WINDOW_SASHES.includes(o.sash)) fail(`Opening #${i} has unknown sash "${o.sash}" (use ${WINDOW_SASHES.join(', ')})`);
+    if (o.frosted != null && typeof o.frosted !== 'boolean') fail(`Opening #${i} "frosted" must be a boolean`);
+    if (o.panes != null && o.panes !== 1 && o.panes !== 2) fail(`Opening #${i} "panes" must be 1 or 2`);
+    if (o.head != null && !(isNum(o.head) && o.head > 0)) fail(`Opening #${i} "head" must be a positive height in metres`);
+  });
   plan.furniture.forEach((f, i) => {
     if (!FURNITURE_TYPES.includes(f.type)) fail(`Furniture #${i} has unknown type "${f.type}"`);
     if (!roomAt(plan, f.pos, levelOf(plan, f))) warnings.push(`furniture #${i} (${f.type}) stands outside every room of its floor`);
