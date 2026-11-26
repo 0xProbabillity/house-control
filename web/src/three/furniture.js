@@ -291,16 +291,16 @@ const builders = {
     );
   },
 
-  wardrobe({ width = 1.6, height = 2.1 }) {
+  wardrobe({ width = 1.6, height = 2.1, color }) {
     return group(
-      at(box(width, height, 0.6, mat(WHITE, { rough: 0.6 }), { r: 0.015 }), 0, 0, 0),
+      at(box(width, height, 0.6, mat(color ?? WHITE, { rough: 0.6 }), { r: 0.015 }), 0, 0, 0),
       ...doorLines(width, height - 0.08, 0.04, 0.3, Math.max(2, Math.round(width / 0.55)), mat('#b9b6ae')),
     );
   },
 
-  bookshelf({ width = 1.0, height = 1.8 }) {
+  bookshelf({ width = 1.0, height = 1.8, color }) {
     const rand = rng(Math.round(width * 100 + height * 7));
-    const wood = mat(WOOD, { rough: 0.6 });
+    const wood = mat(color ?? WOOD, { rough: 0.6 });
     const g = group(at(box(width, height, 0.04, wood, { r: 0 }), 0, 0, -0.14));
     for (const sx of [-1, 1]) g.add(at(box(0.03, height, 0.32, wood, { r: 0 }), sx * (width / 2 - 0.015), 0, 0));
     const shelves = Math.round(height / 0.38);

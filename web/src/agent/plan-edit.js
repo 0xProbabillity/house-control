@@ -367,8 +367,8 @@ export const FURNITURE_GUIDE = {
   bathtub: 'bathtub',
   toilet: 'toilet',
   desk: 'desk; option width',
-  wardrobe: 'wardrobe; options width, height',
-  bookshelf: 'open bookshelf with books; options width, height',
+  wardrobe: 'wardrobe; options width, height, color (cabinet)',
+  bookshelf: 'open bookshelf with books; options width, height, color (shelves and frame)',
   stairs: 'straight stairs up to the floor above, climbing towards the back (north at rot 0); options width, depth (its length)',
 };
 
