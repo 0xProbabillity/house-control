@@ -127,6 +127,23 @@ const fixtures = {
     };
   },
 
+  // A wall socket with a smart plug in it; its ring glows while it is switched on. Exaggerated
+  // in size, so it reads in a view of the whole home. Mounted by LightUnit (cfg.mount).
+  outlet(cfg) {
+    const y = cfg.y ?? 0.13;
+    const plate = mat('#d8dbe2', { rough: 0.45 });
+    const body = cyl(0.062, 0.066, 0.06, mat('#eceef2', { rough: 0.35 }), 32);
+    body.rotation.x = Math.PI / 2;
+    const ring = cyl(0.045, 0.045, 0.01, glowMaterial(), 32);
+    ring.rotation.x = Math.PI / 2;
+    return {
+      parts: [at(box(0.16, 0.16, 0.016, plate, { r: 0.02 }), 0, y - 0.08, 0.008), at(body, 0, y, 0.046)],
+      glow: [at(ring, 0, y, 0.078)],
+      lights: [point(cfg.intensity ?? 0.08, y, { shadow: false, distance: 0.9, z: 0.16 })],
+      hit: [0.45, 0.45, 0.4, y],
+    };
+  },
+
   strip(cfg) {
     const y = cfg.y ?? 1;
     const length = cfg.length ?? 1;
@@ -151,11 +168,12 @@ export class LightUnit {
   constructor(cfg, H) {
     this.cfg = cfg;
     this.id = cfg.id;
-    const f = fixtures[cfg.type](cfg, H);
+    const f = fixtures[cfg.outlet ? 'outlet' : cfg.type](cfg, H);
+    const [x, z] = cfg.mount?.pos ?? cfg.pos;
 
     this.group = new THREE.Group();
-    this.group.position.set(cfg.pos[0], 0, cfg.pos[1]);
-    this.group.rotation.y = THREE.MathUtils.degToRad(cfg.rot || 0);
+    this.group.position.set(x, 0, z);
+    this.group.rotation.y = THREE.MathUtils.degToRad(cfg.mount?.rot ?? cfg.rot ?? 0);
 
     this.model = new THREE.Group();
     this.pivotY = f.hit[3];
@@ -201,7 +219,9 @@ export class LightUnit {
   apply(state, { instant = false, delay = 0 } = {}) {
     const dimmable = this.cfg.capabilities.includes('brightness');
     this.goal = state.on ? (dimmable ? state.brightness : 1) : 0;
-    lightColor(state, this.goalColor);
+    // An outlet's ring shows that it is on, not the colour of what is plugged in.
+    if (this.cfg.outlet) this.goalColor.set('#62f0a2');
+    else lightColor(state, this.goalColor);
     this.delay = delay;
     if (instant) {
       this.level = this.goal;

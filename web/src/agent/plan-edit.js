@@ -6,7 +6,7 @@ import { FURNITURE_TYPES, footprint } from '../three/furniture.js';
 export const SCENE_ICONS = ['sun', 'sofa', 'film', 'moon', 'door', 'bed', 'tv', 'sparkles'];
 export const WALLS = ['north', 'south', 'east', 'west'];
 const FURNITURE_KEYS = ['type', 'pos', 'rot', 'width', 'height', 'depth', 'size', 'color', 'chairs', 'stools', 'upper', 'level'];
-const LIGHT_KEYS = ['id', 'name', 'room', 'type', 'pos', 'y', 'rot', 'length', 'capabilities', 'color'];
+const LIGHT_KEYS = ['id', 'name', 'room', 'type', 'outlet', 'pos', 'y', 'rot', 'length', 'capabilities', 'color'];
 const AC_KEYS = ['id', 'name', 'room', 'wall', 'pos', 'y', 'min', 'max'];
 
 export class PlanEditError extends Error {}

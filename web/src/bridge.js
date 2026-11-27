@@ -9,6 +9,8 @@ export const isNative = Boolean(handler);
 export const platform = window.__HOUSE_BOOT__?.platform
   || new URLSearchParams(location.search).get('platform') || (handler ? 'macos' : 'web');
 export const isPhone = platform === 'ios';
+// 'pad' on an iPad (or ?idiom=pad in a browser): the same touch layout, given more room.
+export const isPad = isPhone && (window.__HOUSE_BOOT__?.device || new URLSearchParams(location.search).get('idiom')) === 'pad';
 
 export function post(type, payload = {}) {
   handler?.postMessage({ type, ...payload });

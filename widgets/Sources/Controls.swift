@@ -111,9 +111,9 @@ struct LightControl: ControlWidget {
 
     var body: some ControlWidgetConfiguration {
         AppIntentControlConfiguration(kind: Self.kind, provider: Provider()) { value in
-            ControlWidgetToggle(value.light?.name ?? "Light", isOn: value.isOn,
+            ControlWidgetToggle(value.light?.name ?? String(localized: "Light", comment: "A lamp (noun)"), isOn: value.isOn,
                                 action: value.light.map(SetLightIntent.init(light:)) ?? SetLightIntent()) { on in
-                Label(on ? "On" : "Off", systemImage: on ? "lightbulb.fill" : "lightbulb")
+                Label(on ? Words.lightOn : Words.lightOff, systemImage: on ? "lightbulb.fill" : "lightbulb")
             }
             .tint(.orange)
         }
@@ -135,7 +135,7 @@ struct AllLightsControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: Self.kind, provider: Provider()) { isOn in
             ControlWidgetToggle("All Lights", isOn: isOn, action: SetAllLightsIntent()) { on in
-                Label(on ? "On" : "Off", systemImage: on ? "lightbulb.2.fill" : "lightbulb.2")
+                Label(on ? Words.lightsOn : Words.lightsOff, systemImage: on ? "lightbulb.2.fill" : "lightbulb.2")
             }
             .tint(.orange)
         }
@@ -156,22 +156,22 @@ struct ClimateControl: ControlWidget {
 
     struct Provider: AppIntentControlValueProvider {
         func previewValue(configuration: ClimateControlConfiguration) -> Value {
-            Value(ac: configuration.ac, isOn: true, label: "Cool 23°")
+            Value(ac: configuration.ac, isOn: true, label: "\(HomeSnapshot.AC.modeName("cool")) 23°")
         }
 
         func currentValue(configuration: ClimateControlConfiguration) async throws -> Value {
             let home = HomeData.orSample
             let ac = (configuration.ac?.id ?? home.acs.first?.id).flatMap(home.ac)
             return Value(ac: configuration.ac ?? ac.map { ACEntity($0, in: home) }, isOn: ac?.on ?? false,
-                         label: ac.map { $0.on ? "\($0.modeName) \($0.targetText)" : "Off" } ?? "Off")
+                         label: ac.map { $0.on ? "\($0.modeName) \($0.targetText)" : Words.acOff } ?? Words.acOff)
         }
     }
 
     var body: some ControlWidgetConfiguration {
         AppIntentControlConfiguration(kind: Self.kind, provider: Provider()) { value in
-            ControlWidgetToggle(value.ac?.name ?? "Air Conditioner", isOn: value.isOn,
+            ControlWidgetToggle(value.ac?.name ?? String(localized: "Air Conditioner"), isOn: value.isOn,
                                 action: value.ac.map(SetClimateIntent.init(ac:)) ?? SetClimateIntent()) { on in
-                Label(on ? value.label : "Off", systemImage: on ? "snowflake" : "air.conditioner.horizontal")
+                Label(on ? value.label : Words.acOff, systemImage: on ? "snowflake" : "air.conditioner.horizontal")
             }
             .tint(.cyan)
         }
@@ -188,7 +188,7 @@ struct SceneControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         AppIntentControlConfiguration(kind: Self.kind, intent: SceneControlConfiguration.self) { configuration in
             ControlWidgetButton(action: configuration.scene.map(RunSceneIntent.init(scene:)) ?? RunSceneIntent()) {
-                Label(configuration.scene?.name ?? "Scene", systemImage: configuration.scene?.symbol ?? "sparkles")
+                Label(configuration.scene?.name ?? String(localized: "Scene", comment: "A lighting scene (noun)"), systemImage: configuration.scene?.symbol ?? "sparkles")
             }
         }
         .displayName("Scene")
@@ -227,15 +227,16 @@ struct OpenAppControl: ControlWidget {
         private func value(_ screen: AppScreen, home: HomeSnapshot?) -> Value {
             switch screen {
             case .home:
-                guard let home else { return Value(screen: screen, status: "Open", lit: false) }
+                guard let home else { return Value(screen: screen, status: String(localized: "Open", comment: "Control Center: under House Control before the app has run; opens it"), lit: false) }
                 // Short enough for the wide tile: "6 on · AC 23°", "2 lights on", "Lights off".
                 let ac = home.acsOn.first
-                let lights = home.lightsOn == 0 ? "Lights off"
-                    : ac == nil ? "\(home.lightsOn) \(home.lightsOn == 1 ? "light" : "lights") on" : "\(home.lightsOn) on"
-                let status = ac.map { "\(lights) · AC \($0.targetText)" } ?? lights
+                let lights = home.lightsOn == 0 ? String(localized: "Lights off", comment: "Control Center: every lamp is off; short")
+                    : ac == nil ? String(localized: "\(home.lightsOn) lights on", comment: "Control Center: how many lamps are on; short")
+                    : String(localized: "\(home.lightsOn) on", comment: "Control Center: how many lamps are on, before the AC's set-point (“6 on · AC 23°”); very short")
+                let status = ac.map { lights + " · " + String(localized: "AC \($0.targetText)", comment: "Control Center: the air conditioner's set-point, e.g. “AC 23°”; very short") } ?? lights
                 return Value(screen: screen, status: status, lit: home.lightsOn > 0 || ac != nil)
-            case .editor: return Value(screen: screen, status: "Floor Plan", lit: false)
-            case .settings: return Value(screen: screen, status: "Settings", lit: false)
+            case .editor: return Value(screen: screen, status: String(localized: "Floor Plan", comment: "The floor plan editor"), lit: false)
+            case .settings: return Value(screen: screen, status: String(localized: "Settings"), lit: false)
             }
         }
     }
@@ -244,7 +245,7 @@ struct OpenAppControl: ControlWidget {
         AppIntentControlConfiguration(kind: Self.kind, provider: Provider()) { value in
             ControlWidgetButton(action: OpenHouseControlIntent(screen: value.screen)) {
                 Label {
-                    Text("House Control")
+                    Text(verbatim: "House Control")
                     Text(value.status)
                 } icon: {
                     Image(systemName: value.screen == .home && !value.lit ? "house" : value.screen.symbol)

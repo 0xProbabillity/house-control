@@ -1,4 +1,5 @@
 import { haptic } from '../bridge.js';
+import { t } from '../i18n.js';
 
 // Minimal hyperscript helper: h('div.class', { onclick, style, ... }, ...children)
 export function h(spec, props, ...children) {
@@ -23,7 +24,63 @@ export function h(spec, props, ...children) {
   return el;
 }
 
+/**
+ * A (translated) text as children for h(): `**…**` around the parts drawn in bold, and
+ * `{name}` placeholders filled with the nodes in `nodes` (an <em> example, say):
+ *   richText(t('Add what you want: {example}.'), { example: h('em', t('“dim the lights”')) })
+ */
+export function richText(text, nodes = {}) {
+  const out = [];
+  String(text).split(/\*\*(.+?)\*\*/).forEach((piece, i) => {
+    if (i % 2) { out.push(h('b', piece)); return; }
+    piece.split(/\{(\w+)\}/).forEach((bit, j) => {
+      if (j % 2) out.push(bit in nodes ? nodes[bit] : `{${bit}}`);
+      else if (bit) out.push(bit);
+    });
+  });
+  return out;
+}
+
 export const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+// A slider or the colour pad on a sheet that scrolls (style.css gives them `touch-action: pan-y`
+// there): a touch decides what it is by its first few pixels. Up or down first, it is the sheet
+// being scrolled, and the browser takes it (pointercancel) without the value changing; sideways
+// first, it drags the value; a tap sets it where it landed. Anywhere else (a mouse, a sheet that
+// fits) a touch takes the value at once, as before.
+const DECIDE_PX = 8;
+function dragGesture(el, { start, move, end }) {
+  let g = null;
+  const take = (ev) => { g.taken = true; try { el.setPointerCapture(ev.pointerId); } catch { /* a nicety */ } start(ev); };
+  el.addEventListener('pointerdown', (ev) => {
+    if (ev.button !== 0 && ev.pointerType === 'mouse') return;
+    const waits = ev.pointerType === 'touch' && getComputedStyle(el).touchAction.includes('pan-y');
+    g = { id: ev.pointerId, x: ev.clientX, y: ev.clientY, taken: false };
+    if (!waits) take(ev);
+  });
+  el.addEventListener('pointermove', (ev) => {
+    if (!g || ev.pointerId !== g.id) return;
+    if (g.taken) { move(ev); return; }
+    const dx = Math.abs(ev.clientX - g.x);
+    const dy = Math.abs(ev.clientY - g.y);
+    if (Math.max(dx, dy) < DECIDE_PX) return;
+    if (dx > dy) { take(ev); move(ev); } else g = null; // a scroll: the value is left alone
+  });
+  el.addEventListener('pointerup', (ev) => {
+    if (!g || ev.pointerId !== g.id) return;
+    if (!g.taken) start(ev); // a tap
+    g = null;
+    end();
+  });
+  el.addEventListener('pointercancel', (ev) => {
+    if (!g || ev.pointerId !== g.id) return;
+    const { taken } = g;
+    g = null;
+    if (taken) end();
+  });
+  // Once the value has the touch, the sheet must not start scrolling under it.
+  el.addEventListener('touchmove', (ev) => { if (g?.taken && ev.cancelable) ev.preventDefault(); }, { passive: false });
+}
 
 // Horizontal slider with a gradient fill that reveals under a chunky thumb.
 // `detent` is how far the value travels between two haptic ticks on a phone.
@@ -56,20 +113,15 @@ export function createSlider({ min, max, step = 1, value, gradient, compact = fa
     return clamp(Math.round(raw / step) * step, min, max);
   };
 
-  track.addEventListener('pointerdown', (ev) => {
-    track.setPointerCapture(ev.pointerId);
-    el.classList.add('dragging');
+  const follow = (ev) => {
     const next = fromEvent(ev);
     if (next !== current) input(next);
+  };
+  dragGesture(track, {
+    start: (ev) => { el.classList.add('dragging'); follow(ev); },
+    move: follow,
+    end: () => el.classList.remove('dragging'),
   });
-  track.addEventListener('pointermove', (ev) => {
-    if (!el.classList.contains('dragging')) return;
-    const next = fromEvent(ev);
-    if (next !== current) input(next);
-  });
-  const end = () => el.classList.remove('dragging');
-  track.addEventListener('pointerup', end);
-  track.addEventListener('pointercancel', end);
 
   paint();
   return {
@@ -79,8 +131,9 @@ export function createSlider({ min, max, step = 1, value, gradient, compact = fa
 }
 
 // Popup menu anchored to an element, opening upwards (the tiles sit at the bottom of the card).
-export function openMenu(host, anchor, items, { onClose } = {}) {
-  const menu = h('div.menu');
+export function openMenu(host, anchor, items, { onClose, title } = {}) {
+  const menu = h('div.menu', { role: 'menu' });
+  if (title) menu.append(h('div.menu-title', title));
   let closed = false;
   const close = () => {
     if (closed) return;
@@ -158,7 +211,7 @@ const PAD_MIN_SAT = 0.12;
 
 export function createColorPad({ value, onInput }) {
   const thumb = h('div.pad-thumb');
-  const el = h('div.pad', { role: 'slider', tabindex: 0, 'aria-label': 'Colour' }, thumb);
+  const el = h('div.pad', { role: 'slider', tabindex: 0, 'aria-label': t('Colour') }, thumb);
   let dragging = false;
 
   const place = (x, y, hex) => {
@@ -181,16 +234,11 @@ export function createColorPad({ value, onInput }) {
     onInput(hex);
   };
 
-  el.addEventListener('pointerdown', (ev) => {
-    try { el.setPointerCapture(ev.pointerId); } catch { /* capture is a nicety, not a requirement */ }
-    dragging = true;
-    el.classList.add('dragging');
-    pick(ev);
+  dragGesture(el, {
+    start: (ev) => { dragging = true; el.classList.add('dragging'); pick(ev); },
+    move: pick,
+    end: () => { dragging = false; el.classList.remove('dragging'); },
   });
-  el.addEventListener('pointermove', (ev) => { if (dragging) pick(ev); });
-  const end = () => { dragging = false; el.classList.remove('dragging'); };
-  el.addEventListener('pointerup', end);
-  el.addEventListener('pointercancel', end);
   el.addEventListener('keydown', (ev) => {
     const step = { ArrowLeft: [-0.02, 0], ArrowRight: [0.02, 0], ArrowUp: [0, -0.05], ArrowDown: [0, 0.05] }[ev.key];
     if (!step) return;

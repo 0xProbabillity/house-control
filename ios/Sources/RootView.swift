@@ -29,13 +29,23 @@ struct RootView: View {
         .alert("Which home do you keep?", isPresented: Binding(get: { model.planChoice != nil && !model.showEditor },
                                                                set: { if !$0, model.planChoice != nil { model.planChoice = nil } }),
                presenting: model.planChoice) { choice in
-            Button("Keep this iPhone’s") { model.resolvePlanChoice(keepPhone: true) }
-            Button("Keep \(choice.macName)’s") { model.resolvePlanChoice(keepPhone: false) }
+            Button(Device.isPad ? String(localized: "Keep this iPad’s", comment: "Alert button: keep the floor plan of this device")
+                   : String(localized: "Keep this iPhone’s", comment: "Alert button: keep the floor plan of this device")) {
+                model.resolvePlanChoice(keepPhone: true)
+            }
+            Button(String(localized: "Keep \(choice.macName)’s", comment: "Alert button: keep the floor plan of the paired computer; the placeholder is its name")) {
+                model.resolvePlanChoice(keepPhone: false)
+            }
             Button("Decide later", role: .cancel) {}
         } message: { choice in
             Text(choice.macPlanName == choice.phonePlanName
-                 ? "“\(choice.phonePlanName)” was changed both here and on \(choice.macName) since they last synced. The one you keep replaces the other on both."
-                 : "This iPhone has “\(choice.phonePlanName)”, \(choice.macName) has “\(choice.macPlanName)”. The one you keep replaces the other on both.")
+                 ? String(localized: "“\(choice.phonePlanName)” was changed both here and on \(choice.macName) since they last synced. The one you keep replaces the other on both.",
+                          comment: "Alert; the placeholders are the home's name and the paired computer's name")
+                 : Device.isPad
+                 ? String(localized: "This iPad has “\(choice.phonePlanName)”, \(choice.macName) has “\(choice.macPlanName)”. The one you keep replaces the other on both.",
+                          comment: "Alert; the placeholders are this device's home, the paired computer's name and its home")
+                 : String(localized: "This iPhone has “\(choice.phonePlanName)”, \(choice.macName) has “\(choice.macPlanName)”. The one you keep replaces the other on both.",
+                          comment: "Alert; the placeholders are this device's home, the paired computer's name and its home"))
         }
         .onOpenURL { model.open($0) }
         .preferredColorScheme(.dark)

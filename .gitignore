@@ -42,3 +42,7 @@ widgets/Config/Info-*.plist
 widgets/Config/*.entitlements
 widgets/build/
 widgets/.build/
+
+# Claude Code worktrees, and translation work files before they are merged
+.claude/worktrees/
+tools/l10n/work/

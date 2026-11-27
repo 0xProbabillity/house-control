@@ -18,10 +18,21 @@ function defaultAC(cfg, outdoor) {
     sleep: false, eco: false, roomTemp: Math.min(outdoor - 2, 27),
     // On but not running right now (a real thermostat says so); never sent to a device.
     idle: false,
+    // When the auto-off timer switches it off (ms since 1970), or null. Kept here, never sent
+    // to a device: the panel's own clock runs it (see `timers` below).
+    timerEnd: null,
   };
 }
 
-export function createStore(config) {
+// The auto-off timer's choices in minutes, and how late a timer may still fire after the app
+// was away (asleep, or closed): an AC switched on again by hand since is better left alone.
+export const AC_TIMER_STEPS = [30, 60, 120, 180, 240, 360, 480];
+export const AC_TIMER_MAX = 12 * 60;
+const TIMER_GRACE = 6 * 3600 * 1000;
+
+// `timers`: this view runs the AC auto-off timers. Only one view of a home may (the panel; the
+// Mac's island shares its state and would switch the AC off a second time).
+export function createStore(config, { timers = true } = {}) {
   const listeners = new Set();
   const lightCfg = new Map(config.lights.map((l) => [l.id, l]));
   const acCfg = new Map(config.acs.map((a) => [a.id, a]));
@@ -62,8 +73,15 @@ export function createStore(config) {
       // The native shell passes this on to its other views of the same home (the panel
       // and the island each run their own store), which adopt it without re-sending.
       if (!change.adopted) post('state', { lights: state.lights, acs: state.acs, scene: state.scene, source: change.source ?? store.source ?? null });
+      // The iPhone app schedules a reminder for each running timer: it cannot run while away.
+      if (timers) {
+        const list = store.timers();
+        const key = list.map((x) => `${x.id}@${x.end}`).join();
+        if (key !== postedTimers) { postedTimers = key; post('timers', { timers: list }); }
+      }
     }
   }
+  let postedTimers = '';
 
   // One command per device is in flight at a time. Whatever changes meanwhile is merged
   // into a single follow-up, so dragging a slider costs a couple of requests (or infrared
@@ -152,11 +170,14 @@ export function createStore(config) {
     if ('target' in clean) clean.target = clamp(Math.round(clean.target), cfg.min, cfg.max);
     // Switched on here: running until the thermostat says otherwise at the next poll.
     if (!remote && clean.on === true && !cur.on) clean.idle = false;
+    // Off, however it happened, ends the timer.
+    if (clean.on === false || (!('on' in clean) && !cur.on && clean.timerEnd)) clean.timerEnd = null;
+    if (clean.timerEnd != null) clean.timerEnd = Number(clean.timerEnd) || null;
     const diff = Object.fromEntries(Object.entries(clean).filter(([k, v]) => cur[k] !== v));
     if (!Object.keys(diff).length) return false;
     const before = Object.fromEntries(Object.keys(diff).map((k) => [k, cur[k]]));
     Object.assign(cur, clean);
-    const { roomTemp, idle, ...sendable } = diff;
+    const { roomTemp, idle, timerEnd, ...sendable } = diff;
     if (!remote && Object.keys(sendable).length) dispatch('ac', id, sendable, before);
     return true;
   }
@@ -212,6 +233,27 @@ export function createStore(config) {
 
     setAC(id, patch) {
       if (writeAC(id, patch)) emit({ type: 'ac', id });
+    },
+
+    /** Minutes until this AC's timer switches it off (rounded up), or 0 without one. */
+    timerLeft(id, now = Date.now()) {
+      const a = state.acs[id];
+      if (!a?.on || !a.timerEnd || a.timerEnd <= now) return 0;
+      return Math.ceil((a.timerEnd - now) / 60000);
+    },
+
+    /** Switches this AC off in `minutes` (it is switched on if it was off); 0 cancels the timer. */
+    setTimer(id, minutes) {
+      const m = clamp(Math.round(Number(minutes) || 0), 0, AC_TIMER_MAX);
+      if (!m) { store.setAC(id, { timerEnd: null }); return; }
+      store.setAC(id, { on: true, timerEnd: Date.now() + m * 60000 });
+    },
+
+    /** Every running timer, for the native side (an iPhone tells the person when one runs out). */
+    timers() {
+      return Object.entries(state.acs)
+        .filter(([, a]) => a.on && a.timerEnd)
+        .map(([id, a]) => ({ id, name: acCfg.get(id)?.name || id, end: a.timerEnd, state: { ...a, on: false } }));
     },
 
     /** True while a scene is in force: an on/off scene while any lamp it turns on is lit. */
@@ -273,6 +315,30 @@ export function createStore(config) {
       if (any) emit({ type: 'bulk', remote: true });
     },
   };
+
+  // The auto-off timers, checked every second. A timer that ran out while the app was away
+  // fires as soon as it is back (up to TIMER_GRACE late). The panel shows minutes, so it is
+  // only told when a minute ticks over.
+  let shownMinutes = '';
+  if (timers) setInterval(() => {
+    const now = Date.now();
+    for (const [id, a] of Object.entries(state.acs)) {
+      if (!a.timerEnd || a.timerEnd > now) continue;
+      if (a.on && now - a.timerEnd < TIMER_GRACE) {
+        const before = store.source;
+        store.source = 'Timer';
+        try { store.setAC(id, { on: false }); } finally { store.source = before; }
+        store.onTimerFired?.(id);
+      } else {
+        store.setAC(id, { timerEnd: null });
+      }
+    }
+    const minutes = Object.keys(state.acs).map((id) => store.timerLeft(id, now)).join();
+    if (minutes !== shownMinutes) {
+      shownMinutes = minutes;
+      for (const fn of listeners) fn({ type: 'tick' });
+    }
+  }, 1000);
 
   // Without real sensors the room temperature is simulated: it drifts towards the
   // set-point while an AC runs and back towards the outdoor-ish ambient when it is off.

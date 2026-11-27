@@ -100,7 +100,7 @@ curl -X POST https://….trycloudflare.com/<key>/api/set_lights -d '{"lights": [
 | --- | --- |
 | `get_home` | Every room with its lights and ACs, what each can do and what it is doing, and the scenes |
 | `set_lights` | On, off, toggle, brightness (%), white temperature (K), colour — for ids, whole rooms, names or `all` |
-| `set_air_conditioners` | On, off, target temperature, mode, fan speed |
+| `set_air_conditioners` | On, off, target temperature, mode, fan speed, and a timer that switches it off by itself |
 | `activate_scene` | Runs a scene |
 | `get_floor_plan` | The plan behind the 3D model, the coordinate rules and the furniture catalogue |
 | `edit_floor_plan` | A list of operations applied together: `furnish_room` (replace everything in a room — the photo case), add / update / remove rooms, furniture, doors and windows, lights, ACs and scenes |

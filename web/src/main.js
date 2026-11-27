@@ -6,19 +6,21 @@ import { createAgent } from './agent/tools.js';
 import { h, openMenu } from './ui/dom.js';
 import { phoneLayout, sameLayout } from './ui/layout.js';
 import { icon } from './ui/icons.js';
-import { isNative, isPhone, post, incoming, haptic } from './bridge.js';
+import { isNative, isPhone, isPad, post, incoming, haptic } from './bridge.js';
 import { publishWidgets, runWidgetAction } from './widgets.js';
+import { t } from './i18n.js';
 
 const DEMO_PLANS = [
-  { id: 'home', name: 'Demo · Apartment' },
-  { id: 'studio', name: 'Demo · Studio' },
-  { id: 'house', name: 'Demo · House on two floors' },
+  { id: 'home', name: t('Demo · Apartment') },
+  { id: 'studio', name: t('Demo · Studio') },
+  { id: 'house', name: t('Demo · House on two floors') },
 ];
 const STAGE_INSETS = [62, 50]; // header above, panel overlap below
 
 const app = document.getElementById('app');
 if (isNative) document.documentElement.classList.add('native');
 if (isPhone) document.documentElement.classList.add('ios');
+if (isPad) document.documentElement.classList.add('ipad');
 
 // ?safeTop=62&safeBottom=34 stands in for a phone's safe areas when its layout is looked at in a browser.
 for (const edge of ['top', 'bottom']) {
@@ -37,7 +39,7 @@ function safeAreaTop() {
 function fatal(title, error) {
   console.error(error);
   app.replaceChildren(h('div.fatal', h('h1', title),
-    'The floor plan could not be loaded. Fix the file and reload, or pick another plan from the menu bar icon.',
+    t('The floor plan could not be loaded. Fix the file and reload, or pick another plan from the menu bar icon.'),
     h('code', String(error?.message || error))));
   post('ready', { error: String(error?.message || error) });
 }
@@ -49,7 +51,7 @@ async function boot() {
     raw = await loadRawConfig();
     config = normalize(structuredClone(raw));
   } catch (error) {
-    fatal('Could not open this home', error);
+    fatal(t('Could not open this home'), error);
     return;
   }
 
@@ -91,7 +93,7 @@ async function boot() {
       },
     });
   } catch (error) {
-    fatal('3D view failed to start', error);
+    fatal(t('3D view failed to start'), error);
     return;
   }
 
@@ -108,7 +110,7 @@ async function boot() {
   let wasWide = innerWidth >= 600;
   function applyLayout() {
     if (!isPhone) return;
-    const next = phoneLayout(innerWidth, innerHeight, fold);
+    const next = phoneLayout(innerWidth, innerHeight, fold, { pad: isPad });
     const wide = innerWidth >= 600;
     // Opening a Duo replays the sweep the panel plays when it appears.
     if (layout && wide && !wasWide) world.intro();
@@ -122,7 +124,7 @@ async function boot() {
       if (px == null) root.style.removeProperty(name);
       else root.style.setProperty(name, `${Math.round(px)}px`);
     }
-    if (moved) { panel.relayout(); applyInsets(); }
+    if (moved) { panel.relayout(); applyInsets(); } else panel.refit();
   }
   incoming.setFold = (rect) => { fold = rect || null; applyLayout(); };
   window.addEventListener('resize', applyLayout);
@@ -181,7 +183,7 @@ async function boot() {
   const agent = createAgent({
     store, config, raw,
     render: (room) => renderShot(config, store, room),
-    onAction: ({ client, summary }) => { if (summary) panel.toast(summary, client || 'AI'); },
+    onAction: ({ client, summary }) => { if (summary) panel.toast(summary, client || t('AI')); },
   });
   incoming.agent = async (request) => {
     store.source = request.client || 'AI'; // the other views say who made the change
@@ -197,9 +199,13 @@ async function boot() {
   let openAtLogin = window.__HOUSE_BOOT__?.openAtLogin || 'off';
   incoming.openAtLogin = (state) => { openAtLogin = state; };
 
+  store.onTimerFired = (id) => {
+    const name = store.acCfg.get(id)?.name || id;
+    panel.toast(t('{name} switched off: the timer ran out', { name }));
+  };
   store.onDeviceError = (id, message) => {
     const name = store.lightCfg.get(id)?.name || store.acCfg.get(id)?.name || id;
-    panel.toast(`${name}: ${message}`);
+    panel.toast(t('{name}: {message}', { name, message }));
     haptic('error');
   };
   // The loop pauses whenever the page is hidden; any sign of life resumes it.
@@ -220,7 +226,7 @@ async function boot() {
     }));
     if (window.__HOUSE_BOOT__?.hasCustomPlan) {
       items.unshift({
-        label: 'My home',
+        label: t('My home'),
         selected: current === 'custom',
         icon: current === 'custom' ? icon('check', 16, 2.4) : null,
         action: () => post('selectPlan', { plan: 'custom' }),
@@ -228,18 +234,18 @@ async function boot() {
     }
     if (isNative) {
       items.push('-',
-        { label: 'Edit home…', action: () => post('openEditor') },
-        { label: 'AI access…', action: () => post('openAgent') },
-        { label: 'Load floor plan…', action: () => post('loadPlan') },
-        { label: 'Reveal plan file', action: () => post('revealPlan') },
+        { label: t('Edit home…'), action: () => post('openEditor') },
+        { label: t('AI access…'), action: () => post('openAgent') },
+        { label: t('Load floor plan…'), action: () => post('loadPlan') },
+        { label: t('Reveal plan file'), action: () => post('revealPlan') },
         '-',
         {
-          label: openAtLogin === 'needsApproval' ? 'Open at login — allow in Settings…' : 'Open at login',
+          label: openAtLogin === 'needsApproval' ? t('Open at login — allow in Settings…') : t('Open at login'),
           icon: openAtLogin === 'on' ? icon('check', 16, 2.4) : null,
           action: () => post('setOpenAtLogin', { on: openAtLogin !== 'on' }),
         },
-        { label: 'Settings…', action: () => post('openSettings') },
-        { label: 'Quit House Control', action: () => post('quit') });
+        { label: t('Settings…'), action: () => post('openSettings') },
+        { label: t('Quit House Control'), action: () => post('quit') });
     }
     openMenu(panel.anchorMenu, anchor, items);
   }
@@ -257,6 +263,7 @@ async function boot() {
 
   if (!isNative) show();
   post('ready', { summary: store.summary() });
+  post('timers', { timers: store.timers() });
   if (isNative) publishWidgets(config, store);
   window.__house = { store, world, panel, config }; // handy in the dev console
 }
@@ -289,9 +296,9 @@ async function renderShot(config, store, room) {
 const mode = window.__HOUSE_BOOT__?.mode || new URLSearchParams(location.search).get('mode') || 'panel';
 if (mode === 'editor') {
   document.documentElement.classList.add('mode-editor');
-  import('./editor/editor.js').then((m) => m.bootEditor(app)).catch((e) => fatal('Editor failed to start', e));
+  import('./editor/editor.js').then((m) => m.bootEditor(app)).catch((e) => fatal(t('Editor failed to start'), e));
 } else if (mode === 'agent') {
-  import('./agent/console.js').then((m) => m.bootConsole(app)).catch((e) => fatal('AI Access failed to start', e));
+  import('./agent/console.js').then((m) => m.bootConsole(app)).catch((e) => fatal(t('AI Access failed to start'), e));
 } else if (mode === 'island') {
   document.documentElement.classList.add('mode-island');
   import('./island/island.js').then((m) => m.bootIsland(app)).catch((e) => console.error(e));

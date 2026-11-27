@@ -153,7 +153,7 @@ final class ScanController {
     func nextRoom() {
         if Self.previewing {
             roomsDone += 1
-            show("checkmark.circle.fill", "Room \(roomsDone) saved · scan the next one")
+            show("checkmark.circle.fill", String(localized: "Room \(roomsDone) saved · scan the next one", comment: "Scan: after a room is done; the placeholder is its number"))
             return
         }
         guard capturing, !switching else { return }
@@ -210,7 +210,7 @@ final class ScanController {
         process(data)
         if finishing { return }
         if wasSwitching {
-            show("checkmark.circle.fill", "Room \(rooms.count + processing) saved · scan the next one")
+            show("checkmark.circle.fill", String(localized: "Room \(rooms.count + processing) saved · scan the next one", comment: "Scan: after a room is done; the placeholder is its number"))
             // The next room starts once this one has let go of the session.
             Task { [weak self] in
                 try? await Task.sleep(nanoseconds: 350_000_000)
@@ -232,7 +232,7 @@ final class ScanController {
                 self.rooms.append(room)
                 self.roomsDone = self.rooms.count
             } else if !self.finishing {
-                self.show("exclamationmark.triangle.fill", "Too little of that room was seen to use it")
+                self.show("exclamationmark.triangle.fill", String(localized: "Too little of that room was seen to use it", comment: "Scan: a room could not be used"))
             }
             if self.finishing, self.processing == 0, self.phase == .building, self.plan == nil { self.makePlan() }
         }
@@ -254,8 +254,8 @@ final class ScanController {
         if let saveURL, let data = try? JSONEncoder().encode(scan) { try? data.write(to: saveURL, options: .atomic) }
         guard let plan = ScanLayout.plan(from: scan, name: homeName) else {
             phase = .failed(rooms.isEmpty
-                ? "No room was scanned far enough to draw. Walk along every wall of the room, pointing the camera at it, then tap Done."
-                : "The rooms scanned are too small to draw. Scan each room wall to wall.")
+                ? String(localized: "No room was scanned far enough to draw. Walk along every wall of the room, pointing the camera at it, then tap Done.", comment: "Scan: Done is the scan screen's button")
+                : String(localized: "The rooms scanned are too small to draw. Scan each room wall to wall."))
             return
         }
         self.plan = plan
@@ -265,10 +265,11 @@ final class ScanController {
 
     private static func message(for error: Error?) -> String {
         switch error as? RoomCaptureSession.CaptureError {
-        case .worldTrackingFailure: "The camera lost track of the room."
-        case .deviceTooHot: "The iPhone got too warm to scan. Let it cool down a little."
-        case .exceedSceneSizeLimit: "This room is as big as one scan can be. Tap Done, or carry on with the next room."
-        default: "Scanning paused."
+        case .worldTrackingFailure: String(localized: "The camera lost track of the room.")
+        case .deviceTooHot: Device.isPad ? String(localized: "The iPad got too warm to scan. Let it cool down a little.")
+            : String(localized: "The iPhone got too warm to scan. Let it cool down a little.")
+        case .exceedSceneSizeLimit: String(localized: "This room is as big as one scan can be. Tap Done, or carry on with the next room.", comment: "Scan: Done is the scan screen's button")
+        default: String(localized: "Scanning paused.")
         }
     }
 
@@ -277,7 +278,8 @@ final class ScanController {
         hot = state == .serious || state == .critical
         // Better a finished home than a scan the system stops halfway.
         if state == .critical, phase == .scanning, !rooms.isEmpty || capturing {
-            show("thermometer.high", "The iPhone is too warm: finishing the scan")
+            show("thermometer.high", Device.isPad ? String(localized: "The iPad is too warm: finishing the scan")
+                                                  : String(localized: "The iPhone is too warm: finishing the scan"))
             finish()
         }
     }
@@ -294,7 +296,7 @@ final class ScanController {
             return
         }
         guard phase == .scanning, capturing || switching, let overlay, let frame = session.currentFrame else {
-            if phase == .scanning { show("hand.point.up.left.fill", "Start scanning first") }
+            if phase == .scanning { show("hand.point.up.left.fill", String(localized: "Start scanning first", comment: "Scan: pinning a device before the scan has started")) }
             return
         }
         let size = overlay.bounds.size
@@ -324,7 +326,11 @@ final class ScanController {
         picking = tag
     }
 
-    static func genericName(_ kind: String) -> String { kind == "ac" ? "Air conditioner" : "Lamp" }
+    /// The name a pinned device gets until it is linked (it goes into the plan as its name).
+    static func genericName(_ kind: String) -> String {
+        kind == "ac" ? String(localized: "Air conditioner", comment: "Name of an air conditioner pinned during a scan, until it is linked")
+            : String(localized: "Lamp", comment: "Name of a lamp pinned during a scan, until it is linked")
+    }
 
     /// Sets what a pin is: a real device, or a lamp or AC to link later.
     func assign(_ id: String, kind: String, device: RealDevice?) {
@@ -527,10 +533,12 @@ private final class PinView: UIView {
         button.configuration = config
         button.titleLabel?.lineBreakMode = .byTruncatingTail
         button.menu = UIMenu(title: tag.name, children: [
-            UIAction(title: tag.device == nil ? "Choose the device…" : "Change the device…", image: UIImage(systemName: "link")) { _ in choose() },
-            UIAction(title: "Remove", image: UIImage(systemName: "trash"), attributes: .destructive) { _ in remove() },
+            UIAction(title: tag.device == nil ? String(localized: "Choose the device…", comment: "Scan: menu of a pinned device")
+                                              : String(localized: "Change the device…", comment: "Scan: menu of a pinned device"),
+                     image: UIImage(systemName: "link")) { _ in choose() },
+            UIAction(title: String(localized: "Remove", comment: "Scan: menu of a pinned device; removes the pin"), image: UIImage(systemName: "trash"), attributes: .destructive) { _ in remove() },
         ])
-        button.accessibilityLabel = "\(tag.name), pinned"
+        button.accessibilityLabel = String(localized: "\(tag.name), pinned", comment: "VoiceOver: a device pinned during a scan; the placeholder is its name")
         dot.layer.borderColor = tint.cgColor
         let fitted = button.systemLayoutSizeFitting(CGSize(width: 220, height: 60))
         let width = min(220, max(60, fitted.width))

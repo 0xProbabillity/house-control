@@ -1,7 +1,8 @@
 # Connecting real devices
 
-House Control links the lamps and air conditioners of your floor plan to real devices on four platforms.
-One home can mix them: Hue lamps, a Home Assistant air conditioner and a Smart Life plug side by side.
+House Control links the lamps, plugs and air conditioners of your floor plan to real devices on five platforms.
+One home can mix them: Hue lamps, a Home Assistant air conditioner, a Smart Life plug and a Homebridge accessory side
+by side.
 Everything you do not link stays simulated.
 
 | Platform | Mac | iPhone | How it connects | What you need |
@@ -9,15 +10,16 @@ Everything you do not link stays simulated.
 | **Smart Life / Tuya** | ✓ | ✓ | Tuya's cloud, signed in with a QR code | The Smart Life or Tuya Smart app — see [smart-life.md](smart-life.md) |
 | **Home Assistant** | ✓ | ✓ (from the Mac) | Your server's API, on your network | A long-lived access token |
 | **Philips Hue** | ✓ | ✓ (from the Mac) | The Hue Bridge's own API, on your network | Press the bridge's button once |
+| **Homebridge** | ✓ | ✓ (from the Mac) | The Homebridge UI's API, on your network | The user name and password of its web page |
 | **Apple Home** | Linking only | ✓ | HomeKit, on the iPhone | Allow access to your Home data |
 
-On the Mac all four are set up in the editor: right-click the menu bar icon → **Edit Home… → Connections**. Then
+On the Mac all five are set up in the editor: right-click the menu bar icon → **Edit Home… → Connections**. Then
 select a lamp or an AC on the plan, choose its device under **Real device**, and press **Save & apply**. Picking a
 lamp fills in what it can do (dimming, white temperature, colour); picking an AC takes over its temperature range.
 
-On the iPhone they are in **Settings**: Smart Life, Home Assistant and Philips Hue each have their own screen, and
+On the iPhone they are in **Settings**: Smart Life, Home Assistant, Philips Hue and Homebridge each have their own screen, and
 **Settings → Devices** links the plan's lamps and ACs (or adds your devices to a room, already linked). No Mac is
-needed. When a Mac is paired, the Home Assistant and Hue connections travel between the two over their encrypted
+needed. When a Mac is paired, the Home Assistant, Hue and Homebridge connections travel between the two over their encrypted
 link, in whichever direction they were set up, so there is nothing to set up twice. Smart Life signs in on each
 device separately: its session cannot be shared; Tuya renews it as it is used.
 
@@ -59,6 +61,45 @@ show up at once. No Hue account or internet connection is involved.
 The bridge's certificate is self-signed. House Control trusts it the first time and remembers its fingerprint,
 so a different device answering at that address later is refused.
 
+## Homebridge
+
+[Homebridge](https://homebridge.io) brings devices that have no HomeKit support of their own into HomeKit, through
+hundreds of plugins — Govee, Xiaomi, Nest, Sonoff, TP-Link, Tuya, Ring, Broadlink and many more. House Control
+talks to the **Homebridge UI** (the web page you manage Homebridge with), so every accessory your plugins bring
+can be linked, without adding it to Apple Home first, and the Mac switches them too.
+
+1. In House Control: **Connections → Homebridge**. Homebridge servers on your network are found by themselves
+   (their HomeKit bridge announces them) — press **Use**, or type the address of its web page
+   (`homebridge.local:8581`; the port is 8581 unless you changed it).
+2. Enter the user name and password you sign in to that web page with and press **Connect**. If the account has
+   two-factor sign-in, House Control asks for the code.
+
+Homebridge has to allow controlling accessories from its UI. Installs made with `hb-service` (the Raspberry Pi
+image, the macOS and Linux installers, Docker) do by default; if it was switched off, House Control says so: in the
+Homebridge UI open **Settings → Startup & Environment**, turn on **Enable UI Accessory Control (-I)** and restart
+Homebridge.
+
+| HomeKit service in Homebridge | In House Control |
+| --- | --- |
+| Lightbulb | A lamp: on/off, brightness, colour temperature, hue and saturation |
+| Outlet, Switch | A lamp on a plug (show it as an outlet if you like, see below) |
+| Heater Cooler | An AC: active, cool / heat / auto, the matching threshold, rotation speed as low / medium / high, swing |
+| Thermostat | An AC: off / heat / cool / auto, target temperature |
+| Temperature Sensor | A thermometer for an AC's room |
+
+Homebridge's sessions last eight hours by default, so House Control keeps the user name and password and signs in
+again when one runs out. An account with two-factor sign-in cannot be renewed without you: Settings and the editor
+then say **Sign in again**. A separate Homebridge user without two-factor sign-in for House Control avoids that.
+Changes made in the Homebridge UI, in Apple Home or by an automation arrive at once over the UI's live channel.
+
+## Lamps and outlets
+
+Most smart plugs power a lamp, so a plug is linked as a lamp that switches on and off, and looks like one. When it
+powers something else — a kettle, a fan, a heater — select it in the editor and set **Shown as** to **Outlet**: it
+then shows a socket in the panel, the widgets and the island, and sits on the nearest wall of its room in the 3D
+model, with a ring that glows while it is on. **+ Outlet** in the editor's toolbar adds one directly. Devices whose
+name says they are a socket ("Kettle plug", "Розетка") are added to a room as outlets by themselves.
+
 ## Apple Home
 
 Apple offers HomeKit to iPhone and iPad apps, and to Mac apps only through the Mac App Store. House Control is a
@@ -87,7 +128,8 @@ Smart Life devices are not HomeKit accessories, but there are three free ways to
 - **Home Assistant's HomeKit Bridge** (recommended): add the Tuya integration as above, then
   **Add integration → HomeKit Bridge**, choose the domains (lights, switches, climate) and scan the code it
   shows with the Home app. Every Tuya device appears in Apple Home — and in House Control's iPhone app.
-- **Homebridge** with a Tuya plugin, if you already run Homebridge.
+- **Homebridge** with a Tuya plugin, if you already run Homebridge (House Control can also link those devices
+  straight from Homebridge, see above).
 - **Matter**: newer Tuya devices and hubs that support Matter can be added to Apple Home directly
   (**+ → Add Accessory** and scan their Matter code), and shared with other apps at the same time.
 
@@ -106,15 +148,17 @@ Nest, and Matter devices from a Google or Amazon ecosystem can be shared with Ho
 
 ## Trying it without hardware
 
-`tools/lab` has pretend versions of all three new platforms — a Home Assistant full of demo devices, a Hue Bridge
-emulator and a HomeKit bridge you can add to the Home app. See [tools/lab/README.md](../tools/lab/README.md).
+`tools/lab` has pretend versions of the platforms — a Home Assistant full of demo devices, a Hue Bridge emulator,
+a real Homebridge with pretend lamps, plugs and ACs, and a HomeKit bridge you can add to the Home app.
+See [tools/lab/README.md](../tools/lab/README.md).
 
 ## Privacy
 
 Credentials stay on your devices. On the Mac they are in `~/Library/Application Support/HouseControl/` (readable only by you):
-`homeassistant.json` (address and token), `hue.json` (bridge address, key and certificate fingerprint) and
+`homeassistant.json` (address and token), `hue.json` (bridge address, key and certificate fingerprint), `homebridge.json` (the Homebridge UI's address, user
+name, password and session token) and
 `homekit-devices.json` (the device list your iPhone sent: names and HomeKit ids, no credentials).
 On the iPhone they are in the Keychain. **Disconnect** deletes them, on both when they are paired. A Mac and its
-paired iPhones exchange the Home Assistant and Hue connections over their encrypted link. Nothing goes through a server of ours — there is none.
+paired iPhones exchange the Home Assistant, Hue and Homebridge connections over their encrypted link. Nothing goes through a server of ours — there is none.
 
 When something does not react, **Reveal Device Log** in the menu bar icon's menu shows each command and the answer.

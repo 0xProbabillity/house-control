@@ -1,0 +1,230 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "comment" : "Bundle display name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "House Control"
+          }
+        }
+      },
+      "shouldTranslate" : false
+    },
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "HouseControl"
+          }
+        }
+      },
+      "shouldTranslate" : false
+    },
+    "NSCameraUsageDescription" : {
+      "comment" : "Privacy - Camera Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Kamera liest den Kopplungscode, den House Control auf deinem Mac oder PC anzeigt."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Η κάμερα διαβάζει τον κωδικό σύζευξης που εμφανίζει το House Control στο Mac ή στο PC σας."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The camera reads the pairing code shown by House Control on your Mac or PC."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La cámara lee el código de enlace que muestra House Control en tu Mac o PC."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’appareil photo lit le code de jumelage affiché par House Control sur votre Mac ou PC."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fotocamera legge il codice di abbinamento mostrato da House Control sul tuo Mac o PC."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カメラは、MacまたはPCのHouse Controlに表示されたペアリングコードを読み取るために使用されます。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Камера считывает код связывания, который показывает House Control на вашем Mac или ПК."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kamera, House Control’ün Mac veya PC’nizde gösterdiği eşleme kodunu okur."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "相機用來讀取 Mac 或 PC 上 House Control 顯示的配對代碼。"
+          }
+        }
+      }
+    },
+    "NSHomeKitUsageDescription" : {
+      "comment" : "Privacy - HomeKit Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "House Control zeigt die Lampen, Klimaanlagen und Thermometer deines Zuhauses in seiner 3D-Ansicht und schaltet sie für dich."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Το House Control εμφανίζει τα φωτιστικά, τα κλιματιστικά και τα θερμόμετρα των σπιτιών σας στην προβολή 3D και τα ελέγχει για εσάς."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "House Control shows the lamps, air conditioners and thermometers of your homes in its 3D view and switches them for you."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "House Control muestra las lámparas, los aires acondicionados y los termómetros de tus casas en su vista 3D y los enciende y apaga por ti."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "House Control affiche les lampes, climatiseurs et thermomètres de vos domiciles dans sa vue 3D et les commande pour vous."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "House Control mostra le lampade, i condizionatori e i termometri delle tue case nella sua vista 3D e li comanda per te."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "House Controlは、ホームのライト、エアコン、温度計を3Dビューに表示し、操作します。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "House Control показывает лампы, кондиционеры и термометры ваших домов в 3D-виде и переключает их за вас."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "House Control, evlerinizdeki lambaları, klimaları ve termometreleri 3D görünümünde gösterir ve sizin için açıp kapatır."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "House Control 會在 3D 視圖中顯示你家中的燈、冷氣和溫度計，並幫你控制它們。"
+          }
+        }
+      }
+    },
+    "NSLocalNetworkUsageDescription" : {
+      "comment" : "Privacy - Local Network Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "House Control findet deinen Home Assistant, deine Hue Bridge und dein Homebridge in diesem WLAN sowie deinen Mac oder PC, damit dein Grundriss auf beiden gleich bleibt."
+          }
+        },
+        "el" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Το House Control εντοπίζει το Home Assistant, το Hue Bridge και το Homebridge σας σε αυτό το δίκτυο Wi-Fi, καθώς και το Mac ή το PC σας, ώστε η κάτοψη να μένει ίδια και στα δύο."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "House Control finds your Home Assistant, Hue Bridge and Homebridge on this Wi-Fi network, and your Mac or PC, to keep your floor plan the same on both."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "House Control busca tu Home Assistant, tu Hue Bridge y tu Homebridge en esta red Wi-Fi, y tu Mac o PC, para mantener el plano igual en los dos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "House Control trouve votre Home Assistant, votre pont Hue et votre Homebridge sur ce réseau Wi-Fi, ainsi que votre Mac ou PC, pour garder votre plan identique sur les deux."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "House Control trova il tuo Home Assistant, il tuo Hue Bridge e il tuo Homebridge su questa rete Wi-Fi, e il tuo Mac o PC, per mantenere la piantina uguale su entrambi."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "House Controlは、このWi-FiネットワークでHome Assistant、Hue Bridge、Homebridge、およびMacまたはPCを見つけ、間取りを両方で同じに保ちます。"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "House Control находит ваш Home Assistant, Hue Bridge и Homebridge в этой сети Wi-Fi, а также ваш Mac или ПК, чтобы план был одинаковым на обоих."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "House Control, kat planınızın ikisinde de aynı kalması için bu Wi-Fi ağında Home Assistant’ınızı, Hue Bridge’inizi, Homebridge’inizi ve Mac veya PC’nizi bulur."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "House Control 會在此 Wi-Fi 網路上尋找你的 Home Assistant、Hue Bridge、Homebridge 以及 Mac 或 PC，讓你的平面圖在兩邊保持一致。"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

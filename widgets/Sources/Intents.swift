@@ -11,7 +11,7 @@ enum HomeData {
         guard let url = Bundle.main.url(forResource: "sample-home", withExtension: "json"),
               let data = try? Data(contentsOf: url),
               let home = try? JSONDecoder().decode(HomeSnapshot.self, from: data) else {
-            return HomeSnapshot(name: "Home", plan: "home", rooms: [], lights: [], acs: [], scenes: [])
+            return HomeSnapshot(name: String(localized: "Home", comment: "Name of a home that has none"), plan: "home", rooms: [], lights: [], acs: [], scenes: [])
         }
         return home
     }()

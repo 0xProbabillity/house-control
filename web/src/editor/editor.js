@@ -8,8 +8,9 @@ import { createWorld } from '../three/world.js';
 import { FURNITURE_TYPES, footprint } from '../three/furniture.js';
 import { h, clamp } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
-import { isNative, isPhone, call, post, haptic, incoming } from '../bridge.js';
+import { isNative, isPhone, platform, call, post, haptic, incoming } from '../bridge.js';
 import { createConnections } from './connections.js';
+import { t, tc, tn, formatNumber } from '../i18n.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
 const sv = (tag, attrs = {}, ...kids) => {
@@ -20,21 +21,41 @@ const sv = (tag, attrs = {}, ...kids) => {
 };
 
 const KEYS = { room: 'rooms', light: 'lights', ac: 'acs', furniture: 'furniture', opening: 'openings', scene: 'scenes' };
-const TITLES = { room: 'Rooms', light: 'Lights', ac: 'Air conditioners', furniture: 'Furniture', opening: 'Doors & windows', scene: 'Scenes' };
+const TITLES = { room: t('Rooms'), light: t('Lights'), ac: t('Air conditioners'), furniture: t('Furniture'), opening: t('Doors & windows'), scene: t('Scenes') };
+const ADD_TITLES = { room: t('Add a room'), light: t('Add a lamp'), ac: t('Add an air conditioner'), furniture: t('Add furniture'), opening: t('Add a door'), scene: t('Add a scene') };
 const FLOOR_FILL = { oak: '#4a3d2e', walnut: '#3c2f28', tile: '#39424b', stone: '#30353c' };
 const WALLS = ['north', 'east', 'south', 'west'];
-const LEVEL_NAMES = ['Ground floor', 'First floor', 'Second floor', 'Third floor', 'Fourth floor', 'Fifth floor'];
+// Names a new floor gets (written into the plan, in the language of the person adding it).
+const LEVEL_NAMES = [t('Ground floor'), t('First floor'), t('Second floor'), t('Third floor'), t('Fourth floor'), t('Fifth floor')];
 const HANDLES = { nw: [0, 0], n: [0.5, 0], ne: [1, 0], e: [1, 0.5], se: [1, 1], s: [0.5, 1], sw: [0, 1], w: [0, 0.5] };
 const MIN_ROOM = 0.6; // metres, either way
 const SCENE_ICONS = ['sun', 'sofa', 'film', 'moon', 'door', 'table', 'bed', 'tv', 'power', 'sparkles'];
 const REGIONS = [
-  ['eu', 'Central Europe'], ['eu-w', 'Western Europe'], ['us', 'Western America'], ['us-e', 'Eastern America'],
-  ['cn', 'China'], ['in', 'India'], ['sg', 'Singapore'],
+  ['eu', t('Central Europe')], ['eu-w', t('Western Europe')], ['us', t('Western America')], ['us-e', t('Eastern America')],
+  ['cn', t('China')], ['in', t('India')], ['sg', t('Singapore')],
 ];
+// What the plan's own words (fixture types, walls, floorings…) are called on screen; the plan
+// itself keeps the English ids.
+const LIGHT_LABEL = { ceiling: t('Ceiling light'), pendant: t('Pendant'), spots: t('Spots'), floor: t('Floor lamp'), table: t('Table lamp'), strip: t('Light strip') };
+const WALL_LABEL = { north: t('North wall'), east: t('East wall'), south: t('South wall'), west: t('West wall') };
+const FLOOR_LABEL = { oak: t('Oak'), walnut: t('Walnut'), tile: t('Tiles'), stone: t('Stone') };
+const OPENING_LABEL = { door: t('Door'), open: t('Open passage'), window: t('Window') };
+const FURNITURE_LABEL = {
+  rug: t('Rug'), sofa: t('Sofa'), armchair: t('Armchair'), coffeeTable: t('Coffee table'), tv: t('TV'), sideboard: t('Sideboard'),
+  diningSet: t('Dining table'), island: t('Kitchen island'), kitchen: t('Kitchen units'), fridge: t('Fridge'), bed: t('Bed'),
+  nightstand: t('Nightstand'), dresser: t('Dresser'), plant: t('Plant'), vanity: t('Vanity'), bathtub: t('Bathtub'), toilet: t('Toilet'),
+  desk: t('Desk'), wardrobe: t('Wardrobe'), bookshelf: t('Bookshelf'), stairs: t('Stairs'),
+};
+const ICON_LABEL = {
+  sun: tc('icon', 'Sun'), sofa: tc('icon', 'Sofa'), film: tc('icon', 'Film'), moon: tc('icon', 'Moon'), door: tc('icon', 'Door'),
+  table: tc('icon', 'Table'), bed: tc('icon', 'Bed'), tv: tc('icon', 'TV'), power: tc('icon', 'Power'), sparkles: tc('icon', 'Sparkles'),
+};
+const label = (map, key) => map[key] || key;
+const labelled = (keys, map) => keys.map((k) => [k, label(map, k)]);
 
 const round = (v, step = 0.05) => Math.round(v / step) * step;
 const fix = (v) => Math.round(v * 1000) / 1000;
-const slug = (t) => String(t).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'item';
+const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'item';
 
 export async function bootEditor(root) {
   let doc = structuredClone(await loadRawConfig());
@@ -46,7 +67,10 @@ export async function bootEditor(root) {
     : at.startsWith('service:') ? { kind: 'service', service: at.slice(8) }
       : at === 'tuya' ? { kind: 'service', service: 'smartlife' } : { kind: 'home' });
   let sel = sectionSel(window.__HOUSE_BOOT__?.section || new URLSearchParams(location.search).get('section') || '');
+  // "Unsaved changes": the plan differs from the one last loaded or saved (`saved`, as JSON), so
+  // undoing back to it clears the mark and redo sets it again. Set through setDirty().
   let dirty = false;
+  let saved = '';
   let world = null;
   let phone = null; // the iPhone's layout and gestures, set up by buildPhoneLayout()
   let previewLights = true;
@@ -76,12 +100,12 @@ export async function bootEditor(root) {
 
   /* ---------- layout ---------- */
 
-  const nameInput = h('input.title-input', { value: doc.name || 'Home', spellcheck: 'false', 'aria-label': 'Home name' });
+  const nameInput = h('input.title-input', { value: doc.name || t('Home'), spellcheck: 'false', 'aria-label': t('Home name') });
   nameInput.addEventListener('input', () => { snapshot('name'); doc.name = nameInput.value; touch({ inspector: sel.kind === 'home' }); });
   const status = h('div.status');
-  const saveBtn = h('button.btn.primary', { onclick: save }, icon('check', 15, 2.4), 'Save & apply');
-  const hint = h('div.hint', 'Tap to select · drag what is selected · pinch to zoom');
-  const levelBar = h('div.levels', { role: 'tablist', 'aria-label': 'Floors' });
+  const saveBtn = h('button.btn.primary', { onclick: save }, icon('check', 15, 2.4), t('Save & apply'));
+  const hint = h('div.hint', t('Tap to select · drag what is selected · pinch to zoom'));
+  const levelBar = h('div.levels', { role: 'tablist', 'aria-label': t('Floors') });
   // An empty floor says how to start it.
   const emptyCard = h('div.empty-card');
   const toastEl = h('div.toast');
@@ -97,10 +121,10 @@ export async function bootEditor(root) {
     h('header.bar',
       h('div.bar-title', icon('home', 17), nameInput),
       h('div.bar-actions',
-        h('button.btn', { title: 'Undo (⌘Z)', onclick: () => stepHistory(undo, redo) }, 'Undo'),
-        h('button.btn', { title: 'Redo (⇧⌘Z)', onclick: () => stepHistory(redo, undo) }, 'Redo'),
-        h('button.btn', { onclick: importPlan }, 'Import…'),
-        h('button.btn', { onclick: exportPlan }, 'Export…'),
+        h('button.btn', { title: t('Undo (⌘Z)'), onclick: () => stepHistory(undo, redo) }, t('Undo')),
+        h('button.btn', { title: t('Redo (⇧⌘Z)'), onclick: () => stepHistory(redo, undo) }, t('Redo')),
+        h('button.btn', { onclick: importPlan }, t('Import…')),
+        h('button.btn', { onclick: exportPlan }, t('Export…')),
         saveBtn)),
     sidebar,
     h('main.canvas', plan, levelBar, emptyCard, addBar(), zoomBar()),
@@ -131,8 +155,15 @@ export async function bootEditor(root) {
     touch();
   }
 
+  // The Mac shell is told, so closing the window or quitting can ask about unsaved changes.
+  function setDirty(next) {
+    if (next === dirty) return;
+    dirty = next;
+    if (platform === 'macos') post('editorDirty', { dirty });
+  }
+
   function touch({ inspector: redrawInspector = true } = {}) {
-    dirty = true;
+    setDirty(JSON.stringify(doc) !== saved);
     renderSidebar();
     renderPlan();
     if (redrawInspector) renderInspector();
@@ -232,7 +263,7 @@ export async function bootEditor(root) {
     let n = doc.levels.length + 1;
     while (ids.has(`floor${n}`)) n++;
     const id = `floor${n}`;
-    const name = where === 'below' ? 'Basement' : LEVEL_NAMES[doc.levels.length] || `Floor ${doc.levels.length + 1}`;
+    const name = where === 'below' ? t('Basement') : LEVEL_NAMES[doc.levels.length] || t('Floor {n}', { n: doc.levels.length + 1 });
     doc.levels.splice(where === 'below' ? 0 : doc.levels.length, 0, { id, name });
     level = id;
     view = null;
@@ -240,7 +271,7 @@ export async function bootEditor(root) {
     world?.dispose();
     world = null;
     touch();
-    toast(`${name} added`);
+    toast(t('{name} added', { name }));
   }
 
   function removeLevel(id) {
@@ -258,7 +289,7 @@ export async function bootEditor(root) {
     sel = { kind: 'home' };
     view = null;
     touch();
-    toast(`${name} removed · ${isPhone ? 'Undo' : '⌘Z'} brings it back`);
+    toast(isPhone ? t('{name} removed · Undo brings it back', { name }) : t('{name} removed · ⌘Z brings it back', { name }));
   }
 
   function moveLevel(id, step) {
@@ -301,7 +332,7 @@ export async function bootEditor(root) {
     }
     view = null;
     touch();
-    toast(`${rooms.length} rooms copied from ${from.name}`);
+    toast(tn(rooms.length, '{n} room copied from {floor}', '{n} rooms copied from {floor}', { floor: from.name }));
   }
 
   // One room as big as the floor below (or the whole home), to divide up.
@@ -310,7 +341,7 @@ export async function bootEditor(root) {
     pinLevels();
     const b = outline(below(id) ? levelRooms(below(id).id) : doc.rooms) || { minX: 0, minZ: 0, maxX: 6, maxZ: 4 };
     doc.rooms.push({
-      id: uniqueId('room'), name: 'New room', rect: [b.minX, b.minZ, fix(b.maxX - b.minX), fix(b.maxZ - b.minZ)], floor: 'oak',
+      id: uniqueId('room'), name: t('New room'), rect: [b.minX, b.minZ, fix(b.maxX - b.minX), fix(b.maxZ - b.minZ)], floor: 'oak',
       ...(Array.isArray(doc.levels) ? { level: id } : {}),
     });
     sel = { kind: 'room', index: doc.rooms.length - 1 };
@@ -323,21 +354,21 @@ export async function bootEditor(root) {
     levelBar.replaceChildren(
       ...list.map((l) => h(`button.level-tab${l.id === level ? '.active' : ''}`, {
         role: 'tab', 'aria-selected': String(l.id === level),
-        title: l.id === level ? `${l.name} · click for its settings` : `Edit ${l.name}`,
+        title: l.id === level ? t('{floor} · click for its settings', { floor: l.name }) : t('Edit {floor}', { floor: l.name }),
         onclick: () => { if (l.id === level) select({ kind: 'level', id: l.id }); else setLevel(l.id); },
       }, l.name, h('span.n', levelRooms(l.id).length))),
-      h('button.level-add', { title: 'Add a floor', 'aria-label': 'Add a floor', onclick: () => addLevel() }, icon('plus', 14, 2.4), isPhone ? null : 'Floor'));
+      h('button.level-add', { title: t('Add a floor'), 'aria-label': t('Add a floor'), onclick: () => addLevel() }, icon('plus', 14, 2.4), isPhone ? null : t('Floor')));
     levelBar.querySelector('.active')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
 
     const empty = !levelRooms().length;
     emptyCard.hidden = !empty;
     if (empty) {
       const under = below();
-      emptyCard.replaceChildren(h('b', `${levelName(level)} is empty`),
-        h('p', under ? `Copy the rooms of ${under.name}, or start with one room as big as it and divide it up.` : 'Add a room to start.'),
+      emptyCard.replaceChildren(h('b', t('{floor} is empty', { floor: levelName(level) })),
+        h('p', under ? t('Copy the rooms of {floor}, or start with one room as big as it and divide it up.', { floor: under.name }) : t('Add a room to start.')),
         h('div.empty-actions',
-          under ? h('button.btn.primary', { onclick: () => copyRoomsFromBelow() }, icon('copy', 14, 2.2), `Copy ${under.name}`) : null,
-          h('button.btn', { onclick: () => fillLevel() }, icon('room', 14, 2.2), under ? 'One big room' : 'Add a room')));
+          under ? h('button.btn.primary', { onclick: () => copyRoomsFromBelow() }, icon('copy', 14, 2.2), t('Copy {floor}', { floor: under.name })) : null,
+          h('button.btn', { onclick: () => fillLevel() }, icon('room', 14, 2.2), under ? t('One big room') : t('Add a room'))));
     }
   }
 
@@ -401,28 +432,30 @@ export async function bootEditor(root) {
 
   function zoomBar() {
     return h('div.zoom',
-      h('button', { title: 'Zoom in (⌘+ or pinch)', 'aria-label': 'Zoom in', onclick: () => zoomBy(1.35) }, icon('zoomIn', 16, 2)),
-      h('button', { title: 'Zoom out', 'aria-label': 'Zoom out', onclick: () => zoomBy(1 / 1.35) }, icon('zoomOut', 16, 2)),
-      h('button', { title: 'Show the whole floor (⌘0)', 'aria-label': 'Show the whole floor', onclick: reveal }, icon('fit', 16, 2)));
+      h('button', { title: t('Zoom in (⌘+ or pinch)'), 'aria-label': t('Zoom in'), onclick: () => zoomBy(1.35) }, icon('zoomIn', 16, 2)),
+      h('button', { title: t('Zoom out'), 'aria-label': t('Zoom out'), onclick: () => zoomBy(1 / 1.35) }, icon('zoomOut', 16, 2)),
+      h('button', { title: t('Show the whole floor (⌘0)'), 'aria-label': t('Show the whole floor'), onclick: reveal }, icon('fit', 16, 2)));
   }
 
-  // What can be added, for the bar under the plan (Mac) and the Add sheet (phone).
+  // What can be added, for the bar under the plan (Mac) and the Add sheet (phone):
+  // [key, icon, label, run, the button's tooltip].
   function addable() {
     return [
-      ['room', 'room', 'Room', () => add('room')],
-      ['light', 'bulb', 'Lamp', () => add('light')],
-      ['ac', 'ac', 'Air conditioner', () => add('ac')],
-      ['door', 'opening', 'Door', () => add('opening', { type: 'door' })],
-      ['window', 'window', 'Window', () => add('opening', { type: 'window' })],
-      ['stairs', 'stairs', 'Stairs', () => add('furniture', { type: 'stairs' })],
-      ['furniture', 'furniture', 'Furniture', () => add('furniture')],
+      ['room', 'room', t('Room'), () => add('room'), t('Add a room')],
+      ['light', 'bulb', t('Lamp'), () => add('light'), t('Add a lamp')],
+      ['outlet', 'plug', t('Outlet'), () => add('light', { outlet: true }), t('Add an outlet')],
+      ['ac', 'ac', t('Air conditioner'), () => add('ac'), t('Add an air conditioner')],
+      ['door', 'opening', t('Door'), () => add('opening', { type: 'door' }), t('Add a door')],
+      ['window', 'window', t('Window'), () => add('opening', { type: 'window' }), t('Add a window')],
+      ['stairs', 'stairs', t('Stairs'), () => add('furniture', { type: 'stairs' }), t('Add stairs')],
+      ['furniture', 'furniture', t('Furniture'), () => add('furniture'), t('Add furniture')],
     ];
   }
 
   function addBar() {
-    return h('div.add-bar', addable().map(([key, name, label, run]) => h('button', {
-      title: `Add ${label.toLowerCase()}`, 'data-add': key, onclick: () => { run(); },
-    }, icon(name, 18, 1.9), h('span', key === 'ac' ? 'AC' : label))));
+    return h('div.add-bar', addable().map(([key, name, text, run, title]) => h('button', {
+      title, 'data-add': key, onclick: () => { run(); },
+    }, icon(name, 18, 1.9), h('span', key === 'ac' ? t('AC') : text))));
   }
 
   /* ---------- validation + preview ---------- */
@@ -433,9 +466,14 @@ export async function bootEditor(root) {
       valid = normalize(structuredClone(doc));
       const linked = [...doc.lights, ...doc.acs].filter(isLinked).length;
       status.className = 'status';
-      const floors = levelList().length > 1 ? `${levelList().length} floors · ` : '';
-      status.replaceChildren(h('span.ok', '●'), ` ${floors}${doc.rooms.length} rooms · ${doc.lights.length} lights · ${doc.acs.length} ACs · `,
-        `${linked} linked to real devices`, dirty ? h('span.dirty', ' · unsaved changes') : '');
+      const parts = [
+        levelList().length > 1 ? tn(levelList().length, '{n} floor', '{n} floors') : null,
+        tn(doc.rooms.length, '{n} room', '{n} rooms'),
+        tn(doc.lights.length, '{n} light', '{n} lights'),
+        tn(doc.acs.length, '{n} AC', '{n} ACs'),
+        tn(linked, '{n} linked to real devices', '{n} linked to real devices'),
+      ].filter(Boolean);
+      status.replaceChildren(h('span.ok', '●'), ` ${parts.join(' · ')}`, dirty ? h('span.dirty', ` · ${t('unsaved changes')}`) : '');
     } catch (e) {
       valid = null;
       status.className = 'status bad';
@@ -459,7 +497,7 @@ export async function bootEditor(root) {
   }
 
   function buildPreview() {
-    previewToggle.replaceChildren(icon(previewLights ? 'bright' : 'moon', 14), previewLights ? 'Lights on' : 'Lights off');
+    previewToggle.replaceChildren(icon(previewLights ? 'bright' : 'moon', 14), previewLights ? t('Lights on') : t('Lights off'));
     if (!valid) return;
     if (isPhone && !phone.show3D) { world?.dispose(); world = null; previewHost.replaceChildren(); return; }
     world?.dispose();
@@ -470,10 +508,10 @@ export async function bootEditor(root) {
       world = createWorld(canvas, valid, previewStore(valid), {
         level,
         onHover() {},
-        onPick(t) {
-          if (!t) return;
-          const index = doc[KEYS[t.kind]].findIndex((x) => x.id === t.id);
-          if (index >= 0) select({ kind: t.kind, index });
+        onPick(target) {
+          if (!target) return;
+          const index = doc[KEYS[target.kind]].findIndex((x) => x.id === target.id);
+          if (index >= 0) select({ kind: target.kind, index });
         },
       });
       world.setInsets(isPhone ? 20 : 6, isPhone ? 20 : 6);
@@ -488,13 +526,14 @@ export async function bootEditor(root) {
   /* ---------- sidebar ---------- */
 
   function rowLabel(kind, item) {
-    if (kind === 'room') return [item.name || item.id, `${fix(item.rect[2])} × ${fix(item.rect[3])} m`];
-    if (kind === 'light') return [item.name || item.id, `${roomName(item.room)} · ${item.type}`];
-    if (kind === 'ac') return [item.name || item.id, `${roomName(item.room)} · ${item.wall} wall`];
-    if (kind === 'furniture') return [item.type, roomName(roomAt(item.pos)?.id) || '—'];
-    if (kind === 'opening' && !item.to) return [item.type || 'door', ''];
-    if (kind === 'opening') return [item.type || 'door', `${fix(Math.hypot(item.to[0] - item.from[0], item.to[1] - item.from[1]))} m`];
-    return [item.name || item.id, `${Object.keys(item.lights || {}).length} rules`];
+    if (kind === 'room') return [item.name || item.id, t('{width} × {depth} m', { width: formatNumber(fix(item.rect[2])), depth: formatNumber(fix(item.rect[3])) })];
+    if (kind === 'light') return [item.name || item.id, `${roomName(item.room)} · ${item.outlet ? t('Outlet') : label(LIGHT_LABEL, item.type)}`];
+    if (kind === 'ac') return [item.name || item.id, `${roomName(item.room)} · ${label(WALL_LABEL, item.wall)}`];
+    if (kind === 'furniture') return [label(FURNITURE_LABEL, item.type), roomName(roomAt(item.pos)?.id) || '—'];
+    if (kind === 'opening' && !item.to) return [label(OPENING_LABEL, item.type || 'door'), ''];
+    if (kind === 'opening') return [label(OPENING_LABEL, item.type || 'door'), t('{length} m', { length: formatNumber(fix(Math.hypot(item.to[0] - item.from[0], item.to[1] - item.from[1]))) })];
+    const rules = Object.keys(item.lights || {}).length;
+    return [item.name || item.id, tn(rules, '{n} rule', '{n} rules')];
   }
 
   const roomName = (id) => doc.rooms.find((r) => r.id === id)?.name || id || '';
@@ -502,33 +541,33 @@ export async function bootEditor(root) {
 
   function renderSidebar() {
     const nodes = [h(`button.row.home-row${sel.kind === 'home' ? '.active' : ''}`, { onclick: () => select({ kind: 'home' }) },
-      icon('home', 15), h('span.row-name', 'Home settings')),
+      icon('home', 15), h('span.row-name', t('Home settings'))),
     links.sidebarRow(sel.kind === 'connections' || sel.kind === 'service', () => select({ kind: 'connections' }))];
     const list = levelList();
-    nodes.push(h('div.group', h('span', 'Floors'), h('span.n', list.length),
-      h('button.add', { title: 'Add a floor', 'aria-label': 'Add a floor', onclick: () => addLevel() }, icon('plus', 14, 2.4))));
+    nodes.push(h('div.group', h('span', t('Floors')), h('span.n', list.length),
+      h('button.add', { title: t('Add a floor'), 'aria-label': t('Add a floor'), onclick: () => addLevel() }, icon('plus', 14, 2.4))));
     for (const l of [...list].reverse()) {
       const active = sel.kind === 'level' && sel.id === l.id;
       nodes.push(h(`div.row.level-row${active ? '.active' : ''}${l.id === level ? '.current' : ''}`, {
         role: 'button', tabindex: 0, onclick: () => { setLevel(l.id); select({ kind: 'level', id: l.id }); },
-      }, icon('layers', 14, 2), h('span.row-name', l.name), h('span.row-sub', `${levelRooms(l.id).length} rooms`),
-      list.length > 1 ? h('button.del', { title: 'Remove this floor', 'aria-label': `Remove ${l.name}`, onclick: (e) => { e.stopPropagation(); removeLevel(l.id); } }, icon('close', 13, 2.4)) : null));
+      }, icon('layers', 14, 2), h('span.row-name', l.name), h('span.row-sub', tn(levelRooms(l.id).length, '{n} room', '{n} rooms')),
+      list.length > 1 ? h('button.del', { title: t('Remove this floor'), 'aria-label': t('Remove {name}', { name: l.name }), onclick: (e) => { e.stopPropagation(); removeLevel(l.id); } }, icon('close', 13, 2.4)) : null));
     }
     for (const kind of Object.keys(KEYS)) {
       const items = doc[KEYS[kind]];
       const shown = items.filter((item) => here(kind, item)).length;
       nodes.push(h('div.group',
         h('span', `${TITLES[kind]}`), h('span.n', shown),
-        h('button.add', { title: `Add to ${TITLES[kind].toLowerCase()}`, 'aria-label': `Add ${kind}`, onclick: () => add(kind) }, icon('plus', 14, 2.4))));
+        h('button.add', { title: ADD_TITLES[kind], 'aria-label': ADD_TITLES[kind], onclick: () => add(kind) }, icon('plus', 14, 2.4))));
       items.forEach((item, index) => {
         if (!here(kind, item)) return;
         const [name, sub] = rowLabel(kind, item);
         const active = sel.kind === kind && sel.index === index;
         nodes.push(h(`div.row${active ? '.active' : ''}`, { role: 'button', tabindex: 0, onclick: () => select({ kind, index }) },
           h('span.row-name', name),
-          isLinked(item) ? h('span.linked', { title: 'Linked to a real device' }, icon('link', 12, 2.2)) : null,
+          isLinked(item) ? h('span.linked', { title: t('Linked to a real device') }, icon('link', 12, 2.2)) : null,
           h('span.row-sub', sub),
-          h('button.del', { title: 'Remove', 'aria-label': `Remove ${name}`, onclick: (e) => { e.stopPropagation(); remove(kind, index); } }, icon('close', 13, 2.4))));
+          h('button.del', { title: t('Remove'), 'aria-label': t('Remove {name}', { name }), onclick: (e) => { e.stopPropagation(); remove(kind, index); } }, icon('close', 13, 2.4))));
       });
     }
     const top = sidebar.scrollTop;
@@ -542,7 +581,7 @@ export async function bootEditor(root) {
     for (let i = 2; ; i++) if (!ids.has(`${base}${i}`)) return `${base}${i}`;
   }
 
-  function add(kind, { type } = {}) {
+  function add(kind, { type, outlet = false } = {}) {
     // On an empty floor the first room is as big as the floor below, ready to be divided.
     if (kind === 'room' && !levelRooms().length && below()) { fillLevel(); return; }
     snapshot();
@@ -554,23 +593,31 @@ export async function bootEditor(root) {
     if (kind === 'room') {
       const maxX = Math.max(0, ...rooms.map((r) => r.rect[0] + r.rect[2]));
       const minZ = Math.min(...rooms.map((r) => r.rect[1]), 0);
-      list.push(stamp({ id: uniqueId('room'), name: 'New room', rect: [fix(maxX), fix(rooms.length ? minZ : 0), 3, 3], floor: 'oak' }));
+      list.push(stamp({ id: uniqueId('room'), name: t('New room'), rect: [fix(maxX), fix(rooms.length ? minZ : 0), 3, 3], floor: 'oak' }));
     } else if (kind === 'light') {
-      if (!room) return toast('Add a room first', true);
-      list.push({ id: uniqueId(`${room.id}.light`), name: 'New light', room: room.id, type: 'ceiling', pos: freeSpot(room, center), capabilities: [] });
+      if (!room) return toast(t('Add a room first'), true);
+      if (outlet) {
+        // On the room's north wall, away from the outlets already there.
+        const [x, z, w] = room.rect;
+        const taken = doc.lights.filter((l) => l.outlet && l.room === room.id).length;
+        const along = fix(x + Math.min(w - 0.3, 0.6 + taken * 0.5));
+        list.push({ id: uniqueId(`${room.id}.outlet`), name: t('New outlet'), room: room.id, type: 'table', outlet: true, pos: [along, fix(z + 0.15)], capabilities: [] });
+      } else {
+        list.push({ id: uniqueId(`${room.id}.light`), name: t('New light'), room: room.id, type: 'ceiling', pos: freeSpot(room, center), capabilities: [] });
+      }
     } else if (kind === 'ac') {
-      if (!room) return toast('Add a room first', true);
-      list.push({ id: uniqueId(`${room.id}.ac`), name: `${room.name} AC`, room: room.id, wall: 'north', pos: [center[0], room.rect[1]], y: 2.2 });
+      if (!room) return toast(t('Add a room first'), true);
+      list.push({ id: uniqueId(`${room.id}.ac`), name: t('{room} AC', { room: room.name }), room: room.id, wall: 'north', pos: [center[0], room.rect[1]], y: 2.2 });
     } else if (kind === 'furniture') {
       list.push(stamp(type === 'stairs' ? { type, pos: center, rot: 0, width: 1, depth: 2.8 } : { type: type || 'sofa', pos: center, rot: 0 }));
     } else if (kind === 'opening') {
-      if (!room) return toast('Add a room first', true);
+      if (!room) return toast(t('Add a room first'), true);
       // A door on the near (south) wall; a window on the far (north) one, where the 3D model shows it.
       const half = type === 'window' ? 0.6 : 0.45;
       const z = type === 'window' ? room.rect[1] : room.rect[1] + room.rect[3];
       list.push(stamp({ type: type || 'door', from: [fix(center[0] - half), fix(z)], to: [fix(center[0] + half), fix(z)] }));
     } else if (kind === 'scene') {
-      list.push({ id: uniqueId('scene'), name: 'New scene', icon: 'sparkles', lights: { '*': { on: false } } });
+      list.push({ id: uniqueId('scene'), name: t('New scene'), icon: 'sparkles', lights: { '*': { on: false } } });
     }
     sel = { kind, index: list.length - 1 };
     if (view && !inView(list[list.length - 1])) view = null;
@@ -613,12 +660,12 @@ export async function bootEditor(root) {
       copy.to[k] = fix(copy.to[k] + len);
     } else if (kind === 'scene') {
       copy.id = uniqueId(item.id);
-      copy.name = `${item.name || item.id} copy`;
+      copy.name = t('{name} copy', { name: item.name || item.id });
     }
     doc[KEYS[kind]].push(copy);
     sel = { kind, index: doc[KEYS[kind]].length - 1 };
     touch();
-    toast('Duplicated');
+    toast(t('Duplicated'));
   }
 
   // Turns furniture or a lamp a quarter (or, with `step`, a little).
@@ -635,7 +682,7 @@ export async function bootEditor(root) {
     const room = doc.rooms[index];
     if (!room) return;
     const [x, z, w, d] = room.rect;
-    if (Math.max(w, d) < MIN_ROOM * 2) { toast('Too small to split', true); return; }
+    if (Math.max(w, d) < MIN_ROOM * 2) { toast(t('Too small to split'), true); return; }
     snapshot();
     const across = w >= d;
     const cut = round((across ? w : d) / 2, 0.05);
@@ -657,7 +704,7 @@ export async function bootEditor(root) {
     doc.openings.push(stamp({ type: 'door', ...door, ...(room.level ? { level: room.level } : {}) }));
     sel = { kind: 'room', index: doc.rooms.length - 1 };
     touch();
-    toast('Split in two, with a door between');
+    toast(t('Split in two, with a door between'));
   }
 
   // Moves a room, and what stands in it, to another floor.
@@ -810,11 +857,14 @@ export async function bootEditor(root) {
     doc.lights.forEach((l, i) => {
       if (!here('light', l)) return;
       const g = sv('g', {
-        class: `p-light ${l.type}${isSel('light', i) ? ' sel' : ''}${isLinked(l) ? ' linked' : ''}`, 'data-kind': 'light', 'data-index': i,
+        class: `p-light ${l.outlet ? 'outlet' : l.type}${isSel('light', i) ? ' sel' : ''}${isLinked(l) ? ' linked' : ''}`, 'data-kind': 'light', 'data-index': i,
         transform: `translate(${l.pos[0]} ${l.pos[1]}) rotate(${-(l.rot || 0)})`,
       });
       if (big) g.append(sv('circle', { r: 0.58, class: 'hit' }));
-      if (l.type === 'strip') {
+      if (l.outlet) {
+        g.append(sv('circle', { r: 0.34, class: 'halo' }), sv('rect', { x: -0.17, y: -0.17, width: 0.34, height: 0.34, rx: 0.07 }),
+          sv('circle', { cx: -0.065, cy: 0, r: 0.035, class: 'pin' }), sv('circle', { cx: 0.065, cy: 0, r: 0.035, class: 'pin' }));
+      } else if (l.type === 'strip') {
         const len = l.length || 1;
         g.append(sv('rect', { x: -len / 2, y: -0.07, width: len, height: 0.14, rx: 0.07 }));
       } else {
@@ -1152,7 +1202,7 @@ export async function bootEditor(root) {
       onclick: () => {
         if (b.dataset.armed) { run(); return; }
         b.dataset.armed = '1';
-        b.textContent = 'Tap again to remove';
+        b.textContent = t('Tap again to remove');
         haptic('medium');
         setTimeout(() => { delete b.dataset.armed; b.textContent = label; }, 3000);
       },
@@ -1172,37 +1222,37 @@ export async function bootEditor(root) {
       : h('div.insp-head', h('h2', title), sub ? h('span', sub) : null));
 
     if (kind === 'home') {
-      head('Home', 'Global settings of this plan');
+      head(t('Home'), t('Global settings of this plan'));
       doc.camera ||= { azimuth: 34, elevation: 47 };
-      if (isPhone) nodes.push(section('Real devices', links.sidebarRow(false, () => select({ kind: 'connections' }))));
-      nodes.push(section('Building',
-        row(bind('Wall height, m', number(0.1), { ...prop(doc, 'wallHeight', 2.6), parse: parseNum }),
-          bind('Inner walls shown, m', number(0.05), { ...prop(doc, 'interiorWallHeight', 1.25), parse: parseNum })),
-        bind('Outdoor temperature, °C', number(1), { ...prop(doc, 'outdoorTemp', 27), parse: parseNum })),
-      section('Default camera',
-        row(bind('Azimuth, °', number(1), { ...prop(doc.camera, 'azimuth', 34), parse: parseNum }),
-          bind('Elevation, °', number(1), { ...prop(doc.camera, 'elevation', 47), parse: parseNum })),
-        h('p.note', 'Walls facing the camera are cut away, so the azimuth decides which side of the home is open.')),
-      isPhone ? null : section('Shortcuts',
+      if (isPhone) nodes.push(section(t('Real devices'), links.sidebarRow(false, () => select({ kind: 'connections' }))));
+      nodes.push(section(t('Building'),
+        row(bind(t('Wall height, m'), number(0.1), { ...prop(doc, 'wallHeight', 2.6), parse: parseNum }),
+          bind(t('Inner walls shown, m'), number(0.05), { ...prop(doc, 'interiorWallHeight', 1.25), parse: parseNum })),
+        bind(t('Outdoor temperature, °C'), number(1), { ...prop(doc, 'outdoorTemp', 27), parse: parseNum })),
+      section(t('Default camera'),
+        row(bind(t('Azimuth, °'), number(1), { ...prop(doc.camera, 'azimuth', 34), parse: parseNum }),
+          bind(t('Elevation, °'), number(1), { ...prop(doc.camera, 'elevation', 47), parse: parseNum })),
+        h('p.note', t('Walls facing the camera are cut away, so the azimuth decides which side of the home is open.'))),
+      isPhone ? null : section(t('Shortcuts'),
         h('dl.keys',
-          h('dt', 'Scroll · ⌘ scroll or pinch'), h('dd', 'Move around · zoom'),
-          h('dt', 'Drag the empty plan · Space-drag'), h('dd', 'Move around'),
-          h('dt', '⌘D · R · ⇧R'), h('dd', 'Duplicate · turn 90° · turn 15°'),
-          h('dt', 'Arrows · ⇧ arrows'), h('dd', 'Nudge 5 cm · 50 cm'),
-          h('dt', '⌥ while dragging'), h('dd', 'No snapping'),
-          h('dt', 'Page Up · Page Down'), h('dd', 'Floor above · below'),
-          h('dt', '⌘0 · Esc · ⌫'), h('dd', 'Whole floor · deselect · remove'))),
-      section('How it works',
+          h('dt', t('Scroll · ⌘ scroll or pinch')), h('dd', t('Move around · zoom')),
+          h('dt', t('Drag the empty plan · Space-drag')), h('dd', t('Move around')),
+          h('dt', '⌘D · R · ⇧R'), h('dd', t('Duplicate · turn 90° · turn 15°')),
+          h('dt', t('Arrows · ⇧ arrows')), h('dd', t('Nudge 5 cm · 50 cm')),
+          h('dt', t('⌥ while dragging')), h('dd', t('No snapping')),
+          h('dt', t('Page Up · Page Down')), h('dd', t('Floor above · below')),
+          h('dt', '⌘0 · Esc · ⌫'), h('dd', t('Whole floor · deselect · remove')))),
+      section(t('How it works'),
         h('p.note', isPhone
-          ? 'Tap anything on the plan, or find it under Items, to edit it. “Save” keeps the plan on this iPhone and sends it to your paired computer. Coordinates are metres: x grows to the right (east), z grows downwards (south).'
-          : 'Pick anything on the plan or in the list to edit it. “Save & apply” writes the plan to disk and reloads the menu bar panel. Coordinates are metres: x grows to the right (east), z grows downwards (south).')));
+          ? t('Tap anything on the plan, or find it under Items, to edit it. “Save” keeps the plan on this iPhone and sends it to your paired computer. Coordinates are metres: x grows to the right (east), z grows downwards (south).')
+          : t('Pick anything on the plan or in the list to edit it. “Save & apply” writes the plan to disk and reloads the menu bar panel. Coordinates are metres: x grows to the right (east), z grows downwards (south).'))));
     } else if (kind === 'level') {
       const l = levelList().find((x) => x.id === sel.id) || levelList().find((x) => x.id === level);
       const list = levelList();
       const i = list.indexOf(l);
       const rooms = levelRooms(l.id);
       const under = below(l.id);
-      head(l.name, `${rooms.length} rooms · floor ${i + 1} of ${list.length}`);
+      head(l.name, `${tn(rooms.length, '{n} room', '{n} rooms')} · ${t('floor {n} of {total}', { n: i + 1, total: list.length })}`);
       const own = Array.isArray(doc.levels) ? doc.levels.find((x) => x.id === l.id) : null;
       // A home without "levels" gets them as soon as its one floor is named or given a height.
       const editable = () => {
@@ -1213,123 +1263,138 @@ export async function bootEditor(root) {
         }
         return doc.levels.find((x) => x.id === sel.id);
       };
-      nodes.push(section('Floor',
-        bind('Name', text(), { get: () => l.name, set: (v) => { editable().name = v; } }),
-        bind('Ceiling height, m', number(0.1), {
+      nodes.push(section(t('Floor'),
+        bind(t('Name'), text(), { get: () => l.name, set: (v) => { editable().name = v; } }),
+        bind(t('Ceiling height, m'), number(0.1), {
           get: () => own?.wallHeight ?? '',
           set: (v) => { const x = editable(); if (v === '') delete x.wallHeight; else x.wallHeight = v; },
           parse: optNum,
         }),
-        h('p.note', `Empty: the home’s wall height (${doc.wallHeight ?? 2.6} m). Floors stack in this order; the 3D view shows one floor at a time, with the floors under it.`)),
-      section('Arrange',
+        h('p.note', t('Empty: the home’s wall height ({height} m). Floors stack in this order; the 3D view shows one floor at a time, with the floors under it.', { height: formatNumber(doc.wallHeight ?? 2.6) }))),
+      section(t('Arrange'),
         h('div.fields',
-          h('button.btn', { disabled: i === list.length - 1, onclick: () => moveLevel(l.id, 1) }, icon('stairs', 14, 2.2), 'Move up'),
-          h('button.btn', { disabled: i === 0, onclick: () => moveLevel(l.id, -1) }, icon('down', 14, 2.2), 'Move down')),
+          h('button.btn', { disabled: i === list.length - 1, onclick: () => moveLevel(l.id, 1) }, icon('stairs', 14, 2.2), t('Move up')),
+          h('button.btn', { disabled: i === 0, onclick: () => moveLevel(l.id, -1) }, icon('down', 14, 2.2), t('Move down'))),
         h('div.fields',
-          h('button.btn', { onclick: () => addLevel('above') }, icon('plus', 14, 2.2), 'Floor above'),
-          i === 0 ? h('button.btn', { onclick: () => addLevel('below') }, icon('plus', 14, 2.2), 'Basement') : null),
-        under && !rooms.length ? h('button.btn.primary.wide', { onclick: () => copyRoomsFromBelow(l.id) }, icon('copy', 14, 2.2), `Copy the rooms of ${under.name}`) : null,
-        under ? h('p.note', `${under.name} shows faintly under this floor, with its stairs, so walls and stairs line up.`) : null),
-      list.length > 1 ? section('Remove',
-        confirmButton(`Remove ${l.name}`, () => removeLevel(l.id)),
-        h('p.note', `Takes its ${rooms.length} rooms with their lamps, ACs, furniture, doors and windows.`)) : null);
+          h('button.btn', { onclick: () => addLevel('above') }, icon('plus', 14, 2.2), t('Floor above')),
+          i === 0 ? h('button.btn', { onclick: () => addLevel('below') }, icon('plus', 14, 2.2), t('Basement')) : null),
+        under && !rooms.length ? h('button.btn.primary.wide', { onclick: () => copyRoomsFromBelow(l.id) }, icon('copy', 14, 2.2), t('Copy the rooms of {floor}', { floor: under.name })) : null,
+        under ? h('p.note', t('{floor} shows faintly under this floor, with its stairs, so walls and stairs line up.', { floor: under.name })) : null),
+      list.length > 1 ? section(t('Remove'),
+        confirmButton(t('Remove {name}', { name: l.name }), () => removeLevel(l.id)),
+        h('p.note', tn(rooms.length, 'Takes its {n} room with its lamps, ACs, furniture, doors and windows.', 'Takes its {n} rooms with their lamps, ACs, furniture, doors and windows.'))) : null);
     } else if (kind === 'connections') {
-      head('Connections', 'Where your real lamps and air conditioners live');
-      if (isPhone) nodes.push(h('button.back-link', { onclick: () => select({ kind: 'home' }) }, icon('back', 14, 2.2), 'Home'));
+      head(t('Connections'), t('Where your real lamps and air conditioners live'));
+      if (isPhone) nodes.push(h('button.back-link', { onclick: () => select({ kind: 'home' }) }, icon('back', 14, 2.2), t('Home')));
       nodes.push(...links.overview());
     } else if (kind === 'service') {
-      nodes.push(h('button.back-link', { onclick: () => { links.stopPairing(); select({ kind: 'connections' }); } }, icon('back', 14, 2.2), 'Connections'));
+      nodes.push(h('button.back-link', { onclick: () => { links.stopPairing(); select({ kind: 'connections' }); } }, icon('back', 14, 2.2), t('Connections')));
       nodes.push(h('div.insp-head.svc-head', links.tile(sel.service, 40),
         h('div', h('h2', links.title(sel.service)), h('span', links.blurb(sel.service)))));
       nodes.push(...[links.detail(sel.service, tuyaPanel)].flat());
     } else if (!item) {
-      head('Nothing selected');
-      if (isPhone) nodes.push(h('p.note', 'Tap a room, a lamp or anything else on the plan.'));
+      head(t('Nothing selected'));
+      if (isPhone) nodes.push(h('p.note', t('Tap a room, a lamp or anything else on the plan.')));
     } else if (kind === 'room') {
-      head(item.name || item.id, `id: ${item.id}`);
+      head(item.name || item.id, t('id: {id}', { id: item.id }));
       const list = levelList();
-      nodes.push(section('Room',
-        bind('Name', text(), prop(item, 'name', '')),
-        row(bind('Flooring', choice(FLOOR_KINDS), { ...prop(item, 'floor', 'oak'), event: 'change' }),
-          list.length > 1 ? bind('On floor', choice(list.map((l) => [l.id, l.name])), {
+      nodes.push(section(t('Room'),
+        bind(t('Name'), text(), prop(item, 'name', '')),
+        row(bind(t('Flooring'), choice(labelled(FLOOR_KINDS, FLOOR_LABEL)), { ...prop(item, 'floor', 'oak'), event: 'change' }),
+          list.length > 1 ? bind(t('On floor'), choice(list.map((l) => [l.id, l.name])), {
             get: () => item.level ?? firstLevel(), set: (v) => moveRoomToLevel(sel.index, v), event: 'change',
           }) : null),
         h('div.fields',
-          h('button.btn', { onclick: () => splitRoom(sel.index) }, icon('split', 14, 2.2), 'Split in two'),
-          h('button.btn', { onclick: duplicate }, icon('duplicate', 14, 2.2), 'Duplicate'))),
-      section('Position & size, m',
+          h('button.btn', { onclick: () => splitRoom(sel.index) }, icon('split', 14, 2.2), t('Split in two')),
+          h('button.btn', { onclick: duplicate }, icon('duplicate', 14, 2.2), t('Duplicate')))),
+      section(t('Position & size, m'),
         row(bind('X', number(0.1), { ...at(item, 'rect', 0), parse: parseNum }), bind('Z', number(0.1), { ...at(item, 'rect', 1), parse: parseNum })),
-        row(bind('Width', number(0.1), { ...at(item, 'rect', 2), parse: parseNum }), bind('Depth', number(0.1), { ...at(item, 'rect', 3), parse: parseNum })),
-        h('p.note', isPhone ? 'Drag the dots on its corners and sides to resize it. Rooms that share an edge get an interior wall there; add a door or an “open” gap to connect them.'
-          : 'Drag the dots on its corners and sides to resize it; edges snap to other rooms (hold ⌥ not to). Rooms that share an edge get an interior wall there; add a door or an “open” gap to connect them.')));
+        row(bind(t('Width'), number(0.1), { ...at(item, 'rect', 2), parse: parseNum }), bind(t('Depth'), number(0.1), { ...at(item, 'rect', 3), parse: parseNum })),
+        h('p.note', isPhone ? t('Drag the dots on its corners and sides to resize it. Rooms that share an edge get an interior wall there; add a door or an “open” gap to connect them.')
+          : t('Drag the dots on its corners and sides to resize it; edges snap to other rooms (hold ⌥ not to). Rooms that share an edge get an interior wall there; add a door or an “open” gap to connect them.'))));
     } else if (kind === 'light') {
-      head(item.name || item.id, `id: ${item.id}`);
+      head(item.name || item.id, t('id: {id}', { id: item.id }));
       item.capabilities ||= [];
       const cap = (name) => ({
         get: () => item.capabilities.includes(name),
         set: (on) => { item.capabilities = item.capabilities.filter((c) => c !== name); if (on) item.capabilities.push(name); },
       });
-      nodes.push(section('Light',
-        bind('Name', text(), prop(item, 'name', '')),
-        row(bind('Room', choice(doc.rooms.map((r) => [r.id, r.name || r.id])), { ...prop(item, 'room'), event: 'change' }),
-          bind('Fixture', choice(LIGHT_KINDS), { ...prop(item, 'type'), event: 'change' }))),
-      section('Position, m',
+      // A lamp or an outlet: the same device to the panel, shown as one or the other.
+      const look = {
+        get: () => (item.outlet ? 'outlet' : 'lamp'),
+        set: (v) => { if (v === 'outlet') { item.outlet = true; } else { delete item.outlet; } },
+      };
+      const showAs = bind(t('Shown as'), choice([['lamp', t('Lamp')], ['outlet', t('Outlet')]]), { ...look, event: 'change' });
+      if (item.outlet) {
+        nodes.push(section(t('Outlet'),
+          bind(t('Name'), text(), prop(item, 'name', '')),
+          row(bind(t('Room'), choice(doc.rooms.map((r) => [r.id, r.name || r.id])), { ...prop(item, 'room'), event: 'change' }), showAs),
+          h('p.note', t('An outlet switches on and off. It sits on the wall of its room nearest to where you put it; choose Lamp to show a lamp plugged into it as a lamp.'))),
+        section(t('Position, m'),
+          row(bind('X', number(), { ...at(item, 'pos', 0), parse: parseNum }), bind('Z', number(), { ...at(item, 'pos', 1), parse: parseNum }))),
+        links.deviceSection(item, 'light', linkHooks));
+      } else nodes.push(section(t('Light'),
+        bind(t('Name'), text(), prop(item, 'name', '')),
+        row(bind(t('Room'), choice(doc.rooms.map((r) => [r.id, r.name || r.id])), { ...prop(item, 'room'), event: 'change' }),
+          bind(t('Fixture'), choice(labelled(LIGHT_KINDS, LIGHT_LABEL)), { ...prop(item, 'type'), event: 'change' })),
+        showAs),
+      section(t('Position, m'),
         row(bind('X', number(), { ...at(item, 'pos', 0), parse: parseNum }), bind('Z', number(), { ...at(item, 'pos', 1), parse: parseNum })),
-        row(bind('Height (auto if empty)', number(), { ...optional(item, 'y'), parse: optNum }),
-          bind('Rotation, °', number(15), { ...prop(item, 'rot', 0), parse: parseNum })),
-        item.type === 'strip' ? bind('Strip length, m', number(0.1), { ...prop(item, 'length', 1), parse: parseNum }) : null),
-      section('What it can do',
+        row(bind(t('Height (auto if empty)'), number(), { ...optional(item, 'y'), parse: optNum }),
+          bind(t('Rotation, °'), number(15), { ...prop(item, 'rot', 0), parse: parseNum })),
+        item.type === 'strip' ? bind(t('Strip length, m'), number(0.1), { ...prop(item, 'length', 1), parse: parseNum }) : null),
+      section(t('What it can do'),
         h('div.checks',
-          bind('Dimming', h('input', { type: 'checkbox' }), { ...cap('brightness'), event: 'change' }),
-          bind('White temperature', h('input', { type: 'checkbox' }), { ...cap('temp'), event: 'change' }),
-          bind('Colour', h('input', { type: 'checkbox' }), { ...cap('color'), event: 'change' })),
-        h('p.note', 'Leave all three off for a lamp on a plain smart plug: it is then a simple on/off switch.')),
+          bind(t('Dimming'), h('input', { type: 'checkbox' }), { ...cap('brightness'), event: 'change' }),
+          bind(t('White temperature'), h('input', { type: 'checkbox' }), { ...cap('temp'), event: 'change' }),
+          bind(t('Colour'), h('input', { type: 'checkbox' }), { ...cap('color'), event: 'change' })),
+        h('p.note', t('Leave all three off for a lamp on a plain smart plug: it is then a simple on/off switch.'))),
       links.deviceSection(item, 'light', linkHooks));
     } else if (kind === 'ac') {
-      head(item.name || item.id, `id: ${item.id}`);
-      nodes.push(section('Air conditioner',
-        bind('Name', text(), prop(item, 'name', '')),
-        row(bind('Room', choice(doc.rooms.map((r) => [r.id, r.name || r.id])), { ...prop(item, 'room'), event: 'change' }),
-          bind('Mounted on wall', choice(WALLS), { ...prop(item, 'wall', 'north'), event: 'change' }))),
-      section('Position, m',
+      head(item.name || item.id, t('id: {id}', { id: item.id }));
+      nodes.push(section(t('Air conditioner'),
+        bind(t('Name'), text(), prop(item, 'name', '')),
+        row(bind(t('Room'), choice(doc.rooms.map((r) => [r.id, r.name || r.id])), { ...prop(item, 'room'), event: 'change' }),
+          bind(t('Mounted on wall'), choice(labelled(WALLS, WALL_LABEL)), { ...prop(item, 'wall', 'north'), event: 'change' }))),
+      section(t('Position, m'),
         row(bind('X', number(), { ...at(item, 'pos', 0), parse: parseNum }), bind('Z', number(), { ...at(item, 'pos', 1), parse: parseNum })),
-        row(bind('Height', number(), { ...prop(item, 'y', 2.2), parse: parseNum }),
-          bind('Min / max °C', text(), {
+        row(bind(t('Height'), number(), { ...prop(item, 'y', 2.2), parse: parseNum }),
+          bind(t('Min / max °C'), text(), {
             get: () => `${item.min ?? 16}-${item.max ?? 30}`,
             set: ([a, b]) => { item.min = a; item.max = b; },
             parse: (v) => { const m = /^(\d+)\s*-\s*(\d+)$/.exec(v.trim()); return m && +m[1] < +m[2] ? [+m[1], +m[2]] : undefined; },
           })),
-        h('p.note', 'Dragging the unit on the plan snaps it to the nearest wall of its room.')),
+        h('p.note', t('Dragging the unit on the plan snaps it to the nearest wall of its room.'))),
       links.deviceSection(item, 'ac', linkHooks),
       links.sensorSection(item, linkHooks));
     } else if (kind === 'furniture') {
       const stairs = item.type === 'stairs';
-      head(stairs ? 'Stairs' : item.type, stairs ? 'Up to the floor above' : 'Decoration only');
-      nodes.push(section('Furniture',
-        bind('Type', choice(FURNITURE_TYPES), { ...prop(item, 'type'), event: 'change' }),
+      head(label(FURNITURE_LABEL, item.type), stairs ? t('Up to the floor above') : t('Decoration only'));
+      nodes.push(section(t('Furniture'),
+        bind(t('Type'), choice(labelled(FURNITURE_TYPES, FURNITURE_LABEL)), { ...prop(item, 'type'), event: 'change' }),
         row(bind('X', number(), { ...at(item, 'pos', 0), parse: parseNum }), bind('Z', number(), { ...at(item, 'pos', 1), parse: parseNum })),
-        row(bind('Rotation, °', number(15), { ...prop(item, 'rot', 0), parse: parseNum }),
-          bind('Width, m', number(0.1), { ...optional(item, 'width'), parse: optNum })),
-        stairs ? bind('Length, m', number(0.1), { ...optional(item, 'depth'), parse: optNum }) : bind('Colour (hex, optional)', text(), optional(item, 'color')),
+        row(bind(t('Rotation, °'), number(15), { ...prop(item, 'rot', 0), parse: parseNum }),
+          bind(t('Width, m'), number(0.1), { ...optional(item, 'width'), parse: optNum })),
+        stairs ? bind(t('Length, m'), number(0.1), { ...optional(item, 'depth'), parse: optNum }) : bind(t('Colour (hex, optional)'), text(), optional(item, 'color')),
         h('div.fields',
-          h('button.btn', { onclick: () => rotate(90) }, icon('rotateCw', 14, 2.2), 'Turn 90°'),
-          h('button.btn', { onclick: duplicate }, icon('duplicate', 14, 2.2), 'Duplicate')),
-        h('p.note', stairs ? 'Stairs climb in the direction of the arrow and reach the floor above; the floor above shows them faintly, to line its landing up.'
-          : 'The short line on the plan marks the front. Rotation 0° faces south (towards the bottom of the plan).')));
+          h('button.btn', { onclick: () => rotate(90) }, icon('rotateCw', 14, 2.2), t('Turn 90°')),
+          h('button.btn', { onclick: duplicate }, icon('duplicate', 14, 2.2), t('Duplicate'))),
+        h('p.note', stairs ? t('Stairs climb in the direction of the arrow and reach the floor above; the floor above shows them faintly, to line its landing up.')
+          : t('The short line on the plan marks the front. Rotation 0° faces south (towards the bottom of the plan).'))));
     } else if (kind === 'opening') {
-      head(item.type || 'door', 'A gap or a window in a wall');
-      nodes.push(section('Opening',
-        bind('Type', choice([['door', 'Door'], ['open', 'Open passage'], ['window', 'Window']]), { ...prop(item, 'type', 'door'), event: 'change' }),
-        row(bind('From X', number(), { ...at(item, 'from', 0), parse: parseNum }), bind('From Z', number(), { ...at(item, 'from', 1), parse: parseNum })),
-        row(bind('To X', number(), { ...at(item, 'to', 0), parse: parseNum }), bind('To Z', number(), { ...at(item, 'to', 1), parse: parseNum })),
-        item.type === 'window' ? row(bind('Sill, m', number(), { ...prop(item, 'sill', 0.85), parse: parseNum }),
-          bind('Head, m', number(), { ...prop(item, 'head', 2.1), parse: parseNum })) : null,
-        h('p.note', (isPhone
-          ? 'Drag it along a wall. To turn it, drag it onto a wall that runs the other way: it snaps to that wall and turns with it. Drag the dots at its ends to make it wider.'
-          : 'Drag it along a wall. To turn it, drag it onto a wall that runs the other way: it snaps to that wall and turns with it (hold ⌥ not to snap). Drag the dots at its ends to make it wider.')
-          + ' Windows only show on the far walls; the walls facing the camera are cut away.')));
+      head(label(OPENING_LABEL, item.type || 'door'), t('A gap or a window in a wall'));
+      nodes.push(section(t('Opening'),
+        bind(t('Type'), choice(labelled(['door', 'open', 'window'], OPENING_LABEL)), { ...prop(item, 'type', 'door'), event: 'change' }),
+        row(bind(t('From X'), number(), { ...at(item, 'from', 0), parse: parseNum }), bind(t('From Z'), number(), { ...at(item, 'from', 1), parse: parseNum })),
+        row(bind(t('To X'), number(), { ...at(item, 'to', 0), parse: parseNum }), bind(t('To Z'), number(), { ...at(item, 'to', 1), parse: parseNum })),
+        item.type === 'window' ? row(bind(t('Sill, m'), number(), { ...prop(item, 'sill', 0.85), parse: parseNum }),
+          bind(t('Head, m'), number(), { ...prop(item, 'head', 2.1), parse: parseNum })) : null,
+        h('p.note', `${isPhone
+          ? t('Drag it along a wall. To turn it, drag it onto a wall that runs the other way: it snaps to that wall and turns with it. Drag the dots at its ends to make it wider.')
+          : t('Drag it along a wall. To turn it, drag it onto a wall that runs the other way: it snaps to that wall and turns with it (hold ⌥ not to snap). Drag the dots at its ends to make it wider.')} ${
+          t('Windows only show on the far walls; the walls facing the camera are cut away.')}`)));
     } else if (kind === 'scene') {
-      head(item.name || item.id, `id: ${item.id}`);
+      head(item.name || item.id, t('id: {id}', { id: item.id }));
       item.lights ||= {};
       const rule = (id) => ({
         get: () => (item.lights[id]?.on === true ? 'on' : item.lights[id]?.on === false ? 'off' : ''),
@@ -1338,23 +1403,23 @@ export async function bootEditor(root) {
           else item.lights[id] = { ...(item.lights[id] || {}), on: v === 'on' };
         },
       });
-      const tri = () => choice([['', 'Leave as is'], ['on', 'On'], ['off', 'Off']]);
-      nodes.push(section('Scene',
-        row(bind('Name', text(), prop(item, 'name', '')), bind('Icon', choice(SCENE_ICONS), { ...prop(item, 'icon', 'sun'), event: 'change' })),
-        bind('On/off button', h('input', { type: 'checkbox' }), {
+      const tri = () => choice([['', t('Leave as is')], ['on', t('On')], ['off', t('Off')]]);
+      nodes.push(section(t('Scene'),
+        row(bind(t('Name'), text(), prop(item, 'name', '')), bind(t('Icon'), choice(labelled(SCENE_ICONS, ICON_LABEL)), { ...prop(item, 'icon', 'sun'), event: 'change' })),
+        bind(t('On/off button'), h('input', { type: 'checkbox' }), {
           get: () => item.toggle === true,
           set: (v) => { if (v) item.toggle = true; else delete item.toggle; },
           event: 'change',
         }),
         h('p.note', item.toggle
-          ? 'A tap turns on the lights set to On; the next tap, while any of them is on, turns them off again.'
-          : 'Tick it for a room button: one tap on, the next tap off.')),
-      section('Lights',
-        bind('All lights (default)', tri(), { ...rule('*'), event: 'change' }),
+          ? t('A tap turns on the lights set to On; the next tap, while any of them is on, turns them off again.')
+          : t('Tick it for a room button: one tap on, the next tap off.'))),
+      section(t('Lights'),
+        bind(t('All lights (default)'), tri(), { ...rule('*'), event: 'change' }),
         doc.lights.map((l) => bind(`${l.name} · ${roomName(l.room)}`, tri(), { ...rule(l.id), event: 'change' })),
-        h('p.note', 'Brightness, temperature and colour per light are kept from the plan file; edit them there for fine control.')),
-      section('Air conditioners',
-        bind('All ACs', choice([['', 'Leave as is'], ['off', 'Turn off'], ['on', 'Turn on']]), {
+        h('p.note', t('Brightness, temperature and colour per light are kept from the plan file; edit them there for fine control.'))),
+      section(t('Air conditioners'),
+        bind(t('All ACs'), choice([['', t('Leave as is')], ['off', t('Turn off')], ['on', t('Turn on')]]), {
           get: () => (item.acs?.['*']?.on === true ? 'on' : item.acs?.['*']?.on === false ? 'off' : ''),
           set: (v) => { item.acs ||= {}; if (v === '') delete item.acs['*']; else item.acs['*'] = { on: v === 'on' }; },
           event: 'change',
@@ -1397,55 +1462,64 @@ export async function bootEditor(root) {
   }
 
   function deviceList() {
-    if (tuya.busy) return h('p.note', 'Talking to Smart Life…');
+    if (tuya.busy) return h('p.note', t('Talking to Smart Life…'));
     if (tuya.error) return h('p.note.bad', tuya.error);
     if (!tuya.devices) return null;
-    if (!tuya.devices.length) return h('p.note.bad', 'Connected, but this account has no devices yet.');
+    if (!tuya.devices.length) return h('p.note.bad', t('Connected, but this account has no devices yet.'));
     const used = new Map([...doc.lights, ...doc.acs].filter((d) => d.tuya?.deviceId).map((d) => [d.tuya.deviceId, d.name]));
-    return h('div.devices-list', h('h3', `${tuya.devices.length} devices in your account`), tuya.devices.map((d) => h('div.device',
+    return h('div.devices-list', h('h3', tn(tuya.devices.length, '{n} device in your account', '{n} devices in your account')), tuya.devices.map((d) => h('div.device',
       h(`span.dot${d.online ? '.on' : ''}`),
-      h('div', h('b', d.name), h('span', `${d.product || d.category || 'device'} · ${d.codes.join(', ') || 'no functions reported'}`)),
+      h('div', h('b', d.name), h('span', `${d.product || d.category || t('device')} · ${d.codes.join(', ') || t('no functions reported')}`)),
       used.has(d.id) ? h('span.pill.on', used.get(d.id)) : null)));
   }
 
   function tuyaPanel() {
     const nodes = [];
-    if (!isNative) nodes.push(h('p.note.bad', 'Connecting works inside the House Control app (this is the browser preview).'));
+    if (!isNative) nodes.push(h('p.note.bad', t('Connecting works inside the House Control app (this is the browser preview).')));
 
-    if (tuya.account.connected) {
-      nodes.push(section('Smart Life account',
-        h('div.device', h('span.dot.on'), h('div', h('b', tuya.account.account || 'Signed in'), h('span', `User Code ${tuya.account.userCode}`))),
+    // Smart Life stopped taking the stored sign-in: nothing reaches the devices until a new
+    // QR login, which keeps the plan and its links (the User Code is already filled in).
+    const expired = tuya.account.connected && tuya.account.expired;
+    if (expired) {
+      nodes.push(h('div.notice.bad',
+        icon('alert', 18, 2.2),
+        h('div', h('b', t('Sign-in expired')),
+          h('span', t('Smart Life no longer accepts this Mac’s sign-in, so lights and air conditioners can’t be switched. Show a new QR code and scan it with the Smart Life app; your floor plan and links stay as they are.')))));
+    }
+    if (tuya.account.connected && !expired) {
+      nodes.push(section(t('Smart Life account'),
+        h('div.device', h('span.dot.on'), h('div', h('b', tuya.account.account || t('Signed in')), h('span', t('User Code {code}', { code: tuya.account.userCode })))),
         h('div.fields',
-          h('button.btn', { onclick: fetchDevices }, 'Refresh devices'),
+          h('button.btn', { onclick: fetchDevices }, t('Refresh devices')),
           h('button.btn', { onclick: async () => {
             stopLoginPolling();
             tuya.account = await call('smartlife.signOut');
             tuya.devices = null; tuya.qr = null;
             renderSidebar(); renderInspector();
             smartLifeChanged();
-          } }, 'Sign out')),
-        h('p.note', 'Pick a lamp or an AC on the plan, choose its device under “Smart Life device”, then press “Save & apply”.')),
+          } }, t('Sign out'))),
+        h('p.note', t('Pick a lamp or an AC on the plan, choose its device under “Smart Life device”, then press “Save & apply”.'))),
       deviceList());
       if (!tuya.devices && !tuya.busy && !tuya.error && isNative) setTimeout(fetchDevices, 0);
     } else {
       const codeInput = text();
       codeInput.value = tuya.account.userCode || '';
-      codeInput.placeholder = 'e.g. aB12cD3';
+      codeInput.placeholder = t('e.g. {example}', { example: 'aB12cD3' });
       const message = h('p.note');
       const qrBox = h('div.qr');
       const start = async () => {
         stopLoginPolling();
         message.className = 'note';
-        message.textContent = 'Requesting a login code…';
+        message.textContent = t('Requesting a login code…');
         qrBox.replaceChildren();
         try {
           const userCode = codeInput.value.trim();
           const { token, qr } = await call('smartlife.begin', { userCode });
-          qrBox.replaceChildren(h('img', { src: qr, alt: 'Smart Life login QR code', width: 220, height: 220 }));
-          message.textContent = 'Scan this code with the Smart Life app (the scan icon on the Home tab) and confirm the login. Waiting…';
+          qrBox.replaceChildren(h('img', { src: qr, alt: t('Smart Life login QR code'), width: 220, height: 220 }));
+          message.textContent = t('Scan this code with the Smart Life app (the scan icon on the Home tab) and confirm the login. Waiting…');
           let tries = 0;
           loginTimer = setInterval(async () => {
-            if (++tries > 90) { stopLoginPolling(); message.className = 'note bad'; message.textContent = 'The code expired. Press “Show QR code” again.'; return; }
+            if (++tries > 90) { stopLoginPolling(); message.className = 'note bad'; message.textContent = t('The code expired. Press “Show QR code” again.'); return; }
             const r = await call('smartlife.poll', { token, userCode }).catch(() => null);
             if (!r?.connected) return;
             stopLoginPolling();
@@ -1459,23 +1533,23 @@ export async function bootEditor(root) {
           message.textContent = e.message;
         }
       };
-      nodes.push(section('Sign in with the Smart Life app',
+      nodes.push(section(t('Sign in with the Smart Life app'),
         h('ol.steps',
-          h('li', 'In the Smart Life app open Me → ⚙ Settings → Account and Security and copy the User Code at the bottom.'),
-          h('li', 'Type it here and press “Show QR code”.'),
-          h('li', 'Scan the code with the Smart Life app and confirm.')),
-        h('label.field', h('span', 'User Code'), codeInput),
-        h('button.btn.primary.wide', { onclick: start, disabled: !isNative }, 'Show QR code'),
+          h('li', t('In the Smart Life app open Me → ⚙ Settings → Account and Security and copy the User Code at the bottom.')),
+          h('li', t('Type it here and press “Show QR code”.')),
+          h('li', t('Scan the code with the Smart Life app and confirm.'))),
+        h('label.field', h('span', t('User Code')), codeInput),
+        h('button.btn.primary.wide', { onclick: start, disabled: !isNative }, t('Show QR code')),
         qrBox, message,
-        h('p.note', 'Free and needs no Tuya developer account: this is the same sign-in the Home Assistant integration uses. The session is stored only on this Mac.')));
+        h('p.note', t('Free and needs no Tuya developer account: this is the same sign-in the Home Assistant integration uses. The session is stored only on this Mac.'))));
     }
 
     // The developer-project route stays available for those who already have one.
     const idInput = text();
     idInput.value = tuya.info.accessId || '';
-    idInput.placeholder = 'Access ID / Client ID';
+    idInput.placeholder = t('Access ID / Client ID');
     const secretInput = h('input', { type: 'password', autocomplete: 'off' });
-    secretInput.placeholder = tuya.info.hasSecret ? '•••••••• (saved — leave empty to keep)' : 'Access Secret / Client Secret';
+    secretInput.placeholder = tuya.info.hasSecret ? `•••••••• ${t('(saved — leave empty to keep)')}` : t('Access Secret / Client Secret');
     const region = choice(REGIONS.map(([id, label]) => [id, `${label} (${id})`]));
     region.value = tuya.info.region || 'eu';
     const saveCloud = async () => {
@@ -1486,13 +1560,13 @@ export async function bootEditor(root) {
         if (tuya.info.configured) await fetchDevices(); else renderInspector();
       } catch (e) { toast(e.message, true); }
     };
-    nodes.push(h('details.advanced', h('summary', 'Advanced: Tuya Cloud project instead'),
-      h('p.note', 'Only if you already have a project on platform.tuya.com with your app account linked. The QR sign-in above takes priority when both are set.'),
-      h('label.field', h('span', 'Access ID'), idInput),
-      h('label.field', h('span', 'Access Secret'), secretInput),
-      h('label.field', h('span', 'Data center'), region),
-      h('button.btn.wide', { onclick: saveCloud, disabled: !isNative }, 'Save & fetch devices'),
-      tuya.account.connected ? null : deviceList()));
+    nodes.push(h('details.advanced', h('summary', t('Advanced: Tuya Cloud project instead')),
+      h('p.note', t('Only if you already have a project on platform.tuya.com with your app account linked. The QR sign-in above takes priority when both are set.')),
+      h('label.field', h('span', t('Access ID')), idInput),
+      h('label.field', h('span', t('Access Secret')), secretInput),
+      h('label.field', h('span', t('Data center')), region),
+      h('button.btn.wide', { onclick: saveCloud, disabled: !isNative }, t('Save & fetch devices')),
+      tuya.account.connected && !expired ? null : deviceList()));
     return nodes;
   }
 
@@ -1502,15 +1576,17 @@ export async function bootEditor(root) {
     if (!valid) return;
     if (!isNative) {
       download();
-      toast('Browser preview: the plan was downloaded instead of applied');
+      toast(t('Browser preview: the plan was downloaded instead of applied'));
       return;
     }
     try {
+      const sent = JSON.stringify(doc);
       await call('savePlan', { config: doc });
-      dirty = false;
+      saved = sent;
+      setDirty(JSON.stringify(doc) !== saved);
       validate();
       haptic('success');
-      toast(isPhone ? 'Saved' : 'Saved — the menu bar panel now shows this home');
+      toast(isPhone ? t('Saved') : t('Saved — the menu bar panel now shows this home'));
     } catch (e) {
       toast(e.message, true);
     }
@@ -1526,7 +1602,7 @@ export async function bootEditor(root) {
     if (!isNative) { download(); return; }
     try {
       const r = await call('exportPlan', { config: doc });
-      if (r.ok) toast('Plan exported');
+      if (r.ok) toast(t('Plan exported'));
     } catch (e) { toast(e.message, true); }
   }
 
@@ -1535,18 +1611,18 @@ export async function bootEditor(root) {
       try {
         normalize(structuredClone(json));
       } catch (e) {
-        toast(`Not a valid plan: ${e.message}`, true);
+        toast(t('Not a valid plan: {error}', { error: e.message }), true);
         return;
       }
       snapshot();
       doc = json;
       for (const key of Object.values(KEYS)) doc[key] ||= [];
-      nameInput.value = doc.name || 'Home';
+      nameInput.value = doc.name || t('Home');
       sel = { kind: 'home' };
       checkLevel();
       view = null;
       touch();
-      toast('Plan imported — review it and press “Save & apply”');
+      toast(t('Plan imported — review it and press “Save & apply”'));
     };
     if (isNative) {
       try {
@@ -1557,7 +1633,7 @@ export async function bootEditor(root) {
     }
     const input = h('input', { type: 'file', accept: 'application/json,.json' });
     input.addEventListener('change', async () => {
-      try { load(JSON.parse(await input.files[0].text())); } catch (e) { toast(`Could not read the file: ${e.message}`, true); }
+      try { load(JSON.parse(await input.files[0].text())); } catch (e) { toast(t('Could not read the file: {error}', { error: e.message }), true); }
     });
     input.click();
   }
@@ -1621,49 +1697,49 @@ export async function bootEditor(root) {
   // (add, items, 3D, home) and the inspector as a sheet that rises when something is picked.
   function buildPhoneLayout() {
     const canvas = h('main.canvas');
-    const sheet = h('section.p-sheet', { 'aria-label': 'Details' });
-    const grip = h('div.p-grip', { role: 'button', 'aria-label': 'Resize details' }, h('span'));
+    const sheet = h('section.p-sheet', { 'aria-label': t('Details') });
+    const grip = h('div.p-grip', { role: 'button', 'aria-label': t('Resize details') }, h('span'));
     const scrim = h('div.p-scrim');
-    const listSheet = h('section.p-modal', { 'aria-label': 'Items' });
-    const addSheet = h('section.p-modal.p-add', { 'aria-label': 'Add' });
-    const confirmSheet = h('section.p-modal.p-confirm', { 'aria-label': 'Unsaved changes' });
-    const undoBtn = h('button.p-icon', { 'aria-label': 'Undo', onclick: () => { stepHistory(undo, redo); haptic('light'); } }, icon('undo', 19, 2.1));
-    const redoBtn = h('button.p-icon', { 'aria-label': 'Redo', onclick: () => { stepHistory(redo, undo); haptic('light'); } }, icon('redo', 19, 2.1));
+    const listSheet = h('section.p-modal', { 'aria-label': t('Items') });
+    const addSheet = h('section.p-modal.p-add', { 'aria-label': t('Add') });
+    const confirmSheet = h('section.p-modal.p-confirm', { 'aria-label': t('Unsaved changes') });
+    const undoBtn = h('button.p-icon', { 'aria-label': t('Undo'), onclick: () => { stepHistory(undo, redo); haptic('light'); } }, icon('undo', 19, 2.1));
+    const redoBtn = h('button.p-icon', { 'aria-label': t('Redo'), onclick: () => { stepHistory(redo, undo); haptic('light'); } }, icon('redo', 19, 2.1));
     const doneBtn = h('button.p-save', { onclick: () => (dirty ? save() : close()) });
     const issue = h('div.p-issue');
-    const fitBtn = h('button.p-float', { 'aria-label': 'Show the whole floor', onclick: () => { reveal(); haptic('light'); } }, icon('fit', 18, 2));
-    const tool = (name, label, onclick) => h('button.p-tool', { onclick }, icon(name, 22, 1.9), h('span', label));
-    const view3d = tool('box', '3D', () => setShow3D(!ui.show3D));
+    const fitBtn = h('button.p-float', { 'aria-label': t('Show the whole floor'), onclick: () => { reveal(); haptic('light'); } }, icon('fit', 18, 2));
+    const tool = (name, text, onclick) => h('button.p-tool', { onclick }, icon(name, 22, 1.9), h('span', text));
+    const view3d = tool('box', t('3D'), () => setShow3D(!ui.show3D));
     const tools = h('nav.p-tools',
-      tool('plus', 'Add', () => openModal(addSheet)),
-      tool('list', 'Items', () => openModal(listSheet)),
+      tool('plus', t('Add'), () => openModal(addSheet)),
+      tool('list', t('Items'), () => openModal(listSheet)),
       view3d,
-      tool('home', 'Home', () => { select({ kind: 'home' }); setSheet('full'); }));
+      tool('home', t('Home'), () => { select({ kind: 'home' }); setSheet('full'); }));
 
     nameInput.setAttribute('enterkeyhint', 'done');
     nameInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') nameInput.blur(); });
     sidebar.classList.add('p-list');
-    listSheet.append(h('div.p-modal-head', h('b', 'Items'), h('button.p-text', { onclick: closeModals }, 'Done')), sidebar);
+    listSheet.append(h('div.p-modal-head', h('b', t('Items')), h('button.p-text', { onclick: closeModals }, t('Done'))), sidebar);
     const addables = [
       ...addable(),
-      ['level', 'layers', 'Floor', () => addLevel()],
-      ['scene', 'sparkles', 'Scene', () => add('scene')],
+      ['level', 'layers', t('Floor'), () => addLevel()],
+      ['scene', 'sparkles', t('Scene'), () => add('scene')],
     ];
-    addSheet.append(h('div.p-modal-head', h('b', 'Add to the plan'), h('button.p-text', { onclick: closeModals }, 'Cancel')),
-      h('div.p-add-grid', addables.map(([, name, label, run]) => h('button.p-add-item', {
+    addSheet.append(h('div.p-modal-head', h('b', t('Add to the plan')), h('button.p-text', { onclick: closeModals }, t('Cancel'))),
+      h('div.p-add-grid', addables.map(([, name, text, run]) => h('button.p-add-item', {
         onclick: () => { closeModals(); run(); haptic('light'); if (sel.kind !== 'level') setSheet('peek'); else setSheet('full'); },
-      }, icon(name, 24, 1.8), h('span', label)))));
-    confirmSheet.append(h('div.p-modal-head', h('b', 'Unsaved changes')),
-      h('p.note', 'Save them before closing? Saved plans reach your paired computer too.'),
+      }, icon(name, 24, 1.8), h('span', text)))));
+    confirmSheet.append(h('div.p-modal-head', h('b', t('Unsaved changes'))),
+      h('p.note', t('Save them before closing? Saved plans reach your paired computer too.')),
       h('div.p-confirm-actions',
-        h('button.btn.primary.wide', { onclick: async () => { closeModals(); await save(); if (!dirty) close(); } }, 'Save and close'),
-        h('button.btn.wide.danger', { onclick: () => { closeModals(); dirty = false; close(); } }, 'Discard changes'),
-        h('button.btn.wide', { onclick: closeModals }, 'Keep editing')));
+        h('button.btn.primary.wide', { onclick: async () => { closeModals(); await save(); if (!dirty) close(); } }, t('Save and close')),
+        h('button.btn.wide.danger', { onclick: () => { closeModals(); setDirty(false); close(); } }, t('Discard changes')),
+        h('button.btn.wide', { onclick: closeModals }, t('Keep editing'))));
 
     sheet.append(grip, inspector);
     canvas.append(plan, levelBar, emptyCard, h('div.p-preview', previewHost, previewToggle), issue, fitBtn, hint);
     const shell = h('div.editor.phone',
-      h('header.p-bar', h('button.p-icon', { 'aria-label': 'Close', onclick: requestClose }, icon('close', 20, 2.2)),
+      h('header.p-bar', h('button.p-icon', { 'aria-label': t('Close'), onclick: requestClose }, icon('close', 20, 2.2)),
         nameInput, undoBtn, redoBtn, doneBtn),
       canvas, tools, scrim, sheet, listSheet, addSheet, confirmSheet, toastEl);
     root.replaceChildren(shell);
@@ -1733,7 +1809,7 @@ export async function bootEditor(root) {
     function setShow3D(on) {
       ui.show3D = on;
       canvas.classList.toggle('show-3d', on);
-      view3d.replaceChildren(icon(on ? 'map' : 'box', 22, 1.9), h('span', on ? 'Plan' : '3D'));
+      view3d.replaceChildren(icon(on ? 'map' : 'box', 22, 1.9), h('span', on ? t('Plan') : t('3D')));
       schedulePreview(0);
       haptic('light');
     }
@@ -1845,19 +1921,19 @@ export async function bootEditor(root) {
       headActions() {
         const nodes = [];
         if (sel.kind === 'furniture' || (sel.kind === 'light' && doc.lights[sel.index]?.type === 'strip')) {
-          nodes.push(h('button.p-icon', { 'aria-label': 'Turn 90°', onclick: () => { haptic('light'); rotate(90); } }, icon('rotateCw', 18, 2)));
+          nodes.push(h('button.p-icon', { 'aria-label': t('Turn 90°'), onclick: () => { haptic('light'); rotate(90); } }, icon('rotateCw', 18, 2)));
         }
         if (sel.index != null) {
-          nodes.push(h('button.p-icon', { 'aria-label': 'Duplicate', onclick: () => { haptic('light'); duplicate(); } }, icon('duplicate', 18, 2)));
+          nodes.push(h('button.p-icon', { 'aria-label': t('Duplicate'), onclick: () => { haptic('light'); duplicate(); } }, icon('duplicate', 18, 2)));
           nodes.push(h('button.p-icon.danger', {
-            'aria-label': 'Remove', onclick: () => { haptic('medium'); remove(sel.kind, sel.index); setSheet('closed'); },
+            'aria-label': t('Remove'), onclick: () => { haptic('medium'); remove(sel.kind, sel.index); setSheet('closed'); },
           }, icon('trash', 18, 2)));
         }
-        nodes.push(h('button.p-icon', { 'aria-label': 'Close details', onclick: closeSheet }, icon('down', 20, 2.2)));
+        nodes.push(h('button.p-icon', { 'aria-label': t('Close details'), onclick: closeSheet }, icon('down', 20, 2.2)));
         return h('div.p-head-actions', nodes);
       },
       refresh() {
-        doneBtn.textContent = dirty ? 'Save' : 'Done';
+        doneBtn.textContent = dirty ? t('Save') : t('Done');
         doneBtn.classList.toggle('primary', dirty);
         doneBtn.disabled = dirty && !valid;
         undoBtn.disabled = !undo.length;
@@ -1874,26 +1950,40 @@ export async function bootEditor(root) {
   renderPlan();
   renderInspector();
   validate();
+  saved = JSON.stringify(doc);
   dirty = false;
   validate();
   schedulePreview(0);
   incoming.openSection = (at) => select(sectionSel(at));
+  // The Mac's Smart Life sign-in expired, or works again after a new login.
+  incoming.smartLifeChanged = (account) => {
+    tuya.account = account;
+    renderSidebar();
+    if (sel.kind === 'service') renderInspector();
+  };
   // A plan saved on the other device (the Mac, or the paired iPhone) while this editor is open.
   incoming.planArrived = (config, from) => {
     if (dirty) {
-      toast(`${from || 'Your other device'} saved a newer plan. Saving here replaces it.`, true);
+      toast(from ? t('{device} saved a newer plan. Saving here replaces it.', { device: from })
+        : t('Your other device saved a newer plan. Saving here replaces it.'), true);
       return;
     }
     doc = structuredClone(config);
     for (const key of Object.values(KEYS)) doc[key] ||= [];
-    nameInput.value = doc.name || 'Home';
+    nameInput.value = doc.name || t('Home');
     checkLevel();
     if (sel.index != null && !doc[KEYS[sel.kind]]?.[sel.index]) sel = { kind: 'home' };
     if (sel.kind === 'level' && !levelList().some((l) => l.id === sel.id)) sel = { kind: 'home' };
+    saved = JSON.stringify(doc);
     touch();
-    dirty = false;
-    validate();
-    toast(`Updated from ${from || 'your other device'}`);
+    toast(from ? t('Updated from {device}', { device: from }) : t('Updated from your other device'));
+  };
+
+  // The Mac's "Save" in its unsaved-changes alert: the same as “Save & apply”; true once saved.
+  incoming.saveForClose = async () => {
+    if (!valid) toast(status.textContent, true);
+    await save();
+    return !dirty;
   };
 
   window.__editor = { get doc() { return doc; }, select, tuya, links, phone };

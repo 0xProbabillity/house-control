@@ -53,15 +53,20 @@ struct PairingView: View {
         Card(padding: 16) {
             VStack(alignment: .leading, spacing: 14) {
                 step(1, "On your computer, right-click the House Control icon: in the menu bar on a Mac, in the taskbar's tray on a PC.")
+                // Its comment is in the catalog (tools/l10n/normalize.py): a helper's argument carries none.
                 step(2, "Choose **Pair Phone…** (**Pair iPhone…** in older versions) — a code appears.")
-                step(3, "Point this iPhone at the code. Both devices need to be on the same Wi-Fi.")
+                if Device.isPad {
+                    step(3, "Point this iPad at the code. Both devices need to be on the same Wi-Fi.")
+                } else {
+                    step(3, "Point this iPhone at the code. Both devices need to be on the same Wi-Fi.")
+                }
             }
         }
     }
 
     private func step(_ number: Int, _ text: LocalizedStringKey) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text("\(number)")
+            Text(verbatim: "\(number)")
                 .font(.system(size: 13, weight: .bold, design: .rounded))
                 .foregroundStyle(Theme.accent)
                 .frame(width: 24, height: 24)
@@ -83,11 +88,11 @@ struct PairingView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
                 ViewfinderCorners().stroke(.white.opacity(0.9), style: StrokeStyle(lineWidth: 4, lineCap: .round)).padding(46)
             case .denied:
-                placeholder("camera.fill", "Camera access is off",
-                            "Allow the camera for House Control in Settings, or paste the pairing link below.")
+                placeholder("camera.fill", String(localized: "Camera access is off"),
+                            String(localized: "Allow the camera for House Control in Settings, or paste the pairing link below."))
             case .unavailable:
-                placeholder("qrcode.viewfinder", "No camera here",
-                            "Use Copy Pairing Link on the computer and paste it below.")
+                placeholder("qrcode.viewfinder", String(localized: "No camera here"),
+                            String(localized: "Use Copy Pairing Link on the computer and paste it below.", comment: "Copy Pairing Link is a menu item of House Control on the computer"))
             case .unknown:
                 ProgressView().tint(Theme.muted)
             }
@@ -117,7 +122,7 @@ struct PairingView: View {
             .labelStyle(.titleAndIcon)
             .buttonBorderShape(.capsule)
             .tint(Theme.accent)
-            Text("Or press **Copy Pairing Link** on the computer and paste it here.")
+            Text("Or press **Copy Pairing Link** on the computer and paste it here.", comment: "Copy Pairing Link is a menu item of House Control on the computer")
                 .font(.system(size: 13))
                 .foregroundStyle(Theme.faint)
                 .multilineTextAlignment(.center)
@@ -151,10 +156,10 @@ struct PairingView: View {
     private var statusLine: String {
         switch model.syncStatus {
         case .connected:
-            return model.hasCustomPlan ? "Connected. Your floor plan now stays the same on both, whichever one you edit."
-                : "Connected. Draw your home here or on the computer; it appears on both."
+            return model.hasCustomPlan ? String(localized: "Connected. Your floor plan now stays the same on both, whichever one you edit.")
+                : String(localized: "Connected. Draw your home here or on the computer; it appears on both.")
         case .failed(let reason): return reason
-        default: return "Looking for the computer on this Wi-Fi…"
+        default: return String(localized: "Looking for the computer on this Wi-Fi…")
         }
     }
 

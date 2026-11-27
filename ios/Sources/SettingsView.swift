@@ -52,7 +52,9 @@ struct SettingsView: View {
                 case .quickActions: QuickActionsView()
                 case .homeAssistant: HomeAssistantView()
                 case .hue: HueView()
+                case .homebridge: HomebridgeView()
                 case .devices: DevicesView()
+                case .language: LanguagePage()
                 }
             }
         }
@@ -76,34 +78,38 @@ struct SettingsView: View {
             SectionTitle("Home")
             Card {
                 if model.hasCustomPlan {
-                    planRow("custom", name: model.customPlanName ?? "My home", detail: customPlanDetail, symbol: "house.fill", tint: Theme.warm)
+                    planRow("custom", name: model.customPlanName ?? String(localized: "My home", comment: "Name of the user's own home while it has none"), detail: customPlanDetail, symbol: "house.fill", tint: Theme.warm)
                     RowDivider()
                 }
-                planRow("home", name: "Apartment", detail: "Demo · 5 rooms, simulated devices", symbol: "building.2.fill", tint: Theme.accent)
+                planRow("home", name: String(localized: "Apartment", comment: "Settings: name of a demo home"),
+                        detail: String(localized: "Demo · 5 rooms, simulated devices", comment: "Settings: under a demo home's name"), symbol: "building.2.fill", tint: Theme.accent)
                 RowDivider()
-                planRow("studio", name: "Studio", detail: "Demo · 3 rooms, simulated devices", symbol: "square.split.bottomrightquarter.fill", tint: Theme.accent)
+                planRow("studio", name: String(localized: "Studio", comment: "Settings: name of a demo home, a studio apartment"),
+                        detail: String(localized: "Demo · 3 rooms, simulated devices", comment: "Settings: under a demo home's name"), symbol: "square.split.bottomrightquarter.fill", tint: Theme.accent)
                 RowDivider()
-                planRow("house", name: "House", detail: "Demo · 2 floors, 10 rooms, simulated devices", symbol: "stairs", tint: Theme.accent)
+                planRow("house", name: String(localized: "House", comment: "Settings: name of a demo home, a house on two floors"),
+                        detail: String(localized: "Demo · 2 floors, 10 rooms, simulated devices", comment: "Settings: under a demo home's name"), symbol: "stairs", tint: Theme.accent)
             }
             Card {
                 Button { model.openEditor() } label: {
-                    linkRow(symbol: "pencil.and.ruler.fill", tint: Theme.accent, title: "Edit floor plan",
-                            detail: "Rooms, lamps, air conditioners, furniture")
+                    linkRow(symbol: "pencil.and.ruler.fill", tint: Theme.accent, title: String(localized: "Edit floor plan"),
+                            detail: String(localized: "Rooms, lamps, air conditioners, furniture", comment: "Settings: under Edit floor plan"))
                 }
                 .buttonStyle(RowButtonStyle())
                 RowDivider()
                 NavigationLink(value: SettingsRoute.devices) {
-                    linkRow(symbol: "link", tint: Theme.green, title: "Devices",
-                            detail: model.linkedDevices == 0 ? "Link the plan to your real devices"
-                                : "\(model.linkedDevices) linked to real devices")
+                    linkRow(symbol: "link", tint: Theme.green, title: String(localized: "Devices", comment: "Settings row: links the plan's lamps and ACs to real devices"),
+                            detail: model.linkedDevices == 0 ? String(localized: "Link the plan to your real devices")
+                                : String(localized: "\(model.linkedDevices) linked to real devices", comment: "Settings: under Devices; the number of lamps and ACs of the plan linked to a real device"))
                 }
                 .buttonStyle(RowButtonStyle())
                 #if ROOM_SCAN
                 RowDivider()
                 Button { model.openScan() } label: {
-                    linkRow(symbol: "cube.transparent.fill", tint: Theme.warm, title: "Scan with LiDAR", beta: true,
-                            detail: model.canScan ? "Walk through your home, pin lamps and ACs as you go"
-                                : "Needs an iPhone with a LiDAR camera")
+                    linkRow(symbol: "cube.transparent.fill", tint: Theme.warm, title: String(localized: "Scan with LiDAR"), beta: true,
+                            detail: model.canScan ? String(localized: "Walk through your home, pin lamps and ACs as you go", comment: "Settings: under Scan with LiDAR")
+                                : Device.isPad ? String(localized: "Needs an iPad with a LiDAR camera")
+                                : String(localized: "Needs an iPhone with a LiDAR camera"))
                 }
                 .buttonStyle(RowButtonStyle())
                 .disabled(!model.canScan)
@@ -117,17 +123,26 @@ struct SettingsView: View {
             }
             if !model.earlierHomes.isEmpty { earlierMenu }
             if !model.hasCustomPlan {
-                footnote("Make your own home here, or pair with House Control on a Mac or PC and the one drawn there arrives by itself.")
+                footnote(String(localized: "Make your own home here, or pair with House Control on a Mac or PC and the one drawn there arrives by itself."))
             }
         }
-        .confirmationDialog("Bring back \(restoring?.name ?? "this home")?", isPresented: Binding(
+        .confirmationDialog("Bring back \(restoring?.name ?? "")?", isPresented: Binding(
             get: { restoring != nil }, set: { if !$0 { restoring = nil } }), titleVisibility: .visible) {
             Button("Bring back") { if let home = restoring { model.restoreEarlier(home) }; restoring = nil }
         } message: {
-            Text(model.macName == nil
-                 ? "It becomes this iPhone's home again. The one here now is kept among the earlier homes."
-                 : "It becomes the home on this iPhone and on \(model.macName ?? "your computer"). The one here now is kept among the earlier homes.")
+            Text(restoreMessage)
         }
+    }
+
+    private var restoreMessage: String {
+        guard let mac = model.macName else {
+            return Device.isPad
+                ? String(localized: "It becomes this iPad's home again. The one here now is kept among the earlier homes.")
+                : String(localized: "It becomes this iPhone's home again. The one here now is kept among the earlier homes.")
+        }
+        return Device.isPad
+            ? String(localized: "It becomes the home on this iPad and on \(mac). The one here now is kept among the earlier homes.", comment: "The placeholder is the paired computer's name")
+            : String(localized: "It becomes the home on this iPhone and on \(mac). The one here now is kept among the earlier homes.", comment: "The placeholder is the paired computer's name")
     }
 
     /// The homes kept before a scan, the computer or a file replaced the one here.
@@ -136,7 +151,9 @@ struct SettingsView: View {
             ForEach(model.earlierHomes.prefix(12)) { home in
                 Button { restoring = home } label: {
                     Text(home.name)
-                    Text("\(home.rooms) rooms, \(home.devices) devices · \(home.date.formatted(date: .abbreviated, time: .shortened))")
+                    Text(verbatim: [String(localized: "\(home.rooms) rooms", comment: "Earlier homes menu: how many rooms a kept home has"),
+                                    String(localized: "\(home.devices) devices", comment: "Earlier homes menu: how many devices a kept home has")]
+                        .formatted(.list(type: .and, width: .narrow)) + " · " + home.date.formatted(date: .abbreviated, time: .shortened))
                 }
             }
         } label: {
@@ -166,9 +183,9 @@ struct SettingsView: View {
     }
 
     private var customPlanDetail: String {
-        let devices = model.linkedDevices == 0 ? "No real devices linked"
-            : "\(model.linkedDevices) real device\(model.linkedDevices == 1 ? "" : "s") linked"
-        return model.activePlan == "custom" ? devices : "Your home"
+        let devices = model.linkedDevices == 0 ? String(localized: "No real devices linked", comment: "Settings: under the user's own home")
+            : String(localized: "\(model.linkedDevices) real devices linked", comment: "Settings: under the user's own home")
+        return model.activePlan == "custom" ? devices : String(localized: "Your home", comment: "Settings: under the user's own home while a demo is shown")
     }
 
     private func planRow(_ id: String, name: String, detail: String, symbol: String, tint: Color) -> some View {
@@ -213,13 +230,13 @@ struct SettingsView: View {
                 }
                 .buttonStyle(RowButtonStyle())
             }
-            footnote("Press and hold the app icon for these. Widgets and Control Center buttons are added from the Home Screen and Control Center.")
+            footnote(String(localized: "Press and hold the app icon for these. Widgets and Control Center buttons are added from the Home Screen and Control Center."))
         }
     }
 
     private var quickActionsDetail: String {
         let names = model.quickActions.chosen.compactMap(model.quickActions.lookup).map(\.title)
-        return names.isEmpty ? "None" : names.joined(separator: " · ")
+        return names.isEmpty ? String(localized: "None", comment: "Settings: no quick actions chosen") : names.joined(separator: " · ")
     }
 
     // MARK: - Mac
@@ -261,9 +278,10 @@ struct SettingsView: View {
                 .confirmationDialog("Unpair from \(name)?", isPresented: $confirmUnpair, titleVisibility: .visible) {
                     Button("Unpair", role: .destructive) { model.unpair() }
                 } message: {
-                    Text("The floor plan stays on this iPhone but no longer follows the computer.")
+                    Text(Device.isPad ? String(localized: "The floor plan stays on this iPad but no longer follows the computer.")
+                         : String(localized: "The floor plan stays on this iPhone but no longer follows the computer."))
                 }
-                footnote("Changes saved on either one reach the other while both are on the same Wi-Fi: the floor plan, device links, Home Assistant and Hue.")
+                footnote(String(localized: "Changes saved on either one reach the other while both are on the same Wi-Fi: the floor plan, device links, Home Assistant, Hue and Homebridge."))
             } else {
                 Card(padding: 16) {
                     HStack(alignment: .top, spacing: 14) {
@@ -302,12 +320,12 @@ struct SettingsView: View {
 
     private var syncText: String {
         switch model.syncStatus {
-        case .connected: return "Connected · up to date"
-        case .connecting: return "Connecting…"
-        case .failed: return "Not syncing"
+        case .connected: return String(localized: "Connected · up to date", comment: "Settings: the paired computer's sync status")
+        case .connecting: return String(localized: "Connecting…", comment: "Settings: the paired computer's sync status")
+        case .failed: return String(localized: "Not syncing", comment: "Settings: the paired computer's sync status")
         default:
-            guard let last = model.lastSync else { return "Looking for it on this Wi-Fi…" }
-            return "Last synced \(last.formatted(.relative(presentation: .named)))"
+            guard let last = model.lastSync else { return String(localized: "Looking for it on this Wi-Fi…", comment: "Settings: looking for the paired computer") }
+            return String(localized: "Last synced \(last.formatted(.relative(presentation: .named)))", comment: "Settings: the paired computer's sync status; the placeholder is a relative time such as “5 minutes ago” or “yesterday”")
         }
     }
 
@@ -317,16 +335,35 @@ struct SettingsView: View {
     private var smartLifeSection: some View {
         VStack(spacing: 10) {
             SectionTitle("Smart Life")
-            if model.smartLifeConnected {
+            if model.smartLifeConnected && model.smartLifeExpired {
+                Card(padding: 16) {
+                    HStack(alignment: .top, spacing: 14) {
+                        IconBadge(symbol: "exclamationmark.triangle.fill", tint: Theme.red)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Sign-in expired").font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
+                            Text(Device.isPad
+                                 ? String(localized: "Smart Life no longer accepts this iPad's sign-in, so lights and air conditioners can't be switched. Scan the QR code again to reconnect; your floor plan and links stay as they are.")
+                                 : String(localized: "Smart Life no longer accepts this iPhone's sign-in, so lights and air conditioners can't be switched. Scan the QR code again to reconnect; your floor plan and links stay as they are."))
+                                .font(.system(size: 14))
+                                .foregroundStyle(Theme.muted)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                NavigationLink(value: SettingsRoute.smartLife) {
+                    Label("Reconnect Smart Life", systemImage: "qrcode")
+                }
+                .buttonStyle(SecondaryButtonStyle())
+            } else if model.smartLifeConnected {
                 Card {
                     HStack(spacing: 14) {
                         IconBadge(symbol: "checkmark.seal.fill", tint: Theme.green)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(model.smartLifeAccount.isEmpty ? "Signed in" : model.smartLifeAccount)
+                            Text(model.smartLifeAccount.isEmpty ? String(localized: "Signed in", comment: "Settings: Smart Life account when its name is unknown") : model.smartLifeAccount)
                                 .font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
                                 .lineLimit(1)
-                            Text(model.linkedDevices == 0 ? "No devices linked in this floor plan"
-                                 : "Controlling \(model.linkedDevices) device\(model.linkedDevices == 1 ? "" : "s")")
+                            Text(model.linkedDevices == 0 ? String(localized: "No devices linked in this floor plan")
+                                 : String(localized: "Controlling \(model.linkedDevices) devices", comment: "Settings: under the Smart Life account; how many devices of the plan it switches"))
                                 .font(.system(size: 13.5)).foregroundStyle(Theme.muted)
                         }
                         Spacer(minLength: 0)
@@ -339,7 +376,8 @@ struct SettingsView: View {
                     .confirmationDialog("Sign out of Smart Life?", isPresented: $confirmSignOut, titleVisibility: .visible) {
                         Button("Sign out", role: .destructive) { model.signOut() }
                     } message: {
-                        Text("Lights and air conditioners go back to being simulated on this iPhone.")
+                        Text(Device.isPad ? String(localized: "Lights and air conditioners go back to being simulated on this iPad.")
+                             : String(localized: "Lights and air conditioners go back to being simulated on this iPhone."))
                     }
             } else {
                 Card(padding: 16) {
@@ -363,21 +401,29 @@ struct SettingsView: View {
     }
     #endif
 
-    // MARK: - Home Assistant, Hue, Apple Home
+    // MARK: - Home Assistant, Hue, Homebridge, Apple Home
 
     private var connectionsSection: some View {
         VStack(spacing: 10) {
-            SectionTitle(AppModel.includesSmartLife ? "More connections" : "Connections")
+            if AppModel.includesSmartLife { SectionTitle("More connections") } else { SectionTitle("Connections") }
             Card {
                 NavigationLink(value: SettingsRoute.homeAssistant) {
                     serviceRow(symbol: "server.rack", tint: ConnectionLook.homeAssistant, title: "Home Assistant",
-                               detail: model.homeAssistantName ?? "Connect your server", on: model.homeAssistantName != nil)
+                               detail: model.homeAssistantName ?? String(localized: "Connect your server", comment: "Settings: under Home Assistant while not connected"), on: model.homeAssistantName != nil)
                 }
                 .buttonStyle(RowButtonStyle())
                 RowDivider()
                 NavigationLink(value: SettingsRoute.hue) {
                     serviceRow(symbol: "lightbulb.led.fill", tint: ConnectionLook.hue, title: "Philips Hue",
-                               detail: model.hueName ?? "Pair your Hue Bridge", on: model.hueName != nil)
+                               detail: model.hueName ?? String(localized: "Pair your Hue Bridge", comment: "Settings: under Philips Hue while not connected"), on: model.hueName != nil)
+                }
+                .buttonStyle(RowButtonStyle())
+                RowDivider()
+                NavigationLink(value: SettingsRoute.homebridge) {
+                    serviceRow(symbol: ConnectionLook.symbol("homebridge"), tint: ConnectionLook.homebridge, title: "Homebridge",
+                               detail: model.homebridgeExpired ? String(localized: "Sign in again", comment: "Settings: under Homebridge when its session ran out")
+                                   : model.homebridgeName ?? String(localized: "Plugins for hundreds of brands", comment: "Settings: under Homebridge while not connected"),
+                               on: model.homebridgeName != nil && !model.homebridgeExpired)
                 }
                 .buttonStyle(RowButtonStyle())
                 RowDivider()
@@ -437,20 +483,23 @@ struct SettingsView: View {
 
     private var homeKitDetail: String {
         switch model.homeKit {
-        case .off: return "Lamps, ACs and sensors from the Home app"
-        case .waiting: return "Opening your homes…"
-        case .denied: return "Not allowed. Turn on House Control in Settings → Privacy → HomeKit"
+        case .off: return String(localized: "Lamps, ACs and sensors from the Home app", comment: "Settings: under Apple Home while not connected")
+        case .waiting: return String(localized: "Opening your homes…", comment: "Settings: under Apple Home while HomeKit loads")
+        case .denied: return String(localized: "Not allowed. Turn on House Control in Settings → Privacy → HomeKit", comment: "Settings: under Apple Home; the path is in iOS Settings")
         case .ready(let homes, let accessories):
-            if homes.isEmpty { return "No homes yet. Set one up in the Home app" }
-            return "\(accessories) accessor\(accessories == 1 ? "y" : "ies") · \(homes.joined(separator: ", "))"
+            if homes.isEmpty { return String(localized: "No homes yet. Set one up in the Home app") }
+            let count = String(localized: "\(accessories) accessories", comment: "Settings: under Apple Home; how many HomeKit accessories it has. The names of the homes follow")
+            return ([count] + homes).joined(separator: " · ")
         }
     }
 
     private var homeKitFootnote: String {
         if case .ready = model.homeKit, model.macName != nil {
-            return "This iPhone switches your Apple Home devices; your paired computer lists them for its editor, but only the iPhone app may use HomeKit."
+            return Device.isPad
+                ? String(localized: "This iPad switches your Apple Home devices; your paired computer lists them for its editor, but only the iPad app may use HomeKit.")
+                : String(localized: "This iPhone switches your Apple Home devices; your paired computer lists them for its editor, but only the iPhone app may use HomeKit.")
         }
-        return "Home Assistant and Hue set up here or on your paired computer work on both, shared over your encrypted link."
+        return String(localized: "Home Assistant, Hue and Homebridge set up here or on your paired computer work on both, shared over your encrypted link.")
     }
 
     // MARK: - About
@@ -459,29 +508,49 @@ struct SettingsView: View {
         VStack(spacing: 10) {
             SectionTitle("About")
             Card {
+                NavigationLink(value: SettingsRoute.language) {
+                    LanguageRow { linkRow(symbol: "character.bubble.fill", tint: Theme.accent,
+                                          title: String(localized: "Language", comment: "Settings: the app's language"), detail: $0) }
+                }
+                .buttonStyle(RowButtonStyle())
+            }
+            Card {
                 infoRow("Version", value: version)
                 RowDivider().padding(.leading, -52)
-                infoRow("Privacy", value: "No account, no analytics")
+                infoRow("Privacy", value: String(localized: "No account, no analytics", comment: "Settings › About: next to Privacy"))
             }
-            footnote(AppModel.includesSmartLife
-                ? "House Control talks to your own devices: Tuya's servers for Smart Life, your Home Assistant, your Hue Bridge, Apple Home, and your paired computer. Nothing else leaves this iPhone."
-                : "House Control talks to your own devices: your Home Assistant, your Hue Bridge, Apple Home, and your paired computer. Nothing else leaves this iPhone.")
+            footnote(privacyFootnote)
             Card {
-                webRow(About.website, symbol: "globe", tint: Theme.accent, title: "Website", detail: "Features, help and the Mac app")
+                webRow(About.website, symbol: "globe", tint: Theme.accent, title: String(localized: "Website", comment: "Settings › About: link to the app's website"),
+                       detail: String(localized: "Features, help and the Mac app", comment: "Settings › About: under Website"))
                 RowDivider()
-                webRow(About.privacy, symbol: "hand.raised.fill", tint: Theme.green, title: "Privacy Policy", detail: "Nothing is collected")
+                webRow(About.privacy, symbol: "hand.raised.fill", tint: Theme.green, title: String(localized: "Privacy Policy"),
+                       detail: String(localized: "Nothing is collected", comment: "Settings › About: under Privacy Policy"))
                 RowDivider()
-                webRow(About.support, symbol: "questionmark.circle.fill", tint: Theme.warm, title: "Support", detail: "Questions and problems")
+                webRow(About.support, symbol: "questionmark.circle.fill", tint: Theme.warm, title: String(localized: "Support", comment: "Settings › About: link to the support page"),
+                       detail: String(localized: "Questions and problems", comment: "Settings › About: under Support"))
             }
             SectionTitle("Developer").padding(.top, 20)
             Card {
-                webRow(About.x, symbol: "at", tint: Theme.text, title: "\(About.developer) on X", detail: "@0xProbabillity")
+                webRow(About.x, symbol: "at", tint: Theme.text, title: String(localized: "\(About.developer) on X", comment: "Settings › Developer: link to the developer's profile on X (Twitter); the placeholder is the developer's name"),
+                       detail: "@0xProbabillity")
                 RowDivider()
                 webRow(About.github, symbol: "chevron.left.forwardslash.chevron.right", tint: Theme.text,
-                       title: "\(About.developer) on GitHub", detail: "github.com/0xProbabillity")
+                       title: String(localized: "\(About.developer) on GitHub", comment: "Settings › Developer: link to the developer's GitHub profile; the placeholder is the developer's name"),
+                       detail: "github.com/0xProbabillity")
                 RowDivider()
-                webRow(About.source, symbol: "shippingbox.fill", tint: Theme.text, title: "Source code", detail: "House Control is open source")
+                webRow(About.source, symbol: "shippingbox.fill", tint: Theme.text, title: String(localized: "Source code", comment: "Settings › Developer: link to the app's source code"),
+                       detail: String(localized: "House Control is open source", comment: "Settings › Developer: under Source code"))
             }
+        }
+    }
+
+    private var privacyFootnote: String {
+        switch (AppModel.includesSmartLife, Device.isPad) {
+        case (true, false): String(localized: "House Control talks to your own devices: Tuya's servers for Smart Life, your Home Assistant, your Hue Bridge, your Homebridge, Apple Home, and your paired computer. Nothing else leaves this iPhone.")
+        case (true, true): String(localized: "House Control talks to your own devices: Tuya's servers for Smart Life, your Home Assistant, your Hue Bridge, your Homebridge, Apple Home, and your paired computer. Nothing else leaves this iPad.")
+        case (false, false): String(localized: "House Control talks to your own devices: your Home Assistant, your Hue Bridge, your Homebridge, Apple Home, and your paired computer. Nothing else leaves this iPhone.")
+        case (false, true): String(localized: "House Control talks to your own devices: your Home Assistant, your Hue Bridge, your Homebridge, Apple Home, and your paired computer. Nothing else leaves this iPad.")
         }
     }
 
@@ -490,7 +559,7 @@ struct SettingsView: View {
         return "\(info?["CFBundleShortVersionString"] as? String ?? "–") (\(info?["CFBundleVersion"] as? String ?? "–"))"
     }
 
-    private func infoRow(_ title: String, value: String) -> some View {
+    private func infoRow(_ title: LocalizedStringKey, value: String) -> some View {
         HStack {
             Text(title).font(.system(size: 16)).foregroundStyle(Theme.text)
             Spacer()

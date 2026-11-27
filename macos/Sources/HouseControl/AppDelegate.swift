@@ -62,6 +62,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel = PanelController(host: host)
         panel.onVisibilityChange = { [weak self] visible in self?.setPolling(visible) }
         hub.onStale = { [weak self] in self?.poll() }
+        // Smart Life stopped taking this Mac's sign-in, or took it again after a new login.
+        smartLife.onSmartLifeExpiredChange = { [weak self] _ in
+            guard let self else { return }
+            self.refreshSettings()
+            self.editor?.host.call("smartLifeChanged", self.smartLife.smartLifeInfo)
+            self.editor?.host.call("servicesChanged", self.hub.servicesInfo)
+        }
         widgets.onActions = { [weak self] run, adopt in
             guard let self else { return }
             if !run.isEmpty { self.panel.host.call("widget", run) }
@@ -83,6 +90,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.island?.host.snapshot(to: directory.appendingPathComponent("island.png"))
                 self?.settings?.snapshot(to: directory.appendingPathComponent("settings.png"))
             }
+        }
+        if let folder = ProcessInfo.processInfo.environment["HOUSE_EVAL_DIR"] {
+            watchShellCommands(in: URL(fileURLWithPath: folder, isDirectory: true))
         }
         if ProcessInfo.processInfo.environment["HOUSE_OPEN_PAIRING"] != nil {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.pairPhone() }
@@ -115,6 +125,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
+    /// Quit asks first while the editor holds unsaved changes; it quits again once they are
+    /// saved or discarded, and Cancel keeps the app running.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let editor, editor.isDirty else { return .terminateNow }
+        editor.confirmUnsaved { proceed in
+            if proceed { NSApp.terminate(nil) }
+        }
+        return .terminateCancel
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         agent.stop(reason: "House Control quit")
     }
@@ -132,6 +152,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             source.resume()
             signalSources.append(source)
+        }
+    }
+
+    /// HOUSE_EVAL_DIR=<folder>: the native half of the scripted UI checks (the page half is in
+    /// WebHost). A file `shell.cmd` put there is run, then removed: `close` presses the editor's
+    /// close button, `quit` quits as ⌘Q does, `button:<title>` presses that button of the sheet
+    /// on the editor. What is on screen afterwards goes to `shell.json`. For test instances only.
+    private var shellTimer: Timer?
+    private func watchShellCommands(in folder: URL) {
+        let script = folder.appendingPathComponent("shell.cmd")
+        let result = folder.appendingPathComponent("shell.json")
+        shellTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, let raw = try? String(contentsOf: script, encoding: .utf8) else { return }
+                try? FileManager.default.removeItem(at: script)
+                let command = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                var done = true
+                switch command {
+                case "close": self.editor?.window.performClose(nil)
+                case "quit": NSApp.terminate(nil)
+                default:
+                    if command.hasPrefix("button:"), let sheet = self.editor?.window.attachedSheet {
+                        let title = String(command.dropFirst(7))
+                        let buttons = (sheet.contentView?.subviews ?? []).flatMap { [$0] + $0.subviews }.compactMap { $0 as? NSButton }
+                        if let button = buttons.first(where: { $0.title == title }) { button.performClick(nil) } else { done = false }
+                    } else { done = false }
+                }
+                // The window state after the command has had a moment to settle.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                    let sheet = self?.editor?.window.attachedSheet
+                    let texts = (sheet?.contentView?.subviews ?? []).flatMap { [$0] + $0.subviews }
+                        .compactMap { ($0 as? NSTextField)?.stringValue ?? ($0 as? NSButton)?.title }
+                    let state: [String: Any] = ["command": command, "done": done,
+                                                "editorOpen": self?.editor?.window.isVisible ?? false,
+                                                "sheet": texts, "sheetWindow": sheet?.windowNumber ?? 0,
+                                                "editorWindow": self?.editor?.window.windowNumber ?? 0]
+                    if let data = try? JSONSerialization.data(withJSONObject: state, options: .prettyPrinted) {
+                        try? data.write(to: result, options: .atomic)
+                    }
+                }
+            }
         }
     }
 
@@ -187,6 +248,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settingsItem.target = self
             settingsItem.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: nil)
             menu.addItem(.separator())
+            if smartLife.isSmartLifeExpired {
+                // Every Smart Life command fails until then: say so where it is seen first.
+                let item = menu.addItem(withTitle: "Smart Life Sign-In Expired — Reconnect…", action: #selector(reconnectSmartLife), keyEquivalent: "")
+                item.target = self
+                item.image = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: nil)
+            }
             menu.addItem(withTitle: "Edit Home…", action: #selector(openEditor), keyEquivalent: "").target = self
             menu.addItem(withTitle: "Load Floor Plan…", action: #selector(loadPlan), keyEquivalent: "").target = self
             menu.addItem(withTitle: "Reveal Plan File", action: #selector(revealPlan), keyEquivalent: "").target = self
@@ -244,7 +311,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let section = editorSection { boot["section"] = section }
         switch ProcessInfo.processInfo.environment["HOUSE_OPEN_EDITOR"] {
         case "smartlife": boot["section"] = "service:smartlife"
-        case "homeassistant", "hue", "homekit", "connections":
+        case "homeassistant", "hue", "homebridge", "homekit", "connections":
             let section = ProcessInfo.processInfo.environment["HOUSE_OPEN_EDITOR"]!
             boot["section"] = section == "connections" ? "connections" : "service:\(section)"
         default: break
@@ -380,6 +447,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openEditor() { showEditor(section: nil) }
+    @objc private func reconnectSmartLife() { showEditor(section: "service:smartlife") }
 
     /// `section` ("connections", "service:hue", …) opens the editor on that screen.
     private func showEditor(section: String?) {
@@ -417,6 +485,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // A view that has just loaded takes over what the panel shows.
             if message["type"] as? String == "ready", host !== panel.host { panel.host.call("share") }
             if message["type"] as? String == "ready", host === panel.host { widgets.isReady = true }
+            // A freshly (re)loaded editor shows the saved plan.
+            if message["type"] as? String == "ready", host === editor?.host { editor?.setDirty(false) }
             if let summary = (message["summary"] as? [String: Any]) ?? (message["lightsOn"] != nil ? message : nil) {
                 updateStatus(summary)
             }
@@ -447,6 +517,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "setOpenAtLogin": setOpenAtLogin(message["on"] as? Bool ?? false)
 
         // Editor
+        case "editorDirty":
+            if host === editor?.host { editor?.setDirty(message["dirty"] as? Bool ?? false) }
         case "savePlan":
             guard let config = message["config"] as? [String: Any] else { return }
             do {
@@ -522,7 +594,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             host.reply(to: message, smartLife.smartLifeInfo)
             sync.broadcast()
 
-        // Home Assistant, Philips Hue, Apple Home
+        // Home Assistant, Philips Hue, Homebridge, Apple Home
         case "services.info":
             host.reply(to: message, hub.servicesInfo)
         case "devices.all":
@@ -533,7 +605,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "services.discover":
             let service = message["service"] as? String ?? ""
             Task { @MainActor in
-                let found = service == "hue" ? await ServiceDiscovery.hueBridges() : await ServiceDiscovery.homeAssistants()
+                let found = switch service {
+                case "hue": await ServiceDiscovery.hueBridges()
+                case "homebridge": await ServiceDiscovery.homebridges()
+                default: await ServiceDiscovery.homeAssistants()
+                }
                 host.reply(to: message, ["found": found])
             }
         case "homeassistant.connect":
@@ -555,6 +631,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     host.reply(to: message, hub.servicesInfo)
                 } catch is HueService.ButtonNotPressed {
                     host.reply(to: message, ["waiting": true])
+                } catch {
+                    host.reply(to: message, ["error": error.localizedDescription])
+                }
+            }
+        case "homebridge.connect":
+            Task { @MainActor in
+                do {
+                    try await hub.connectHomebridge(url: message["url"] as? String ?? "", username: message["username"] as? String ?? "",
+                                                    password: message["password"] as? String ?? "", code: message["code"] as? String)
+                    connectionsChanged()
+                    host.reply(to: message, hub.servicesInfo)
+                } catch is HomebridgeService.CodeRequired {
+                    host.reply(to: message, ["needsCode": true])
                 } catch {
                     host.reply(to: message, ["error": error.localizedDescription])
                 }
@@ -845,12 +934,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let homeKit = entry("homekit")
         model.connections = [
             .init(id: "smartlife", name: "Smart Life", symbol: "bolt.horizontal.fill", tint: .orange,
-                  detail: connected("smartlife") ? "Signed in" : "Not signed in", connected: connected("smartlife")),
+                  detail: smartLife.isSmartLifeExpired ? "Sign-in expired: scan the QR code again"
+                    : connected("smartlife") ? "Signed in" : "Not signed in",
+                  connected: connected("smartlife"), expired: smartLife.isSmartLifeExpired),
             .init(id: "homeassistant", name: "Home Assistant", symbol: "house.and.flag.fill", tint: .blue,
                   detail: connected("homeassistant") ? entry("homeassistant")["name"] as? String ?? "Connected" : "Not connected",
                   connected: connected("homeassistant")),
             .init(id: "hue", name: "Philips Hue", symbol: "lightbulb.2.fill", tint: .indigo,
                   detail: connected("hue") ? entry("hue")["name"] as? String ?? "Connected" : "Not paired", connected: connected("hue")),
+            .init(id: "homebridge", name: "Homebridge", symbol: "point.3.connected.trianglepath.dotted", tint: .purple,
+                  detail: entry("homebridge")["expired"] as? Bool == true ? "Sign in again"
+                    : connected("homebridge") ? entry("homebridge")["name"] as? String ?? "Connected" : "Not connected",
+                  connected: connected("homebridge"), expired: entry("homebridge")["expired"] as? Bool == true),
             .init(id: "homekit", name: "Apple Home", symbol: "homekit", tint: .yellow,
                   detail: connected("homekit")
                     ? "\(homeKit["count"] as? Int ?? 0) devices, from \(homeKit["from"] as? String ?? "your iPhone")"

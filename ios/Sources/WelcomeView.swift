@@ -41,21 +41,24 @@ struct WelcomeView: View {
                 .foregroundStyle(Theme.text)
                 .multilineTextAlignment(.center)
                 .padding(.top, compact ? 34 : 20)
-            Text("Your home as a live 3D model, in your pocket.")
+            Text(Device.isPad ? String(localized: "Your home as a live 3D model, on your iPad.", comment: "Welcome screen: under the title")
+                 : String(localized: "Your home as a live 3D model, in your pocket.", comment: "Welcome screen: under the title"))
                 .font(.system(size: 16))
                 .foregroundStyle(Theme.muted)
                 .multilineTextAlignment(.center)
                 .padding(.top, 6)
 
             VStack(alignment: .leading, spacing: compact ? 20 : 26) {
-                feature("hand.tap.fill", Theme.warm, "Tap a lamp, drag to dim",
-                        "Lights, colours, air conditioners and scenes, right on the floor plan.")
-                feature("pencil.and.ruler.fill", Theme.accent, "Draw it here or on your computer",
-                        "Rooms, lamps and ACs, on this iPhone. Pair a Mac or PC any time: both stay in sync.")
-                feature("lightbulb.2.fill", Theme.green, "Your real devices",
+                feature("hand.tap.fill", Theme.warm, String(localized: "Tap a lamp, drag to dim", comment: "Welcome screen: a feature's title"),
+                        String(localized: "Lights, colours, air conditioners and scenes, right on the floor plan.", comment: "Welcome screen"))
+                feature("pencil.and.ruler.fill", Theme.accent, String(localized: "Draw it here or on your computer", comment: "Welcome screen: a feature's title; “it” is the home"),
+                        Device.isPad
+                            ? String(localized: "Rooms, lamps and ACs, on this iPad. Pair a Mac or PC any time: both stay in sync.", comment: "Welcome screen")
+                            : String(localized: "Rooms, lamps and ACs, on this iPhone. Pair a Mac or PC any time: both stay in sync.", comment: "Welcome screen"))
+                feature("lightbulb.2.fill", Theme.green, String(localized: "Your real devices", comment: "Welcome screen: a feature's title"),
                         AppModel.includesSmartLife
-                            ? "Smart Life, Home Assistant, Philips Hue and Apple Home. Until you connect one, everything is simulated."
-                            : "Home Assistant, Philips Hue and Apple Home. Until you connect one, everything is simulated.")
+                            ? String(localized: "Smart Life, Home Assistant, Philips Hue, Homebridge and Apple Home. Until you connect one, everything is simulated.", comment: "Welcome screen")
+                            : String(localized: "Home Assistant, Philips Hue, Homebridge and Apple Home. Until you connect one, everything is simulated.", comment: "Welcome screen"))
             }
             .padding(.horizontal, 6)
             .padding(.vertical, compact ? 20 : 28)

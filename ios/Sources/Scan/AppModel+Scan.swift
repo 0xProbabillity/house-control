@@ -12,7 +12,7 @@ extension AppModel {
     /// Opens the scanner for a home called `name`, once any sheet in the way has gone.
     func openScan(name: String? = nil) {
         scanReplay = nil
-        if let name, !name.isEmpty { scanName = name } else { scanName = customPlanName ?? "My home" }
+        if let name, !name.isEmpty { scanName = name } else { scanName = customPlanName ?? String(localized: "My home", comment: "Name of the user's own home while it has none") }
         let covered = showSettings || showNewHome || showWelcome
         showSettings = false
         showNewHome = false
@@ -20,6 +20,16 @@ extension AppModel {
         Task { @MainActor in
             if covered { try? await Task.sleep(nanoseconds: 450_000_000) }
             showScan = true
+        }
+    }
+
+    /// What the banner says once a scan is saved: a floor added, or the home ready.
+    private func scannedBanner(floor: String?) -> String {
+        switch (floor, customPlanName) {
+        case let (floor?, home?): String(localized: "\(floor) added to \(home)", comment: "Banner after a scan: a floor added to the home; the placeholders are the floor's and the home's names")
+        case let (floor?, nil): String(localized: "\(floor) added to your home", comment: "Banner after a scan; the placeholder is the floor's name")
+        case let (nil, home?): String(localized: "\(home) is ready", comment: "Banner after a scan; the placeholder is the home's name")
+        case (nil, nil): String(localized: "Your home is ready", comment: "Banner after a scan")
         }
     }
 
@@ -32,7 +42,7 @@ extension AppModel {
         do {
             try savePlan(plan)
         } catch {
-            show(Banner(symbol: "exclamationmark.triangle.fill", text: "Could not save the scanned home", tint: Theme.red))
+            show(Banner(symbol: "exclamationmark.triangle.fill", text: String(localized: "Could not save the scanned home", comment: "Banner"), tint: Theme.red))
             return
         }
         UserDefaults.standard.set(true, forKey: "welcomed")
@@ -43,8 +53,7 @@ extension AppModel {
             if edit {
                 openEditor()
             } else {
-                show(Banner(symbol: "cube.transparent.fill", text: floor.map { "\($0) added to \(customPlanName ?? "your home")" }
-                            ?? "\(customPlanName ?? "Your home") is ready", tint: Theme.green))
+                show(Banner(symbol: "cube.transparent.fill", text: scannedBanner(floor: floor), tint: Theme.green))
             }
         }
     }

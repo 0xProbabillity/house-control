@@ -146,6 +146,13 @@ public final class SmartLifePlatform: LinkedCloud {
     /// What the UI may know about the session: never the tokens.
     public var smartLifeInfo: [String: Any] { smartLife.publicInfo }
     public var isSmartLifeConnected: Bool { smartLife.isConfigured }
+    /// True when Smart Life no longer accepts the session: the account needs a new QR login.
+    public var isSmartLifeExpired: Bool { smartLife.isExpired }
+    /// Called with true when the session dies, false once it works again (or after a new login).
+    public var onSmartLifeExpiredChange: ((Bool) -> Void)? {
+        get { smartLife.onExpiredChange }
+        set { smartLife.onExpiredChange = newValue }
+    }
     public var userCode: String { smartLife.session?.userCode ?? "" }
     public var account: String { smartLife.session?.username ?? "" }
 

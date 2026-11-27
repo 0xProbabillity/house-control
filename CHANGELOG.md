@@ -3,6 +3,74 @@
 What changed in each release of House Control. The Mac app is on
 [Releases](https://github.com/0xProbabillity/house-control/releases); the iPhone app is on the App Store and TestFlight.
 
+## 1.7.0 — 2026-11-24 (TestFlight, team only)
+
+### Homebridge, and plugs that look like outlets
+
+- **Homebridge.** A fifth way to connect real devices: **Connections → Homebridge** signs in to the Homebridge UI on
+  your network (found by itself, or by its address) with the user name and password of its web page, and every
+  lamp, plug, switch, air conditioner, thermostat and thermometer its plugins bring can be linked — Govee, Xiaomi,
+  Nest, Sonoff, TP-Link and hundreds more, without going through Apple Home, and on the Mac too. Changes made
+  elsewhere show up at once; sessions that run out are renewed by themselves (two-factor accounts are asked to
+  sign in again). The connection travels between a Mac and its iPhones like Home Assistant's and Hue's. On the
+  iPhone it is in **Settings → Homebridge**. If Homebridge does not allow controlling accessories, House Control
+  says where to switch it on. See [docs/connections.md](docs/connections.md#homebridge).
+- **Outlets.** A lamp can be **Shown as** an outlet: a socket icon in the panel, the widgets and the island, a plug
+  on the nearest wall in the 3D model whose ring glows green while it is on, and on/off only. **+ Outlet** in the
+  editor adds one. Lamps on smart plugs keep looking like lamps (they no longer turn into a plug icon because
+  they only switch on and off). Devices named as a socket ("Kettle plug", "Розетка") become outlets when added to a
+  room. AI assistants know outlets too (`outlet` in `edit_floor_plan`).
+- **Lab:** `tools/lab/homebridge.sh` runs a real Homebridge with pretend devices for testing without hardware.
+
+## 1.6.1 — 2026-11-20 (TestFlight, team only)
+
+### Fixes from a test pass on every screen size
+
+- **A colour light on an iPhone held sideways.** The light's sheet now fits beside the model, so there is nothing
+  to scroll and a swipe meant to scroll can no longer change the lamp's colour. Where a sheet still has to scroll
+  (the smallest iPhones), a swipe up or down that starts on a slider or the colour field scrolls it; sideways, or a
+  tap, sets the value.
+- **Mac: the air conditioner's sheet opened with empty tiles.** Mode, Fan speed, Sleep and Airflow showed their
+  icons only until something else changed, and a tile's name could be left half drawn after closing a sheet. Both
+  came from 1.6.0 and are fixed.
+- **Mac: the editor asks before it throws edits away.** Closing its window or quitting with unsaved changes now
+  offers Save, Discard or Cancel, and undoing everything clears "unsaved changes" again.
+
+## 1.6.0 — 2026-11-19 (TestFlight, team only)
+
+### iPad, ten languages and an AC that switches itself off
+
+- **iPad.** House Control runs on the iPad at full size, any way up: held upright the model sits above the controls
+  with four tiles to a row, held sideways they sit side by side. Split View and Slide Over work too. The iPhone can
+  now be turned sideways as well.
+- **Ten languages.** The app, its widgets and Control Center buttons speak English, Japanese, French, Spanish,
+  German, Italian, Greek, Turkish, Traditional Chinese and Russian, and follow the iPhone's language. Pick another one
+  under **Settings → Language**. The demo homes are translated too; your own home keeps its names.
+- **Auto-off timer for air conditioners.** In an AC's sheet, **Timer** switches it off by itself after 30 minutes to
+  8 hours; the tile counts down. On the Mac it runs in the menu bar; on the iPhone a notification comes when it runs
+  out, and its **Switch Off** button switches the AC off without opening the app (opening the app does it too).
+  AI assistants can set it as well (`timer_minutes` in `set_air_conditioners`). Thanks to Andy Oliveira for the idea
+  and the first version (house-control-windows#2).
+- **Colour lights fit on the screen** ([#25](https://github.com/0xProbabillity/house-control/issues/25)): on most
+  iPhones the colour swatches were cut off under a colour light's controls. The 3D model now makes room for the
+  sheet, and on a small screen the sheet scrolls.
+- **Mac: Smart Life sign-in expired.** When Smart Life stops accepting the Mac's sign-in, Settings says
+  **Sign-in expired**, the menu bar icon's menu offers **Smart Life Sign-In Expired — Reconnect…**, and the
+  editor's Smart Life page shows a new QR login with the User Code filled in.
+
+## 1.5.3 — 2026-11-17 (TestFlight, team only)
+
+### Smart Life no longer gets stuck on "sign invalid"
+
+- When Smart Life refused the iPhone's sign-in (**sign invalid, code -9999999**), every light command failed from
+  then on. Now the app first picks up a sign-in the widgets or Control Center buttons renewed meanwhile, or renews
+  it itself, and tries again.
+- The app and its widgets no longer renew the sign-in at the same time (that could leave one of them holding a
+  sign-in Smart Life had already replaced), and commands sent together wait for one renewal instead of racing it.
+- If Smart Life really has dropped the sign-in, the error says so, and **Settings → Smart Life** shows
+  **Sign-in expired** with **Reconnect Smart Life**: the QR login opens with your User Code filled in, and the
+  floor plan and its links stay as they are.
+
 ## 1.5.2 — 2026-11-13
 
 ### Fixes from TestFlight feedback

@@ -101,7 +101,8 @@ struct HomeAssistantView: View {
             SectionTitle("Connect")
             Card(padding: 16) {
                 VStack(alignment: .leading, spacing: 14) {
-                    InputField(title: "Address", text: $url, prompt: "http://homeassistant.local:8123", focused: focus == .url) {
+                    InputField(title: String(localized: "Address", comment: "Home Assistant: label of the server address field"), text: $url,
+                               prompt: "http://homeassistant.local:8123", focused: focus == .url) {
                         TextField("", text: $url)
                             .keyboardType(.URL)
                             .textContentType(.URL)
@@ -109,7 +110,8 @@ struct HomeAssistantView: View {
                             .submitLabel(.next)
                             .onSubmit { focus = .token }
                     }
-                    InputField(title: "Long-lived access token", text: $token, prompt: "Paste it here", focused: focus == .token) {
+                    InputField(title: String(localized: "Long-lived access token", comment: "Home Assistant: label of the token field; Home Assistant's own name for it"), text: $token,
+                               prompt: String(localized: "Paste it here", comment: "Home Assistant: placeholder of the token field"), focused: focus == .token) {
                         SecureField("", text: $token)
                             .focused($focus, equals: .token)
                             .submitLabel(.go)
@@ -136,7 +138,9 @@ struct HomeAssistantView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            Footnote(text: "The token stays on this iPhone, in the Keychain, and goes to the computer you paired, over your encrypted link. Lights, switches, climate devices and temperature sensors can then be linked to your plan.")
+            Footnote(text: Device.isPad
+                ? String(localized: "The token stays on this iPad, in the Keychain, and goes to the computer you paired, over your encrypted link. Lights, switches, climate devices and temperature sensors can then be linked to your plan.")
+                : String(localized: "The token stays on this iPhone, in the Keychain, and goes to the computer you paired, over your encrypted link. Lights, switches, climate devices and temperature sensors can then be linked to your plan."))
         }
     }
 
@@ -197,14 +201,16 @@ struct HomeAssistantView: View {
                 } message: {
                     Text("Its devices go back to being simulated, here and on your paired computer.")
                 }
-            Footnote(text: "Connected on this iPhone or on your paired computer, it works on both: they share the connection over their encrypted link.")
+            Footnote(text: Device.isPad
+                ? String(localized: "Connected on this iPad or on your paired computer, it works on both: they share the connection over their encrypted link.", comment: "Home Assistant: “it” is the connection to the server")
+                : String(localized: "Connected on this iPhone or on your paired computer, it works on both: they share the connection over their encrypted link.", comment: "Home Assistant: “it” is the connection to the server"))
         }
         .transition(.opacity)
     }
 
     private var serverLine: String {
         let info = model.homeAssistantInfo
-        return [info["url"] as? String, (info["version"] as? String).flatMap { $0.isEmpty ? nil : "version \($0)" }]
+        return [info["url"] as? String, (info["version"] as? String).flatMap { $0.isEmpty ? nil : String(localized: "version \($0)", comment: "Home Assistant: the server's version, after its address") }]
             .compactMap { $0 }.joined(separator: " · ")
     }
 }
@@ -267,7 +273,7 @@ struct HueView: View {
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
                 if Task.isCancelled { return }
             }
-            problem = "Nobody pressed the button in time. Try again."
+            problem = String(localized: "Nobody pressed the button in time. Try again.", comment: "Hue: pairing timed out waiting for the bridge's button")
             pairing = nil
         }
     }
@@ -321,7 +327,8 @@ struct HueView: View {
         VStack(spacing: 10) {
             SectionTitle("Or by address")
             Card(padding: 16) {
-                InputField(title: "Bridge address", text: $host, prompt: "e.g. 192.168.1.20", focused: typing) {
+                InputField(title: String(localized: "Bridge address", comment: "Hue: label of the bridge's IP address field"), text: $host,
+                           prompt: String(localized: "e.g. 192.168.1.20", comment: "Hue: placeholder of the bridge address field; keep the address"), focused: typing) {
                     TextField("", text: $host)
                         .keyboardType(.numbersAndPunctuation)
                         .focused($typing)
@@ -332,7 +339,9 @@ struct HueView: View {
             Button { start(["host": host.trimmingCharacters(in: .whitespaces), "name": "Hue Bridge"]) } label: { Text("Pair") }
                 .buttonStyle(SecondaryButtonStyle())
                 .disabled(host.trimmingCharacters(in: .whitespaces).isEmpty)
-            Footnote(text: "No account needed: the bridge lets one app in when its button is pressed. The key it gives stays on this iPhone and your paired computer.")
+            Footnote(text: Device.isPad
+                ? String(localized: "No account needed: the bridge lets one app in when its button is pressed. The key it gives stays on this iPad and your paired computer.")
+                : String(localized: "No account needed: the bridge lets one app in when its button is pressed. The key it gives stays on this iPhone and your paired computer."))
         }
     }
 
@@ -351,7 +360,7 @@ struct HueView: View {
             Text("Press the round button on the bridge")
                 .font(.system(size: 22, weight: .bold)).foregroundStyle(Theme.text)
                 .multilineTextAlignment(.center)
-            Text("\(bridge["name"] as? String ?? "Hue Bridge") · waiting \(secondsLeft) s")
+            Text("\(bridge["name"] as? String ?? "Hue Bridge") · waiting \(secondsLeft) s", comment: "Hue: while waiting for the bridge's button; the placeholders are the bridge's name and the seconds left")
                 .font(.system(size: 15)).foregroundStyle(Theme.muted)
                 .contentTransition(.numericText(countsDown: true))
                 .animation(.default, value: secondsLeft)
@@ -410,6 +419,288 @@ struct HueView: View {
     }
 }
 
+/// Signs this iPhone in to a Homebridge server's web UI: found on the Wi-Fi by itself or typed
+/// in, with the user name and password of Homebridge's web page (and a two-factor code when the
+/// account has one). The paired Mac gets the connection too.
+struct HomebridgeView: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.insideEditor) private var insideEditor
+    @State private var url = ""
+    @State private var username = ""
+    @State private var password = ""
+    @State private var code = ""
+    @State private var needsCode = false
+    @State private var signIn = true
+    @State private var found: [[String: Any]] = []
+    @State private var scanning = false
+    @State private var busy = false
+    @State private var problem: String?
+    @State private var confirmDisconnect = false
+    @FocusState private var focus: Field?
+
+    private enum Field { case url, username, password, code }
+
+    private var connectedName: String? { model.homebridgeExpired ? nil : model.homebridgeName }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 26) {
+                if let name = connectedName {
+                    connected(name)
+                } else {
+                    if model.homebridgeExpired {
+                        ProblemLabel(text: String(localized: "Homebridge ended the session and asks for a two-factor code. Sign in again to keep controlling its devices."))
+                    }
+                    discovery
+                    form
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 8)
+            .padding(.bottom, 32)
+            .readableWidth()
+            .animation(.spring(response: 0.45, dampingFraction: 0.85), value: connectedName)
+            .animation(.spring(response: 0.45, dampingFraction: 0.85), value: needsCode)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .background(Theme.background)
+        .navigationTitle("Homebridge")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Theme.background, for: .navigationBar)
+        .task {
+            guard connectedName == nil else { return }
+            if model.homebridgeExpired {
+                url = model.homebridgeInfo["url"] as? String ?? ""
+                username = model.homebridgeInfo["user"] as? String ?? ""
+            }
+            await scan()
+        }
+    }
+
+    // MARK: - Not connected
+
+    private var discovery: some View {
+        VStack(spacing: 10) {
+            SectionTitle("On this Wi-Fi")
+            Card {
+                if scanning {
+                    HStack(spacing: 12) {
+                        ProgressView().tint(Theme.muted)
+                        Text("Looking for Homebridge…").font(.system(size: 15)).foregroundStyle(Theme.muted)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .frame(minHeight: 60)
+                } else if found.isEmpty {
+                    Text("None found by itself. Type its address below.")
+                        .font(.system(size: 15)).foregroundStyle(Theme.muted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                } else {
+                    ForEach(Array(found.enumerated()), id: \.offset) { index, server in
+                        if index > 0 { RowDivider() }
+                        let address = server["url"] as? String ?? ""
+                        Button { pick(server) } label: {
+                            HStack(spacing: 14) {
+                                IconBadge(symbol: ConnectionLook.symbol("homebridge"), tint: ConnectionLook.homebridge)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(server["name"] as? String ?? "Homebridge")
+                                        .font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
+                                    Text(address).font(.system(size: 13.5)).foregroundStyle(Theme.muted).lineLimit(1)
+                                }
+                                Spacer(minLength: 8)
+                                Image(systemName: url == address ? "checkmark.circle.fill" : "circle")
+                                    .font(.system(size: 22))
+                                    .foregroundStyle(url == address ? Theme.accent : Theme.faint)
+                            }
+                            .padding(.horizontal, 14)
+                            .frame(minHeight: 66)
+                        }
+                        .buttonStyle(RowButtonStyle())
+                    }
+                }
+            }
+            if !scanning {
+                Button { Task { await scan() } } label: { Label("Look again", systemImage: "dot.radiowaves.left.and.right") }
+                    .font(.system(size: 15, weight: .semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 6)
+            }
+        }
+    }
+
+    private var form: some View {
+        VStack(spacing: 10) {
+            SectionTitle("Connect")
+            Card(padding: 16) {
+                VStack(alignment: .leading, spacing: 14) {
+                    InputField(title: String(localized: "Address", comment: "Home Assistant: label of the server address field"), text: $url,
+                               prompt: "homebridge.local:8581", focused: focus == .url) {
+                        TextField("", text: $url)
+                            .keyboardType(.URL)
+                            .textContentType(.URL)
+                            .focused($focus, equals: .url)
+                            .submitLabel(.next)
+                            .onSubmit { focus = signIn ? .username : nil }
+                    }
+                    if signIn {
+                        InputField(title: String(localized: "User name", comment: "Homebridge: label of the field for the user name of Homebridge's web page"), text: $username,
+                                   prompt: "admin", focused: focus == .username) {
+                            TextField("", text: $username)
+                                .textContentType(.username)
+                                .focused($focus, equals: .username)
+                                .submitLabel(.next)
+                                .onSubmit { focus = .password }
+                        }
+                        InputField(title: String(localized: "Password", comment: "Homebridge: label of the password field"), text: $password,
+                                   prompt: "", focused: focus == .password) {
+                            SecureField("", text: $password)
+                                .textContentType(.password)
+                                .focused($focus, equals: .password)
+                                .submitLabel(.go)
+                                .onSubmit(connect)
+                        }
+                    } else {
+                        Text("This Homebridge has no sign-in: nothing else to enter.")
+                            .font(.system(size: 14)).foregroundStyle(Theme.muted)
+                    }
+                    if needsCode {
+                        InputField(title: String(localized: "Two-factor code", comment: "Homebridge: label of the field for the code from an authenticator app"), text: $code,
+                                   prompt: "123456", focused: focus == .code) {
+                            TextField("", text: $code)
+                                .keyboardType(.numberPad)
+                                .textContentType(.oneTimeCode)
+                                .focused($focus, equals: .code)
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                }
+            }
+            if let problem {
+                ProblemLabel(text: problem)
+            }
+            Button(action: connect) {
+                if busy { ProgressView().tint(.white) } else { Text("Connect") }
+            }
+            .buttonStyle(PrimaryButtonStyle())
+            .disabled(!ready)
+            .padding(.top, 4)
+
+            Card(padding: 16) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Label("Before you connect", systemImage: "questionmark.circle")
+                        .font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.text)
+                    Text("Use the address and the sign-in of Homebridge’s web page (port 8581 unless you changed it). If accessory control is off, turn it on there: **Settings → Startup & Environment → Enable UI Accessory Control (-I)**, then restart Homebridge.")
+                        .font(.system(size: 14)).foregroundStyle(Theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Footnote(text: Device.isPad
+                ? String(localized: "The sign-in stays on this iPad, in the Keychain, and goes to the computer you paired, over your encrypted link, so House Control can sign in again when Homebridge’s session runs out.")
+                : String(localized: "The sign-in stays on this iPhone, in the Keychain, and goes to the computer you paired, over your encrypted link, so House Control can sign in again when Homebridge’s session runs out."))
+        }
+    }
+
+    private var ready: Bool {
+        !busy && !url.trimmingCharacters(in: .whitespaces).isEmpty
+            && (!signIn || (!username.trimmingCharacters(in: .whitespaces).isEmpty && !password.isEmpty))
+            && (!needsCode || code.filter(\.isNumber).count >= 6)
+    }
+
+    private func pick(_ server: [String: Any]) {
+        url = server["url"] as? String ?? ""
+        signIn = server["signIn"] as? Bool ?? true
+        focus = signIn ? .username : nil
+    }
+
+    private func scan() async {
+        scanning = true
+        found = await ServiceDiscovery.homebridges()
+        scanning = false
+        if url.isEmpty, found.count == 1 {
+            url = found[0]["url"] as? String ?? ""
+            signIn = found[0]["signIn"] as? Bool ?? true
+        }
+    }
+
+    private func connect() {
+        guard ready else { return }
+        focus = nil
+        busy = true
+        problem = nil
+        Task {
+            defer { busy = false }
+            do {
+                try await model.connectHomebridge(url: url, username: username, password: password, code: needsCode ? code : nil)
+                password = ""
+                code = ""
+                needsCode = false
+            } catch is HomebridgeService.CodeRequired {
+                if needsCode {
+                    problem = String(localized: "That code did not work. Enter the current one.")
+                    Haptics.shared.play("error")
+                }
+                needsCode = true
+                code = ""
+                focus = .code
+            } catch {
+                problem = error.localizedDescription
+                Haptics.shared.play("error")
+            }
+        }
+    }
+
+    // MARK: - Connected
+
+    private func connected(_ name: String) -> some View {
+        VStack(spacing: 10) {
+            SectionTitle("Server")
+            Card {
+                HStack(spacing: 14) {
+                    IconBadge(symbol: ConnectionLook.symbol("homebridge"), tint: ConnectionLook.homebridge)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(name).font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
+                        HStack(spacing: 7) {
+                            StatusDot(color: Theme.green)
+                            Text(serverLine).font(.system(size: 13.5)).foregroundStyle(Theme.muted).lineLimit(1)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 14)
+                .frame(minHeight: 70)
+            }
+            if !insideEditor {
+                NavigationLink(value: SettingsRoute.devices) {
+                    Label("Link devices to your plan", systemImage: "link")
+                }
+                .buttonStyle(PrimaryButtonStyle())
+                .padding(.top, 6)
+            }
+            Button { confirmDisconnect = true } label: { Text("Disconnect") }
+                .buttonStyle(SecondaryButtonStyle(tint: Theme.red))
+                .confirmationDialog("Disconnect Homebridge?", isPresented: $confirmDisconnect, titleVisibility: .visible) {
+                    Button("Disconnect", role: .destructive) { model.disconnect(service: "homebridge") }
+                } message: {
+                    Text("Its devices go back to being simulated, here and on your paired computer.")
+                }
+            Footnote(text: Device.isPad
+                ? String(localized: "Connected on this iPad or on your paired computer, it works on both: they share the connection over their encrypted link.", comment: "Home Assistant: “it” is the connection to the server")
+                : String(localized: "Connected on this iPhone or on your paired computer, it works on both: they share the connection over their encrypted link.", comment: "Home Assistant: “it” is the connection to the server"))
+        }
+        .transition(.opacity)
+    }
+
+    private var serverLine: String {
+        let info = model.homebridgeInfo
+        let user = (info["user"] as? String).flatMap { $0.isEmpty ? nil : String(localized: "signed in as \($0)", comment: "Homebridge: after the server's address; the placeholder is the user name") }
+        return [info["url"] as? String,
+                (info["version"] as? String).flatMap { $0.isEmpty ? nil : String(localized: "version \($0)", comment: "Home Assistant: the server's version, after its address") },
+                user]
+            .compactMap { $0 }.joined(separator: " · ")
+    }
+}
+
 // MARK: - Shared pieces
 
 extension EnvironmentValues {
@@ -422,6 +713,7 @@ enum ConnectionLook {
     static let smartLife = Color(red: 1, green: 0.48, blue: 0.24)
     static let homeAssistant = Color(red: 0.09, green: 0.74, blue: 0.95)
     static let hue = Color(red: 0.76, green: 0.55, blue: 1)
+    static let homebridge = Color(red: 0.56, green: 0.42, blue: 1)
     static let homeKit = Color(red: 1, green: 0.7, blue: 0.25)
 
     static func tint(_ service: String) -> Color {
@@ -429,6 +721,7 @@ enum ConnectionLook {
         case "smartlife": smartLife
         case "homeassistant": homeAssistant
         case "hue": hue
+        case "homebridge": homebridge
         default: homeKit
         }
     }
@@ -438,6 +731,7 @@ enum ConnectionLook {
         case "smartlife": "powerplug.fill"
         case "homeassistant": "server.rack"
         case "hue": "lightbulb.led.fill"
+        case "homebridge": "point.3.connected.trianglepath.dotted"
         default: "homekit"
         }
     }
@@ -447,6 +741,7 @@ enum ConnectionLook {
         case "smartlife": "Smart Life"
         case "homeassistant": "Home Assistant"
         case "hue": "Philips Hue"
+        case "homebridge": "Homebridge"
         default: "Apple Home"
         }
     }

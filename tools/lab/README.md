@@ -8,6 +8,7 @@ discovery, speaks the real protocol and prints every command it receives.
 | --- | --- |
 | `./tools/lab/homeassistant.sh` | A real Home Assistant (installed into `tools/lab/.ha` on first run, about 1 GB) with its demo devices: lights with every colour mode, three climate devices, fans, a thermometer. Prints the address and an access token |
 | `cd tools/lab && npm install && npm run hue` | A Philips Hue Bridge emulator: five lamps (colour, white ambiance, dimmable, a plug) in three rooms, a motion sensor with a thermometer. Press Enter to "press" the link button, or start it with `npm run hue -- --auto` |
+| `./tools/lab/homebridge.sh` | A real Homebridge with its web UI (installed into `tools/lab/.homebridge` on first run, about 150 MB) and a plugin of pretend devices (`tools/lab/homebridge`): lamps with every kind of control, a plug, a switch, an AC, a thermostat and a thermometer. Sign in as **lab** / **lab-lab-lab** at port 8581. `HB_INSECURE=0` starts it with accessory control off, `HB_AUTH=none` without a sign-in |
 | `cd tools/lab && npm run homekit` | A HomeKit bridge with lamps, a plug, two air conditioners and a thermometer, built on [HAP-NodeJS](https://github.com/homebridge/HAP-NodeJS). Add it in the Home app on your iPhone with **+ → Add Accessory → More options… → House Control Lab**, setup code **031-45-154** |
 
 Needs [uv](https://github.com/astral-sh/uv) for Home Assistant (`brew install uv`) and Node.js for the other two.
@@ -22,7 +23,8 @@ Needs [uv](https://github.com/astral-sh/uv) for Home Assistant (`brew install uv
    ```
 
 3. **Connections → Home Assistant**: the lab server is listed; press **Use**, paste the token, **Connect**.
-   **Connections → Philips Hue**: press **Pair**.
+   **Connections → Philips Hue**: press **Pair**. **Connections → Homebridge**: press **Use**, sign in as lab /
+   lab-lab-lab.
 4. Link a few lamps and an AC under **Real device**, **Save & apply**, and use the panel. The emulators print each
    command; change something in Home Assistant's web UI and watch the panel follow.
 5. To test the iPhone app, run it in the simulator and pair it with that instance (`scripts/ios-sim.sh`; see
@@ -40,9 +42,12 @@ The unit tests cover the translation to and from each platform and the hub's rou
 cd core
 HOUSE_TEST_HA_URL=http://127.0.0.1:8123 HOUSE_TEST_HA_TOKEN=$(cat ../tools/lab/.ha/token) \
 HOUSE_TEST_HUE_HOST=localhost:8443 swift test --filter ServiceTests
+HOUSE_TEST_HOMEBRIDGE_URL=http://127.0.0.1:8581 swift test --filter HomebridgeTests
 ```
 
-The Hue test expects the emulator started with `--auto`.
+The Hue test expects the emulator started with `--auto`. The Homebridge test signs in, links, switches and waits for
+the live update; `HOUSE_TEST_HOMEBRIDGE_NO_CONTROL=…` (with `HB_INSECURE=0`) checks the message shown when Homebridge
+does not allow accessory control.
 
 ## Your real Tuya devices, through the lab
 
@@ -57,4 +62,4 @@ that integration with a stub in `homeassistant/custom_components/bluetooth`. Its
 not reach the network either; `homeassistant.sh` announces the server with `dns-sd`, in the same format (which
 is enough for House Control, but not for a HomeKit Bridge).
 
-Delete `tools/lab/.ha`, `.hue` or `.homekit` to start any of them from scratch.
+Delete `tools/lab/.ha`, `.hue`, `.homebridge` or `.homekit` to start any of them from scratch.

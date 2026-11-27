@@ -53,9 +53,14 @@ public final class SharedHome: @unchecked Sendable {
     /// The container of this build's App Group, or nil when the build has none (or the
     /// system refuses it, as it does for a Mac build signed without a team).
     public convenience init?(bundle: Bundle = .main) {
-        guard let group = bundle.object(forInfoDictionaryKey: Self.groupKey) as? String, !group.isEmpty,
-              let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) else { return nil }
+        guard let url = Self.groupContainer(bundle: bundle) else { return nil }
         self.init(directory: url.appendingPathComponent("Widgets", isDirectory: true))
+    }
+
+    /// The App Group container itself, or nil when the build has none.
+    public static func groupContainer(bundle: Bundle = .main) -> URL? {
+        guard let group = bundle.object(forInfoDictionaryKey: groupKey) as? String, !group.isEmpty else { return nil }
+        return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)
     }
 
     // MARK: - Snapshot

@@ -11,7 +11,7 @@ struct ScanReviewView: View {
     @State private var name: String
     @State private var roomNames: [String: String] = [:]
     @State private var asFloor = false
-    @State private var floorName = "Upstairs"
+    @State private var floorName = ScanReviewView.upstairs
     @State private var confirmReplace = false
     @State private var confirmDiscard = false
     @State private var editAfter = false
@@ -58,7 +58,7 @@ struct ScanReviewView: View {
                     VStack(spacing: 10) {
                         SectionTitle("Name")
                         Card(padding: 16) {
-                            InputField(title: "What do you call it?", text: $name, prompt: controller.homeName, focused: false) {
+                            InputField(title: String(localized: "What do you call it?", comment: "New home: label of the name field"), text: $name, prompt: controller.homeName, focused: false) {
                                 TextField("", text: $name).textInputAutocapitalization(.words).submitLabel(.done)
                             }
                         }
@@ -86,11 +86,12 @@ struct ScanReviewView: View {
                     if !editor.items.isEmpty { devicesSection }
                     if model.hasCustomPlan { destinationSection }
                     VStack(spacing: 10) {
-                        Button { save(edit: false) } label: { Label(asFloor ? "Add the floor" : "Save the home", systemImage: "checkmark") }
+                        Button { save(edit: false) } label: { Label(asFloor ? String(localized: "Add the floor", comment: "Scan review: saves the scan as another floor of the home")
+                                                                             : String(localized: "Save the home", comment: "Scan review: saves the scan as the home"), systemImage: "checkmark") }
                             .buttonStyle(PrimaryButtonStyle())
                         Button { save(edit: true) } label: { Label("Save and fine-tune in the editor", systemImage: "pencil.and.ruler.fill") }
                             .buttonStyle(SecondaryButtonStyle())
-                        Footnote(text: "A scan is a starting point. In the editor, drag walls, furniture and lamps where they really are, and link the lamps you left for later.")
+                        Footnote(text: String(localized: "A scan is a starting point. In the editor, drag walls, furniture and lamps where they really are, and link the lamps you left for later."))
                     }
                 }
                 .padding(.horizontal, 18)
@@ -117,23 +118,36 @@ struct ScanReviewView: View {
             .confirmationDialog("Discard this scan?", isPresented: $confirmDiscard, titleVisibility: .visible) {
                 Button("Discard", role: .destructive) { model.showScan = false }
             }
-            .confirmationDialog("Replace \(model.customPlanName ?? "your home")?", isPresented: $confirmReplace, titleVisibility: .visible) {
+            .confirmationDialog(model.customPlanName.map { String(localized: "Replace \($0)?", comment: "New home: replace the user's own home; the placeholder is its name") }
+                                    ?? String(localized: "Replace your home?"), isPresented: $confirmReplace, titleVisibility: .visible) {
                 Button("Replace", role: .destructive) { commit() }
             } message: {
-                Text(model.macName == nil
-                     ? "The scan becomes this iPhone's home in place of the one there now. That one is kept: Settings → Home → Earlier homes brings it back."
-                     : "The scan becomes this iPhone's home, and \(model.macName ?? "your computer")'s too. The one there now is kept: Settings → Home → Earlier homes brings it back.")
+                Text(replaceMessage)
             }
         }
         .presentationBackground(Theme.background)
     }
 
+    /// The name a new floor gets unless one is typed.
+    static var upstairs: String { String(localized: "Upstairs", comment: "Scan review: default name of a floor added on top of the home") }
+
+    private var replaceMessage: String {
+        guard let mac = model.macName else {
+            return Device.isPad
+                ? String(localized: "The scan becomes this iPad's home in place of the one there now. That one is kept: Settings → Home → Earlier homes brings it back.")
+                : String(localized: "The scan becomes this iPhone's home in place of the one there now. That one is kept: Settings → Home → Earlier homes brings it back.")
+        }
+        return Device.isPad
+            ? String(localized: "The scan becomes this iPad's home, and \(mac)'s too. The one there now is kept: Settings → Home → Earlier homes brings it back.", comment: "The placeholder is the paired computer's name")
+            : String(localized: "The scan becomes this iPhone's home, and \(mac)'s too. The one there now is kept: Settings → Home → Earlier homes brings it back.", comment: "The placeholder is the paired computer's name")
+    }
+
     private var summary: String {
         let furniture = (plan["furniture"] as? [Any])?.count ?? 0
         let devices = editor.items.count
-        var parts = ["\(rooms.count) room\(rooms.count == 1 ? "" : "s")"]
-        if furniture > 0 { parts.append("\(furniture) piece\(furniture == 1 ? "" : "s") of furniture") }
-        if devices > 0 { parts.append("\(devices) device\(devices == 1 ? "" : "s")") }
+        var parts = [String(localized: "\(rooms.count) rooms", comment: "Scan review: how many rooms the scan has")]
+        if furniture > 0 { parts.append(String(localized: "\(furniture) pieces of furniture", comment: "Scan review: how much furniture the scan found")) }
+        if devices > 0 { parts.append(String(localized: "\(devices) devices", comment: "Scan review: how many devices were pinned")) }
         return parts.joined(separator: " · ")
     }
 
@@ -149,7 +163,7 @@ struct ScanReviewView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.name).font(.system(size: 16, weight: .semibold)).foregroundStyle(Theme.text).lineLimit(1)
                             Text([roomNames[item.room] ?? item.roomName,
-                                  item.link.map { ConnectionLook.title($0.service) } ?? "Simulated, link it later"]
+                                  item.link.map { ConnectionLook.title($0.service) } ?? String(localized: "Simulated, link it later", comment: "Scan review: a pinned device not linked yet")]
                                 .joined(separator: " · "))
                                 .font(.system(size: 13.5)).foregroundStyle(Theme.muted).lineLimit(1)
                         }
@@ -175,14 +189,18 @@ struct ScanReviewView: View {
         VStack(spacing: 10) {
             SectionTitle("Save as")
             Card {
-                choice(false, title: "A new home", detail: "In place of \(model.customPlanName ?? "your home")", symbol: "house.fill")
+                choice(false, title: String(localized: "A new home", comment: "Scan review: save the scan as a new home"),
+                       detail: model.customPlanName.map { String(localized: "In place of \($0)", comment: "Scan review: under A new home; the placeholder is the current home's name") }
+                           ?? String(localized: "In place of your home"), symbol: "house.fill")
                 RowDivider()
-                choice(true, title: "Another floor", detail: "Added on top of \(model.customPlanName ?? "your home")", symbol: "square.stack.3d.up.fill")
+                choice(true, title: String(localized: "Another floor", comment: "Scan review: save the scan as a floor of the home"),
+                       detail: model.customPlanName.map { String(localized: "Added on top of \($0)", comment: "Scan review: under Another floor; the placeholder is the current home's name") }
+                           ?? String(localized: "Added on top of your home"), symbol: "square.stack.3d.up.fill")
                 if asFloor {
                     RowDivider()
                     HStack(spacing: 14) {
                         Text("Floor name").font(.system(size: 15)).foregroundStyle(Theme.muted)
-                        TextField("Upstairs", text: $floorName).font(.system(size: 16, weight: .semibold))
+                        TextField(Self.upstairs, text: $floorName).font(.system(size: 16, weight: .semibold))
                             .multilineTextAlignment(.trailing).textInputAutocapitalization(.words)
                     }
                     .padding(.horizontal, 16)
@@ -220,7 +238,7 @@ struct ScanReviewView: View {
 
     private func commit() {
         let floor = floorName.trimmingCharacters(in: .whitespaces)
-        model.saveScan(named, asFloor: model.hasCustomPlan && asFloor ? (floor.isEmpty ? "Upstairs" : floor) : nil, edit: editAfter)
+        model.saveScan(named, asFloor: model.hasCustomPlan && asFloor ? (floor.isEmpty ? Self.upstairs : floor) : nil, edit: editAfter)
     }
 
     static func symbol(for name: String) -> String {

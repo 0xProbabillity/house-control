@@ -80,8 +80,10 @@ struct DevicesView: View {
                         .disabled(!catalog.loaded)
                 }
                 Footnote(text: model.activePlan != "custom"
-                         ? "Linking a device turns this demo into your own home, saved on this iPhone."
-                         : model.macName.map { "Changes are saved at once and reach \($0)." } ?? "Changes are saved at once.")
+                         ? (Device.isPad ? String(localized: "Linking a device turns this demo into your own home, saved on this iPad.")
+                                         : String(localized: "Linking a device turns this demo into your own home, saved on this iPhone."))
+                         : model.macName.map { String(localized: "Changes are saved at once and reach \($0).", comment: "Devices: the placeholder is the paired computer's name") }
+                            ?? String(localized: "Changes are saved at once."))
             }
             .padding(.horizontal, 18)
             .padding(.top, 8)
@@ -108,7 +110,7 @@ struct DevicesView: View {
             .environment(model)
         }
         .sheet(item: $pickingSensor) { item in
-            DevicePicker(title: "\(item.name) · room temperature", kind: "sensor", current: item.sensor,
+            DevicePicker(title: String(localized: "\(item.name) · room temperature", comment: "Title of the thermometer picker of an air conditioner; the placeholder is the AC's name"), kind: "sensor", current: item.sensor,
                          used: editor?.usedDevices ?? [:], catalog: catalog,
                          include: { $0.service != "smartlife" || item.link?.service == "smartlife" }) { device in
                 model.editPlan { $0.setSensor(item.id, to: device?.raw) }
@@ -133,7 +135,9 @@ struct DevicesView: View {
                 IconBadge(symbol: "link", tint: Theme.warm)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Nothing connected yet").font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text)
-                    Text("Connect Smart Life, Home Assistant, Philips Hue or Apple Home in Settings first; their devices then appear here to choose from.")
+                    Text(AppModel.includesSmartLife
+                         ? String(localized: "Connect Smart Life, Home Assistant, Philips Hue, Homebridge or Apple Home in Settings first; their devices then appear here to choose from.")
+                         : String(localized: "Connect Home Assistant, Philips Hue, Homebridge or Apple Home in Settings first; their devices then appear here to choose from."))
                         .font(.system(size: 14)).foregroundStyle(Theme.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -143,7 +147,7 @@ struct DevicesView: View {
 
     private func roomSection(_ room: PlanEditor.Room, _ items: [PlanEditor.Item]) -> some View {
         VStack(spacing: 10) {
-            SectionTitle(room.title)
+            SectionTitle(verbatim: room.title)
             Card {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                     if index > 0 { RowDivider() }
@@ -162,7 +166,7 @@ struct DevicesView: View {
     private func row(_ item: PlanEditor.Item) -> some View {
         let device = catalog.device(item.link)
         return HStack(spacing: 14) {
-            IconBadge(symbol: item.kind == .ac ? "air.conditioner.horizontal.fill" : "lightbulb.fill",
+            IconBadge(symbol: item.kind == .ac ? "air.conditioner.horizontal.fill" : item.outlet ? "powerplug.fill" : "lightbulb.fill",
                       tint: item.link == nil ? Theme.muted : (item.kind == .ac ? Theme.accent : Theme.warm))
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.name).font(.system(size: 16.5, weight: .semibold)).foregroundStyle(Theme.text).lineLimit(1)
@@ -171,11 +175,11 @@ struct DevicesView: View {
                         Image(systemName: ConnectionLook.symbol(link.service))
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(ConnectionLook.tint(link.service))
-                        Text(device?.name ?? (catalog.loaded ? "Not found right now" : ConnectionLook.title(link.service)))
+                        Text(device?.name ?? (catalog.loaded ? String(localized: "Not found right now", comment: "Devices: the linked device is missing from its platform's list") : ConnectionLook.title(link.service)))
                             .foregroundStyle(device == nil && catalog.loaded ? Theme.red : Theme.muted)
-                        if let device, !device.online { Text("· offline").foregroundStyle(Theme.red) }
+                        if let device, !device.online { Text("· offline", comment: "Devices: after a linked device's name").foregroundStyle(Theme.red) }
                     } else {
-                        Text("Simulated").foregroundStyle(Theme.faint)
+                        Text("Simulated", comment: "Devices: a lamp or AC not linked to a real device").foregroundStyle(Theme.faint)
                     }
                 }
                 .font(.system(size: 13.5))
@@ -195,7 +199,8 @@ struct DevicesView: View {
             Image(systemName: "thermometer.medium").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.muted)
             Text("Room temperature").font(.system(size: 14)).foregroundStyle(Theme.muted)
             Spacer(minLength: 8)
-            Text(catalog.device(item.sensor)?.name ?? (item.sensor == nil ? "Estimated" : "Not found right now"))
+            Text(catalog.device(item.sensor)?.name ?? (item.sensor == nil ? String(localized: "Estimated", comment: "Devices: the room temperature has no thermometer and is estimated")
+                                                      : String(localized: "Not found right now", comment: "Devices: the linked device is missing from its platform's list")))
                 .font(.system(size: 14)).foregroundStyle(Theme.faint).lineLimit(1)
             Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.faint)
         }
@@ -227,9 +232,10 @@ struct DevicePicker: View {
         NavigationStack {
             List {
                 Section {
-                    option(nil, name: kind == "sensor" ? "None — estimated" : "Not linked — simulated", detail: nil, symbol: "circle.dashed")
+                    option(nil, name: kind == "sensor" ? String(localized: "None — estimated", comment: "Thermometer picker: no thermometer, the temperature is estimated")
+                                           : String(localized: "Not linked — simulated", comment: "Device picker: no real device"), detail: nil, symbol: "circle.dashed")
                 }
-                ForEach(["smartlife", "homeassistant", "hue", "homekit"], id: \.self) { service in
+                ForEach(["smartlife", "homeassistant", "hue", "homebridge", "homekit"], id: \.self) { service in
                     let list = candidates.filter { $0.service == service }
                     if !list.isEmpty {
                         Section(ConnectionLook.title(service)) {
@@ -241,7 +247,8 @@ struct DevicePicker: View {
                 }
                 if catalog.loaded, candidates.isEmpty {
                     Section {
-                        Text(search.isEmpty ? "None of your connected platforms has a device of this kind." : "Nothing matches “\(search)”.")
+                        Text(search.isEmpty ? String(localized: "None of your connected platforms has a device of this kind.")
+                             : String(localized: "Nothing matches “\(search)”.", comment: "Search found nothing; the placeholder is what was typed"))
                             .foregroundStyle(Theme.muted)
                     }
                 }
@@ -263,8 +270,10 @@ struct DevicePicker: View {
 
     private func detailLine(_ device: RealDevice) -> String? {
         var parts = [device.detail]
-        if !device.online { parts.append("offline") }
-        if let user = used[device.ref], device.ref != current { parts.append("used by \(user)") }
+        if !device.online { parts.append(String(localized: "offline", comment: "Device picker: a device that does not answer, in a list after its room")) }
+        if let user = used[device.ref], device.ref != current {
+            parts.append(String(localized: "used by \(user)", comment: "Device picker: the device is linked already; the placeholder is the lamp or AC of the plan"))
+        }
         let line = parts.filter { !$0.isEmpty }.joined(separator: " · ")
         return line.isEmpty ? nil : line
     }
@@ -333,7 +342,7 @@ struct AddDevicesView: View {
                 ForEach(["light", "ac"], id: \.self) { kind in
                     let list = candidates.filter { $0.kind == kind }
                     if !list.isEmpty {
-                        Section(kind == "ac" ? "Air conditioners" : "Lights and plugs") {
+                        Section(kind == "ac" ? String(localized: "Air conditioners") : String(localized: "Lights and plugs")) {
                             ForEach(list) { device in row(device) }
                         }
                     }
@@ -350,7 +359,8 @@ struct AddDevicesView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(chosen.isEmpty ? "Add" : "Add \(chosen.count)") { add() }
+                    Button(chosen.isEmpty ? String(localized: "Add", comment: "Add devices: button with nothing picked yet")
+                           : String(localized: "Add \(chosen.count)", comment: "Add devices: button; the number of devices picked")) { add() }
                         .fontWeight(.semibold)
                         .disabled(chosen.isEmpty || (room == Self.newRoomTag && newRoom.trimmingCharacters(in: .whitespaces).isEmpty))
                 }
@@ -375,8 +385,9 @@ struct AddDevicesView: View {
                     .contentTransition(.symbolEffect(.replace))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(device.name).foregroundStyle(Theme.text)
-                    Text([ConnectionLook.title(device.service), device.detail, device.online ? nil : "offline",
-                          used[device.ref].map { "in the plan as \($0)" }]
+                    Text([ConnectionLook.title(device.service), device.detail,
+                          device.online ? nil : String(localized: "offline", comment: "Device picker: a device that does not answer, in a list after its room"),
+                          used[device.ref].map { String(localized: "in the plan as \($0)", comment: "Add devices: the device is in the plan already; the placeholder is its name there") }]
                         .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
                         .font(.system(size: 13)).foregroundStyle(Theme.faint).lineLimit(2)
                 }

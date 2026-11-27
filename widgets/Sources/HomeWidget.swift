@@ -127,7 +127,8 @@ struct HomeWidgetView: View {
                 .widgetAccentable(ac.on)
             VStack(alignment: .leading, spacing: 0) {
                 Text(ac.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Palette.text).lineLimit(1)
-                Text(ac.on ? "\(ac.modeName)\(ac.roomText.map { " · room \($0)" } ?? "")" : "Off\(ac.roomText.map { " · room \($0)" } ?? "")")
+                Text(verbatim: (ac.on ? ac.modeName : Words.acOff)
+                     + (ac.roomText.map { " · " + String(localized: "room \($0)", comment: "Widget: the room's temperature after the AC's set-point, e.g. “Cool 23° · room 24.5°”") } ?? ""))
                     .font(.system(size: 11, weight: .medium)).foregroundStyle(Palette.faint).lineLimit(1)
             }
             Spacer(minLength: 4)
@@ -188,7 +189,7 @@ struct HomeWidgetView: View {
                     .widgetAccentable(!on.isEmpty)
                 Text(room.name).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Palette.text).lineLimit(1)
                 Spacer(minLength: 2)
-                Text(on.isEmpty ? "Off" : "\(on.count)/\(lights.count)")
+                Text(on.isEmpty ? Words.lightsOff : "\(on.count)/\(lights.count)")
                     .font(.system(size: 11.5, weight: .medium)).foregroundStyle(on.isEmpty ? Palette.faint : Palette.warm)
             }
             .padding(.horizontal, 10)
@@ -196,6 +197,7 @@ struct HomeWidgetView: View {
             .background(Palette.glass, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(room.name): \(on.isEmpty ? "lights off" : "\(on.count) lights on")")
+        .accessibilityLabel(on.isEmpty ? String(localized: "\(room.name): lights off", comment: "VoiceOver: a room whose lamps are all off; the placeholder is its name")
+                            : room.name + ": " + String(localized: "\(on.count) lights on", comment: "Control Center: how many lamps are on; short"))
     }
 }

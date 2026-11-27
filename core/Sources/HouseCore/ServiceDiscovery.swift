@@ -7,7 +7,7 @@ private final class QueueBox<T>: @unchecked Sendable {
     init(_ value: T) { self.value = value }
 }
 
-/// Finds Home Assistant servers and Hue Bridges on the local network with Bonjour, so
+/// Finds Home Assistant servers, Hue Bridges and Homebridge on the local network with Bonjour, so
 /// connecting one is a click rather than typing an address.
 public enum ServiceDiscovery {
     public struct Found {
@@ -102,5 +102,35 @@ public enum ServiceDiscovery {
             }
         }
         return out
+    }
+
+    /// Homebridge servers: their HomeKit bridges announce themselves (`_hap._tcp` with model
+    /// "homebridge"); the web UI on the same machine is then asked for its name, on its default
+    /// port. `homebridge.local` (the Raspberry Pi image's name) is tried when nothing announces.
+    public static func homebridges() async -> [[String: Any]] {
+        let bridges = await browse("_hap._tcp").filter { ($0.txt["md"] ?? "").lowercased().contains("homebridge") }
+        var hosts: [String] = []
+        for bridge in bridges where !hosts.contains(bridge.host) { hosts.append(bridge.host) }
+        if hosts.isEmpty { hosts = ["homebridge.local"] }
+        var out: [[String: Any]] = []
+        await withTaskGroup(of: [String: Any]?.self) { group in
+            for host in hosts { group.addTask { await homebridgeUI(at: "http://\(host):8581") } }
+            for await found in group { if let found { out.append(found) } }
+        }
+        return out.sorted { ($0["name"] as? String ?? "") < ($1["name"] as? String ?? "") }
+    }
+
+    /// The Homebridge UI at `url`, if one answers there.
+    static func homebridgeUI(at url: String) async -> [String: Any]? {
+        guard let settings = URL(string: url + "/api/auth/settings") else { return nil }
+        var request = URLRequest(url: settings, timeoutInterval: 3)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let env = json["env"] as? [String: Any], env["homebridgeVersion"] != nil else { return nil }
+        let name = (env["homebridgeInstanceName"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "Homebridge"
+        return ["name": name, "url": url, "version": env["homebridgeVersion"] as? String ?? "",
+                "signIn": json["formAuth"] as? Bool ?? true]
     }
 }

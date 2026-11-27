@@ -27,7 +27,9 @@ enum SettingsRoute: Hashable, Identifiable {
     case quickActions
     case homeAssistant
     case hue
+    case homebridge
     case devices
+    case language
 
     var id: Self { self }
 
@@ -37,6 +39,7 @@ enum SettingsRoute: Hashable, Identifiable {
         case "smartlife" where AppModel.includesSmartLife: self = .smartLife
         case "homeassistant": self = .homeAssistant
         case "hue": self = .hue
+        case "homebridge": self = .homebridge
         default: return nil
         }
     }
@@ -90,6 +93,9 @@ final class AppModel {
     // Home Assistant and Hue (shared by the Mac), Apple Home (this phone's own)
     private(set) var homeAssistantName: String?
     private(set) var hueName: String?
+    private(set) var homebridgeName: String?
+    /// Homebridge's session ran out and needs the owner to sign in again (two-factor accounts).
+    private(set) var homebridgeExpired = false
     private(set) var homeKit: HomeKitStatus = .off
     @ObservationIgnored let homeKitService = HomeKitService()
 
@@ -102,6 +108,8 @@ final class AppModel {
     #endif
     private(set) var smartLifeConnected = false
     private(set) var smartLifeAccount = ""
+    /// Smart Life stopped accepting this iPhone's session: it needs a new QR login.
+    private(set) var smartLifeExpired = false
     /// The User Code entered on the Mac, offered here so it need not be typed again.
     private(set) var suggestedUserCode = ""
 
@@ -128,19 +136,24 @@ final class AppModel {
     // Scanning the home with LiDAR (Scan/): the screen, the name the new home gets, and a
     // scan read back from a file to review again (HOUSE_SCAN_FIXTURE).
     var showScan = false
-    var scanName = "My home"
+    var scanName = String(localized: "My home", comment: "Name of the user's own home while it has none")
     @ObservationIgnored var scanReplay: RoomScan?
     #endif
 
     init() {
         let environment = ProcessInfo.processInfo.environment
+        // The device's languages, for "Same as iPhone" once the app has a language of its own.
+        AppLanguage.noteDevice()
         // HOUSE_DATA_DIR (SIMCTL_CHILD_HOUSE_DATA_DIR in the simulator) runs the app on a
         // throw-away folder: nothing goes to the Keychain or the saved panel state.
         let sandboxed = !(environment["HOUSE_DATA_DIR"] ?? "").isEmpty
         let directory = plans.directory
+        // The lock file sits in the App Group, where the widgets find it too.
+        let group = SharedHome.groupContainer()
         func secret(_ name: String) -> SecretStore {
             sandboxed ? FileSecretStore(url: directory.appendingPathComponent("\(name).json"))
-                      : KeychainSecretStore(service: Bundle.main.bundleIdentifier ?? "HouseControl", account: name)
+                      : KeychainSecretStore(service: Bundle.main.bundleIdentifier ?? "HouseControl", account: name,
+                                            lockDirectory: group)
         }
         #if SMART_LIFE
         hub = DeviceHub(directory: directory, secret: secret, homeKit: homeKitService, cloud: SmartLifePlatform.init)
@@ -158,10 +171,19 @@ final class AppModel {
         #if SMART_LIFE
         smartLifeConnected = hub.smartLife?.isSmartLifeConnected ?? false
         smartLifeAccount = hub.smartLife?.account ?? ""
+        smartLifeExpired = hub.smartLife?.isSmartLifeExpired ?? false
         #endif
         lastSync = UserDefaults.standard.object(forKey: "lastSync") as? Date
 
         hub.onStale = { [weak self] in self?.poll() }
+        ACTimerReminders.shared.onSwitchOff = { [weak self] id, state in await self?.switchOffAC(id, state: state) }
+        #if SMART_LIFE
+        hub.smartLife?.onSmartLifeExpiredChange = { [weak self] expired in
+            guard let self, smartLifeExpired != expired else { return }
+            smartLifeExpired = expired
+            editorWeb?.call("servicesChanged", hub.servicesInfo)
+        }
+        #endif
         homeKitService.onCatalogChange = { [weak self] in
             guard let self else { return }
             self.refreshConnections()
@@ -200,7 +222,9 @@ final class AppModel {
         case "quickactions": showSettings = true; settingsPath = [.quickActions]
         case "homeassistant": showSettings = true; settingsPath = [.homeAssistant]
         case "hue": showSettings = true; settingsPath = [.hue]
+        case "homebridge": showSettings = true; settingsPath = [.homebridge]
         case "devices": showSettings = true; settingsPath = [.devices]
+        case "language": showSettings = true; settingsPath = [.language]
         case "editor": showEditor = true; openEditor()
         case "connections": showSettings = true
         case "welcome": showWelcome = true
@@ -285,6 +309,8 @@ final class AppModel {
             hub.command(message) { [weak self] in self?.web.reply(to: message, $0) }
         case "widgets":
             widgets.publish(message)
+        case "timers":
+            ACTimerReminders.shared.update(message["timers"] as? [[String: Any]] ?? [])
         case "haptic":
             Haptics.shared.play(message["kind"] as? String ?? "light")
         case "openSettings":
@@ -328,7 +354,7 @@ final class AppModel {
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         try plans.importPlan(from: url)
         reloadHome()
-        show(Banner(symbol: "checkmark.circle.fill", text: "Floor plan imported", tint: Theme.green))
+        show(Banner(symbol: "checkmark.circle.fill", text: String(localized: "Floor plan imported", comment: "Banner after a floor plan file was imported"), tint: Theme.green))
     }
 
     /// The homes kept before something replaced this phone's one (a scan, the Mac, a file).
@@ -344,9 +370,9 @@ final class AppModel {
             reloadHome()
             sync.sendPlan(data)
             Haptics.shared.play("success")
-            show(Banner(symbol: "clock.arrow.circlepath", text: "\(home.name) is back", tint: Theme.green))
+            show(Banner(symbol: "clock.arrow.circlepath", text: String(localized: "\(home.name) is back", comment: "Banner after an earlier home was brought back; the placeholder is its name"), tint: Theme.green))
         } catch {
-            show(Banner(symbol: "exclamationmark.triangle.fill", text: "Could not bring this home back", tint: Theme.red))
+            show(Banner(symbol: "exclamationmark.triangle.fill", text: String(localized: "Could not bring this home back", comment: "Banner"), tint: Theme.red))
         }
     }
 
@@ -384,7 +410,7 @@ final class AppModel {
         do {
             try savePlan(plan)
         } catch {
-            show(Banner(symbol: "exclamationmark.triangle.fill", text: "Could not create the home", tint: Theme.red))
+            show(Banner(symbol: "exclamationmark.triangle.fill", text: String(localized: "Could not create the home", comment: "Banner"), tint: Theme.red))
             return
         }
         showSettings = false
@@ -443,7 +469,7 @@ final class AppModel {
                 switch homeKit {
                 case .off: connectHomeKit()
                 case .denied: if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
-                default: show(Banner(symbol: "homekit", text: "Apple Home is connected"))
+                default: show(Banner(symbol: "homekit", text: String(localized: "Apple Home is connected", comment: "Banner")))
                 }
             } else {
                 editorSheet = SettingsRoute(service: service)
@@ -480,7 +506,7 @@ final class AppModel {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         guard let data = try? Data(contentsOf: url), let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            web.reply(to: message, ["error": "This file is not a floor plan."])
+            web.reply(to: message, ["error": String(localized: "This file is not a floor plan.", comment: "Error shown in the editor after importing a file")])
             return
         }
         web.reply(to: message, ["config": json])
@@ -511,7 +537,11 @@ final class AppModel {
         case "services.discover":
             let service = message["service"] as? String ?? ""
             Task { @MainActor in
-                let found = service == "hue" ? await ServiceDiscovery.hueBridges() : await ServiceDiscovery.homeAssistants()
+                let found = switch service {
+                case "hue": await ServiceDiscovery.hueBridges()
+                case "homebridge": await ServiceDiscovery.homebridges()
+                default: await ServiceDiscovery.homeAssistants()
+                }
                 reply(["found": found])
             }
         case "homeassistant.connect":
@@ -532,6 +562,18 @@ final class AppModel {
                     } else {
                         reply(["waiting": true])
                     }
+                } catch {
+                    reply(["error": error.localizedDescription])
+                }
+            }
+        case "homebridge.connect":
+            Task { @MainActor in
+                do {
+                    try await connectHomebridge(url: message["url"] as? String ?? "", username: message["username"] as? String ?? "",
+                                                password: message["password"] as? String ?? "", code: message["code"] as? String)
+                    reply(hub.servicesInfo)
+                } catch is HomebridgeService.CodeRequired {
+                    reply(["needsCode": true])
                 } catch {
                     reply(["error": error.localizedDescription])
                 }
@@ -592,7 +634,7 @@ final class AppModel {
         do {
             try savePlan(editor.plan)
         } catch {
-            show(Banner(symbol: "exclamationmark.triangle.fill", text: "Could not save the floor plan", tint: Theme.red))
+            show(Banner(symbol: "exclamationmark.triangle.fill", text: String(localized: "Could not save the floor plan", comment: "Banner"), tint: Theme.red))
         }
     }
 
@@ -611,6 +653,19 @@ final class AppModel {
         web.call("widget", [dict])
         Haptics.shared.play("medium")
         show(Banner(symbol: action.kind == .scene ? "sparkles" : "checkmark.circle.fill", text: title))
+    }
+
+    /// An AC whose timer ran out while the app was away, switched off from its notification.
+    /// The device is told straight away; the panel hears of it as a reported state.
+    private func switchOffAC(_ id: String, state: [String: Any]) async {
+        var full = state
+        full["on"] = false
+        let message: [String: Any] = ["kind": "ac", "id": id, "patch": ["on": false], "state": full]
+        let reply: [String: Any] = await withCheckedContinuation { done in
+            hub.command(message) { done.resume(returning: $0) }
+        }
+        guard reply["error"] == nil else { return }
+        web.call("applyRemote", ["acs": [id: ["on": false]]])
     }
 
     // MARK: - Mac sync
@@ -718,9 +773,10 @@ final class AppModel {
         } else if local == syncedRevision {
             adopt(state)
         } else if let macPlan = state.plan {
-            let theirs = (try? PlanStore.validate(macPlan))?["name"] as? String ?? "Home"
+            let unnamed = String(localized: "Home", comment: "Name of a floor plan that has none (shown in quotes)")
+            let theirs = (try? PlanStore.validate(macPlan))?["name"] as? String ?? unnamed
             planChoice = PlanChoice(macName: state.macName, macPlanName: theirs,
-                                    phonePlanName: plans.customPlanName ?? "Home", macPlan: macPlan)
+                                    phonePlanName: plans.customPlanName ?? unnamed, macPlan: macPlan)
         }
     }
 
@@ -733,7 +789,7 @@ final class AppModel {
         do {
             try plans.saveCustom(data: data, select: first || plans.activePlan == "custom")
         } catch {
-            show(Banner(symbol: "exclamationmark.triangle.fill", text: "Could not save the floor plan", tint: Theme.red))
+            show(Banner(symbol: "exclamationmark.triangle.fill", text: String(localized: "Could not save the floor plan", comment: "Banner"), tint: Theme.red))
             return
         }
         syncedRevision = PlanStore.revision(of: data)
@@ -741,8 +797,9 @@ final class AppModel {
         editorWeb?.call("planArrived", plans.customPlan() ?? [:], state.macName)
         Haptics.shared.play("success")
         show(Banner(symbol: "arrow.triangle.2.circlepath",
-                    text: first ? "\(plans.customPlanName ?? "Your home") arrived from \(state.macName)"
-                                : "Updated from \(state.macName)"))
+                    text: first ? plans.customPlanName.map { String(localized: "\($0) arrived from \(state.macName)", comment: "Banner: the first floor plan came from the paired computer; the placeholders are the home's and the computer's names") }
+                                    ?? String(localized: "Your home arrived from \(state.macName)", comment: "Banner: the first floor plan came from the paired computer; the placeholder is the computer's name")
+                                : String(localized: "Updated from \(state.macName)", comment: "Banner: the floor plan changed on the paired computer; the placeholder is its name")))
     }
 
     /// The answer to a `PlanChoice`.
@@ -751,11 +808,11 @@ final class AppModel {
         planChoice = nil
         if keepPhone {
             if let data = try? Data(contentsOf: plans.customPlanURL), sync.sendPlan(data) {
-                show(Banner(symbol: "arrow.up.circle.fill", text: "Sent to \(choice.macName)"))
+                show(Banner(symbol: "arrow.up.circle.fill", text: String(localized: "Sent to \(choice.macName)", comment: "Banner: this device's floor plan went to the paired computer; the placeholder is its name")))
             } else {
                 // Next time the Mac shows this plan unchanged, ours goes over.
                 syncedRevision = PlanStore.revision(of: choice.macPlan)
-                show(Banner(symbol: "exclamationmark.triangle.fill", text: "\(choice.macName) is not connected; it gets your plan next time",
+                show(Banner(symbol: "exclamationmark.triangle.fill", text: String(localized: "\(choice.macName) is not connected; it gets your plan next time", comment: "Banner; the placeholder is the paired computer's name"),
                             tint: Theme.warm))
             }
         } else {
@@ -767,7 +824,7 @@ final class AppModel {
     // MARK: - Smart Life
 
     /// The User Code of the Smart Life account, for the Mac (empty without Smart Life).
-    private var smartLifeUserCode: String {
+    var smartLifeUserCode: String {
         #if SMART_LIFE
         hub.smartLife?.userCode ?? ""
         #else
@@ -803,12 +860,13 @@ final class AppModel {
         smartLife.signOut()
         smartLifeConnected = false
         smartLifeAccount = ""
+        smartLifeExpired = false
         pollTimer?.invalidate()
         pollTimer = nil
     }
     #endif
 
-    // MARK: - Home Assistant, Hue, Apple Home
+    // MARK: - Home Assistant, Hue, Homebridge, Apple Home
 
     func connectHomeAssistant(url: String, token: String) async throws {
         try await hub.connectHomeAssistant(url: url, token: token)
@@ -826,6 +884,13 @@ final class AppModel {
         connectionsChanged()
         Haptics.shared.play("success")
         return true
+    }
+
+    /// Throws `HomebridgeService.CodeRequired` when the account asks for a two-factor code.
+    func connectHomebridge(url: String, username: String, password: String, code: String?) async throws {
+        try await hub.connectHomebridge(url: url, username: username, password: password, code: code)
+        connectionsChanged()
+        Haptics.shared.play("success")
     }
 
     func disconnect(service: String) {
@@ -848,15 +913,19 @@ final class AppModel {
     /// True when at least one platform's devices can be linked.
     var hasAnyConnection: Bool {
         if case .ready = homeKit { return true }
-        return smartLifeConnected || homeAssistantName != nil || hueName != nil
+        return smartLifeConnected || homeAssistantName != nil || hueName != nil || homebridgeName != nil
     }
     var hueInfo: [String: Any] { hub.hue.info }
+    var homebridgeInfo: [String: Any] { hub.homebridge.info }
 
     private func refreshConnections() {
         let ha = hub.homeAssistant.info
         homeAssistantName = ha["connected"] as? Bool == true ? (ha["name"] as? String ?? "Home Assistant") : nil
         let hue = hub.hue.info
         hueName = hue["connected"] as? Bool == true ? (hue["name"] as? String ?? "Hue Bridge") : nil
+        let homebridge = hub.homebridge.info
+        homebridgeName = homebridge["connected"] as? Bool == true ? (homebridge["name"] as? String ?? "Homebridge") : nil
+        homebridgeExpired = homebridge["expired"] as? Bool == true
         let info = homeKitService.info
         if !homeKitService.isEnabled {
             homeKit = .off

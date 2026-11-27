@@ -18,6 +18,8 @@ final class SettingsModel: ObservableObject {
         let tint: Color
         let detail: String
         let connected: Bool
+        /// Signed in, but the platform no longer takes the sign-in (Smart Life): needs a new login.
+        var expired = false
     }
 
     @Published var openAtLogin: LoginItem.State = .off
@@ -176,23 +178,23 @@ private struct ConnectionsPane: View {
             Section {
                 ForEach(model.connections) { connection in
                     LabeledContent {
-                        Button(connection.connected ? "Manage…" : "Connect…") { model.openConnection(connection.id) }
+                        Button(connection.expired ? "Reconnect…" : connection.connected ? "Manage…" : "Connect…") { model.openConnection(connection.id) }
                     } label: {
                         HStack(spacing: 10) {
                             Badge(symbol: connection.symbol, tint: connection.tint)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(connection.name)
                                 HStack(spacing: 5) {
-                                    Circle().fill(connection.connected ? Color.green : Color.secondary.opacity(0.5))
+                                    Circle().fill(connection.expired ? Color.orange : connection.connected ? Color.green : Color.secondary.opacity(0.5))
                                         .frame(width: 6, height: 6)
-                                    Text(connection.detail).foregroundStyle(.secondary).font(.callout)
+                                    Text(connection.detail).foregroundStyle(connection.expired ? Color.orange : .secondary).font(.callout)
                                 }
                             }
                         }
                     }
                 }
             } footer: {
-                Footnote("Connections are set up in the editor, where you also link each lamp and AC to its real device. Home Assistant and Hue are shared with a paired phone.")
+                Footnote("Connections are set up in the editor, where you also link each lamp and AC to its real device. Home Assistant, Hue and Homebridge are shared with a paired phone.")
             }
         }
     }

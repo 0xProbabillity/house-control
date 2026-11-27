@@ -76,8 +76,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
   <key>NSHumanReadableCopyright</key><string>© 0xProbability. MIT License.</string>
   <key>LSUIElement</key><true/>
-  <key>NSLocalNetworkUsageDescription</key><string>House Control finds your Home Assistant and Hue Bridge on this network, and lets the iPhones you paired find this Mac to receive your floor plan.</string>
-  <key>NSBonjourServices</key><array><string>_housecontrol._tcp</string><string>_hue._tcp</string><string>_home-assistant._tcp</string></array>
+  <key>NSLocalNetworkUsageDescription</key><string>House Control finds your Home Assistant, Hue Bridge and Homebridge on this network, and lets the iPhones you paired find this Mac to receive your floor plan.</string>
+  <key>NSBonjourServices</key><array><string>_housecontrol._tcp</string><string>_hue._tcp</string><string>_home-assistant._tcp</string><string>_hap._tcp</string></array>
   <key>NSHighResolutionCapable</key><true/>
   <key>HouseAppGroup</key><string>$GROUP</string>
   <key>CFBundleURLTypes</key><array><dict>

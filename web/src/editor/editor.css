@@ -121,6 +121,9 @@ html.mode-editor, html.mode-editor body { user-select: none; }
 .p-light.linked circle:not(.halo), .p-light.linked rect { stroke: #6ee7a0; stroke-width: 0.06; }
 .p-light.sel circle:not(.halo), .p-light.sel rect { stroke: #fff; stroke-width: 0.08; }
 .p-light.sel .halo { fill: rgba(255, 255, 255, 0.2); }
+.p-light.outlet rect { fill: #e6e8ee; }
+.p-light.outlet .halo { fill: rgba(230, 232, 238, 0.14); }
+.p-light .pin, .p-light.linked .pin, .p-light.sel .pin { fill: #0a0e1a; stroke: none; }
 
 .p-handle { fill: #6aa6ff; stroke: #fff; vector-effect: non-scaling-stroke; stroke-width: 1.5px; }
 .p-handle.nw, .p-handle.se, .grab.nw, .grab.se { cursor: nwse-resize; }
@@ -565,3 +568,10 @@ html.ios.mode-editor body { background: var(--bg); }
 @media (prefers-reduced-motion: reduce) {
   .p-sheet, .p-modal, .editor.phone .canvas, .p-scrim { transition-duration: 1ms; }
 }
+
+/* A problem with a connection that needs the person (an expired Smart Life sign-in). */
+.notice { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 16px; padding: 14px 16px; border-radius: 14px;
+  background: rgba(255, 92, 72, 0.1); border: 1px solid rgba(255, 110, 90, 0.32); font-size: 12.5px; line-height: 1.45; }
+.notice .icon { color: #ff7a66; margin-top: 1px; }
+.notice b { display: block; margin-bottom: 3px; font-size: 13.5px; color: var(--text, #f3f5fa); }
+.notice span { color: rgba(222, 230, 247, 0.72); }
