@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The web UI's translation keys (web/src/i18n.js): every t('…'), tc('context', '…') and
-// tn(n, '…one', '…other') in web/src, plus the names in the bundled demo plans (shown through
+// tn(n, '…one', '…other') in web/src and the shared plan parser, plus the names in the bundled demo plans (shown through
 // tc('demo', name)), written to web/src/locales/en.keys.json for translators.
 //
 //   node tools/l10n/web-keys.mjs          extract and write en.keys.json
@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SRC = join(ROOT, 'web', 'src');
+const SHARED_CONFIG = join(ROOT, 'web', 'packages', 'visuals', 'src', 'config.js');
 const PLANS = join(ROOT, 'web', 'public', 'plans');
 const LOCALES = join(SRC, 'locales');
 const OUT = join(LOCALES, 'en.keys.json');
@@ -211,8 +212,8 @@ function addKey(key, entry) {
 }
 
 function scanFile(file) {
-  const rel = relative(SRC, file).split('\\').join('/');
-  const where = (tok) => `web/src/${rel}:${tok.line}`;
+  const rel = relative(ROOT, file).split('\\').join('/');
+  const where = (tok) => `${rel}:${tok.line}`;
   const src = readFileSync(file, 'utf8');
   const tokens = tokenize(src).filter((tok) => tok.type !== 'comment');
   // A literal argument: a string, or a template without ${}. Anything else is reported.
@@ -298,6 +299,7 @@ function scanPlans() {
 }
 
 walk(SRC);
+scanFile(SHARED_CONFIG);
 scanPlans();
 
 const placeholders = (s) => [...String(s).matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();

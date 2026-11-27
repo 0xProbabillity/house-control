@@ -414,15 +414,15 @@
   },
   {
     "key": "A light is missing an \"id\"",
-    "at": "web/src/config.js:162"
+    "at": "web/packages/visuals/src/config.js:128"
   },
   {
     "key": "A room is missing an \"id\"",
-    "at": "web/src/config.js:141"
+    "at": "web/packages/visuals/src/config.js:107"
   },
   {
     "key": "A scene is missing an \"id\"",
-    "at": "web/src/config.js:187"
+    "at": "web/packages/visuals/src/config.js:153"
   },
   {
     "key": "A tap turns on the lights set to On; the next tap, while any of them is on, turns them off again.",
@@ -439,14 +439,14 @@
   },
   {
     "key": "AC \"{id}\" needs \"pos\": [x, z]",
-    "at": "web/src/config.js:181",
+    "at": "web/packages/visuals/src/config.js:147",
     "placeholders": [
       "id"
     ]
   },
   {
     "key": "AC \"{id}\" needs \"wall\": one of {walls}",
-    "at": "web/src/config.js:182",
+    "at": "web/packages/visuals/src/config.js:148",
     "placeholders": [
       "id",
       "walls"
@@ -454,7 +454,7 @@
   },
   {
     "key": "AC \"{id}\" refers to unknown room \"{room}\"",
-    "at": "web/src/config.js:180",
+    "at": "web/packages/visuals/src/config.js:146",
     "placeholders": [
       "id",
       "room"
@@ -668,7 +668,7 @@
   },
   {
     "key": "An AC is missing an \"id\"",
-    "at": "web/src/config.js:179"
+    "at": "web/packages/visuals/src/config.js:145"
   },
   {
     "key": "An AI assistant has access — click to manage",
@@ -1322,14 +1322,14 @@
   },
   {
     "key": "Duplicate floor id \"{id}\"",
-    "at": "web/src/config.js:125",
+    "at": "web/packages/visuals/src/config.js:91",
     "placeholders": [
       "id"
     ]
   },
   {
     "key": "Duplicate id \"{id}\"",
-    "at": "web/src/config.js:117",
+    "at": "web/packages/visuals/src/config.js:83",
     "placeholders": [
       "id"
     ]
@@ -1533,7 +1533,7 @@
   },
   {
     "key": "Furniture #{n} is on unknown floor \"{floor}\"",
-    "at": "web/src/config.js:192",
+    "at": "web/packages/visuals/src/config.js:158",
     "placeholders": [
       "floor",
       "n"
@@ -1549,7 +1549,7 @@
   },
   {
     "key": "Ground floor",
-    "at": "web/src/config.js:66"
+    "at": "web/src/editor/editor.js:29"
   },
   {
     "key": "Head, m",
@@ -1566,7 +1566,7 @@
   },
   {
     "key": "Home",
-    "at": "web/src/config.js:212",
+    "at": "web/src/editor/editor.js:103",
     "note": "The person's home (also the default name of a new plan)."
   },
   {
@@ -1768,7 +1768,7 @@
   },
   {
     "key": "Light \"{id}\" has unknown type \"{type}\" (use {types})",
-    "at": "web/src/config.js:164",
+    "at": "web/packages/visuals/src/config.js:130",
     "placeholders": [
       "id",
       "type",
@@ -1777,14 +1777,14 @@
   },
   {
     "key": "Light \"{id}\" needs \"pos\": [x, z]",
-    "at": "web/src/config.js:165",
+    "at": "web/packages/visuals/src/config.js:131",
     "placeholders": [
       "id"
     ]
   },
   {
     "key": "Light \"{id}\" refers to unknown room \"{room}\"",
-    "at": "web/src/config.js:163",
+    "at": "web/packages/visuals/src/config.js:129",
     "placeholders": [
       "id",
       "room"
@@ -2100,7 +2100,7 @@
   },
   {
     "key": "Opening #{n} is on unknown floor \"{floor}\"",
-    "at": "web/src/config.js:155",
+    "at": "web/packages/visuals/src/config.js:121",
     "placeholders": [
       "floor",
       "n"
@@ -2108,14 +2108,14 @@
   },
   {
     "key": "Opening #{n} must be axis-aligned",
-    "at": "web/src/config.js:154",
+    "at": "web/packages/visuals/src/config.js:120",
     "placeholders": [
       "n"
     ]
   },
   {
     "key": "Opening #{n} needs \"from\" and \"to\" points",
-    "at": "web/src/config.js:153",
+    "at": "web/packages/visuals/src/config.js:119",
     "placeholders": [
       "n"
     ]
@@ -2212,7 +2212,7 @@
   },
   {
     "key": "Plan \"{plan}\" is not valid JSON: {error}",
-    "at": "web/src/config.js:95",
+    "at": "web/src/config.js:41",
     "placeholders": [
       "error",
       "plan"
@@ -2220,7 +2220,7 @@
   },
   {
     "key": "Plan \"{plan}\" not found (HTTP {status})",
-    "at": "web/src/config.js:90",
+    "at": "web/src/config.js:36",
     "placeholders": [
       "plan",
       "status"
@@ -2236,11 +2236,11 @@
   },
   {
     "key": "Plan must be a JSON object",
-    "at": "web/src/config.js:111"
+    "at": "web/packages/visuals/src/config.js:77"
   },
   {
     "key": "Plan needs at least one room in \"rooms\"",
-    "at": "web/src/config.js:112"
+    "at": "web/packages/visuals/src/config.js:78"
   },
   {
     "key": "Plant",
@@ -2331,14 +2331,14 @@
   },
   {
     "key": "Room \"{id}\" has an empty rect",
-    "at": "web/src/config.js:145",
+    "at": "web/packages/visuals/src/config.js:111",
     "placeholders": [
       "id"
     ]
   },
   {
     "key": "Room \"{id}\" is on unknown floor \"{floor}\"",
-    "at": "web/src/config.js:146",
+    "at": "web/packages/visuals/src/config.js:112",
     "placeholders": [
       "floor",
       "id"
@@ -2346,7 +2346,7 @@
   },
   {
     "key": "Room \"{id}\" needs \"rect\": [x, z, width, depth]",
-    "at": "web/src/config.js:143",
+    "at": "web/packages/visuals/src/config.js:109",
     "placeholders": [
       "id"
     ]

@@ -22,15 +22,15 @@
 // The language comes from the native app (__HOUSE_BOOT__.lang), which knows what the user
 // chose; in a browser ?lang=de or the browser's own language picks it.
 
-import ja from './locales/ja.json';
-import fr from './locales/fr.json';
-import es from './locales/es.json';
-import de from './locales/de.json';
-import it from './locales/it.json';
-import el from './locales/el.json';
-import tr from './locales/tr.json';
-import zhHant from './locales/zh-Hant.json';
-import ru from './locales/ru.json';
+import ja from './locales/ja.json' with { type: 'json' };
+import fr from './locales/fr.json' with { type: 'json' };
+import es from './locales/es.json' with { type: 'json' };
+import de from './locales/de.json' with { type: 'json' };
+import it from './locales/it.json' with { type: 'json' };
+import el from './locales/el.json' with { type: 'json' };
+import tr from './locales/tr.json' with { type: 'json' };
+import zhHant from './locales/zh-Hant.json' with { type: 'json' };
+import ru from './locales/ru.json' with { type: 'json' };
 
 const DICTIONARIES = { ja, fr, es, de, it, el, tr, 'zh-Hant': zhHant, ru };
 export const LANGUAGES = ['en', 'ja', 'fr', 'es', 'de', 'it', 'el', 'tr', 'zh-Hant', 'ru'];
